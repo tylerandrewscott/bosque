@@ -1,0 +1,5659 @@
+
+R version 3.3.1 (2016-06-21) -- "Bug in Your Hair"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> remote  = TRUE
+> library(RCurl)
+Loading required package: bitops
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(data.table)
+------------------------------------------------------------------------------
+data.table + dplyr code now lives in dtplyr.
+Please library(dtplyr)!
+------------------------------------------------------------------------------
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, last
+
+> library(tidyr)
+
+Attaching package: ‘tidyr’
+
+The following object is masked from ‘package:RCurl’:
+
+    complete
+
+> library(lubridate)
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:data.table’:
+
+    hour, mday, month, quarter, wday, week, yday, year
+
+The following object is masked from ‘package:base’:
+
+    date
+
+> library(rjson)
+> library(knitr)
+> 
+> library(httr)
+> if(remote)
++ {echo_viols  = fread('../../Input/epa_echo/echo_query_8-25-16.csv',stringsAsFactors = F)}
+> if(!remote)
++ {echo_viols  = fread('Input/epa_echo/echo_query_8-25-16.csv',stringsAsFactors = F)}
+> echo_viols[(matrix(rep(grepl('^vio',colnames(echo_viols)),each=nrow(echo_viols)),byrow = F,ncol=ncol(echo_viols)) & is.na(echo_viols))] = 0
+> echo_viols$ifea[is.na(echo_viols$ifea)] = 0
+> echo_viols$feas[is.na(echo_viols$feas)] = 0
+> link_base = "https://ofmpub.epa.gov/echo/dfr_rest_services.get_sdwis_compliance?output=json&p_id="
+> echo_viols = echo_viols %>% filter(owner_desc == 'Local government')
+> 
+> status_code = list()
+> query_list = list()
+> system_list = list()
+> 
+> for (sys in unique(echo_viols$pwsid))
++ {
++   print(sys)
++   url <- paste0(link_base,sys)
++   try(req <- httr::GET(url))
++   status_code <- append(status_code,req$status_code)
++   if(req$status_code==200)
++   {
++     json <- httr::content(req, as = "text")
++     comp_data = fromJSON(json)
++     query_list <<- append(query_list,comp_data)
++   }
++   else{query_list <<- append(query_list,'Error')}
++   system_list <- append(system_list,sys)
++   Sys.sleep(time=10)
++ }
+[1] "TX0010001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010046"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0010047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0020001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030094"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0030102"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0040002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0040015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0040042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0040059"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0050015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0060001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0060002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0070023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080041"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080043"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0080045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0090001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0090011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0100011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0100012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0100013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0100016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0100062"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0100072"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0110049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0120001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0120004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0130001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0130003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0130013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0130066"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140076"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140105"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140116"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140118"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140161"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140162"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0140174"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150068"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150072"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150082"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150084"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150092"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150106"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150138"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150178"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150216"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150350"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150399"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150492"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150497"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0150545"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0160001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0160002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0160013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0170010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0180071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0190093"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200070"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200125"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200230"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200386"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200407"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200411"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200412"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200497"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200510"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200555"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200560"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200578"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200610"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200612"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200615"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200645"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200663"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0200706"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0210001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0210002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0210005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0210016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0220001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0220013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0220035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0230001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0230002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0230004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0230005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0240001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0240011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0250019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0260028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0270099"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0280024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290065"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0290071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0300001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0300002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0300003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0300005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0300015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310059"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310094"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310096"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310147"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0310150"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0320001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0320002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0320011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0320019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0330001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0330002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0330003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0330004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340041"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340066"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0340068"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0350001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0350002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0350003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0360001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0360002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0360017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0360030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0360104"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0360112"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370051"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370053"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370054"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0370056"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0380019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0390021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0400001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0400002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0400012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0410001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0410002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0410017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0420001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0420002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0420034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430041"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430043"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430051"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430053"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430054"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430057"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0430070"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0440001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0440002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0440016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0440018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0450069"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460095"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460158"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460205"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460208"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460214"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460239"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0460265"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0470001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0470002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0470003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0470015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0470027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0470028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0480001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0480011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0480012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0480015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0490049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500041"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0500044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0510001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0510004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0520001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0530012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0540001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0540002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0540003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0540015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0540017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0550001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0560001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0560002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570056"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570057"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570059"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570061"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570082"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570085"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570098"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0570176"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0580001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0580011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0580013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0580025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0590001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0590002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0600001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0600012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0600017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0600018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610065"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610080"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610081"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610085"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610091"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610094"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610113"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610119"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610187"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610199"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610200"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610213"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610228"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610235"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610244"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610252"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610253"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610254"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610256"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610258"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610259"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610261"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610264"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0610273"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0620001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0620002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0620003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0620004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0630001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0630011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0630012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0630013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0640002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0640011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0640012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0640022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0640028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0640029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0650001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0650002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0650004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0650013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0650014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0660001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0660002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0660003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0660014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0660015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0660017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0670033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0680002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0680012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0680214"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0690011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0690012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700043"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0700067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710091"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710095"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710154"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710178"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0710186"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0720045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0730021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0740051"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0750039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0760001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0760002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0760012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0760013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0770001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0770002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0780001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0780013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0780014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790051"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790112"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790130"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790132"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790133"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790137"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790146"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790155"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790158"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790174"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790189"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790199"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790200"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790207"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790216"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790220"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790229"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790230"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790237"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790252"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790253"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790254"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790256"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790262"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790267"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790268"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790274"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790277"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790291"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790292"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790296"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790297"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790298"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790306"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790307"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790309"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790315"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790316"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790317"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790323"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790324"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790325"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790332"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790343"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790344"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790345"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790347"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790354"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790356"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790366"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790367"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790368"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790371"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790373"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790375"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790376"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790382"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790386"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790387"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790393"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790403"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790410"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790412"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790416"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790422"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790428"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790429"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790430"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790433"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790435"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790437"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790438"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790440"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790443"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790444"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790445"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790446"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790449"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790450"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790452"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790455"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790458"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790459"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790466"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790468"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790470"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790472"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790474"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790477"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790478"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790479"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790481"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790482"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790486"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790487"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790488"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790489"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790493"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790494"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790495"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790498"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790500"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790502"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790511"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790517"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790520"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790521"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790522"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790533"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790541"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790550"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0790562"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0800001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0800003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0800012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0800016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0810031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0820001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0820002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0820012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0820016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0830001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0830011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0830012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0840153"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0850001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0860001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0860104"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0860106"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0870011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0880001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0880010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0880011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0880012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0890001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0890002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0890003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0890004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0890006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0900001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0900002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0900003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0900041"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910046"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910060"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910081"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910137"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910146"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0910148"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0920040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0930001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0930003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0930023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0930048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0930049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0930054"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940091"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940094"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0940096"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950059"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0950065"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0960019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0970001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0970002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0980001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0980003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0980004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX0990044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1000055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010056"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010062"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010082"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010087"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010106"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010113"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010117"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010118"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010124"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010148"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010152"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010159"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010172"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010188"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010196"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010201"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010205"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010207"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010209"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010210"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010214"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010226"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010233"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010235"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010237"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010238"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010239"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010241"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010244"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010249"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010260"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010261"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010274"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010277"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010278"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010279"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010292"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010293"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010294"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010298"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010317"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010331"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010337"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010340"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010348"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010355"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010357"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010359"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010362"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010365"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010378"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010379"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010384"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010386"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010387"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010388"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010389"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010390"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010413"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010418"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010419"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010422"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010426"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010429"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010430"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010431"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010432"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010435"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010439"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010440"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010447"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010467"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010471"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010480"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010482"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010494"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010495"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010496"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010500"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010501"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010503"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010507"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010509"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010512"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010536"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010538"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010539"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010540"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010541"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010545"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010548"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010554"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010565"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010572"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010581"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010590"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010592"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010593"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010599"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010600"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010615"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010616"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010617"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010620"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010625"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010626"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010629"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010630"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010631"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010632"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010634"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010635"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010649"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010654"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010678"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010684"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010687"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010712"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010715"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010718"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010719"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010720"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010721"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010728"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010745"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010750"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010758"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010767"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010768"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010769"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010774"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010782"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010872"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010883"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010884"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010887"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010896"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010897"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010901"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010902"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010903"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010905"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010910"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010916"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010919"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010923"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010924"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010925"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010938"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1010978"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011101"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011107"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011143"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011162"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011184"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011209"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011219"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011226"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011227"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011236"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011237"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011238"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011242"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011243"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011249"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011250"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011252"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011256"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011258"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011296"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011410"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011430"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011462"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011513"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011521"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011522"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011528"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011534"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011550"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011552"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011567"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011585"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011593"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011594"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011599"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011600"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011602"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011603"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011612"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011613"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011642"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011649"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011678"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011679"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011681"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011685"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011689"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011690"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011692"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011704"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011705"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011718"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011737"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011741"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011742"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011744"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011745"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011746"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011766"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011778"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011781"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011783"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011785"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011798"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011799"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011809"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011812"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011823"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011824"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011825"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011826"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011833"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011834"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011839"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011845"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011848"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011870"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011872"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011901"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011902"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011908"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011911"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011914"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011927"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011928"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011929"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011930"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011981"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011982"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011983"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011991"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011996"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1011998"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012000"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012068"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012082"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012097"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012133"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012145"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012187"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012213"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012214"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012227"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012228"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012229"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012238"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012264"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012276"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012281"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012285"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012293"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012297"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012315"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012330"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012350"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012351"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012354"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012356"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012361"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012362"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012367"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012370"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012378"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012391"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012392"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012397"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012408"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012419"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012498"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012532"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012542"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012577"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012677"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012698"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012704"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012740"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012766"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012768"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012794"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012795"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012804"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012812"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012835"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012842"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012848"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012858"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012865"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012866"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012877"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012897"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012904"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012913"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012917"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012941"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012942"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012951"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012953"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012962"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012965"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012970"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012971"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012972"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012973"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012974"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012981"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012985"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1012987"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013054"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013074"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013077"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013092"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013107"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013113"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013114"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013123"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013132"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013135"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013141"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013147"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013156"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013160"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013175"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013178"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013181"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013205"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013213"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013253"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013258"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013261"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013265"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013289"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013294"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013295"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013298"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013303"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013305"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013306"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013310"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013321"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013327"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013329"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013335"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013338"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013343"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013346"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013350"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013354"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013356"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013360"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013362"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013365"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013369"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013372"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013373"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013375"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013376"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013378"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013385"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013387"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013390"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013399"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013400"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013403"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013404"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013429"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013448"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013449"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013450"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013494"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013511"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013526"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013530"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013532"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1013586"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020054"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020074"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020077"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020081"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1020088"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1030010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1030011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1040022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050075"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050081"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050120"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050128"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050132"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050135"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050137"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050148"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050149"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050154"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050157"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1050175"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1060001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070119"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070121"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070150"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070167"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070190"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070200"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070205"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070228"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070234"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070238"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070239"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070240"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070241"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070242"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070243"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070248"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070251"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070252"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1070254"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080088"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080213"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080234"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1080235"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090041"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090068"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1090070"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1100030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1110037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1120021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1130039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1140001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1140002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1140011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1140030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1150001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1150005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1150007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160062"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1160089"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1170001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1170003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1170004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1170018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1180001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1180002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1190001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1190002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1200001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1200002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1200003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1200004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1200013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1200022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210060"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1210064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1220001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1220002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1230086"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1240001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1250001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1250002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1250003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1250030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1260039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1270001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1270002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1270003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1270005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1270006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1270007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1280001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1280002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1280003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1280004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1280007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290043"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290046"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1290053"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1300001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1300002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1300044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1300048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1310001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1320001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1330001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1330025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1330046"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1330085"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1330145"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1330169"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1340001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1340019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1350001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1360001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1360002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1360003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1370001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1370006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1370032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1370035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1380012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1390015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1400027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1410001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1410028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1420001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1420002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1420006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1420007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1430001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1430002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1430003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1440001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1440002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1440003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1440005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1440006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1450031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460092"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1460140"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1470031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1480001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1480002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1480003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1480004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1490001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1490002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1490029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1500126"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1510001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520056"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1520269"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1530001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1530002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1530003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1530004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1530005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1540001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1540002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1540003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1540004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550059"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550061"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550074"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550081"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550088"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550096"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550132"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1550134"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1560001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1560002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1570001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1570003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1570004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1570018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1580001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1580003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1580006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1580064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1580065"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1580066"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1590001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1590002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1600001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610086"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1610087"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1620001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1620003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1630046"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1640001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1650001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1650133"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1660015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1670001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1670002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1680001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1680002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1680003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1690023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700060"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700065"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700068"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700073"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700080"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700083"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700087"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700090"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700097"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700101"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700110"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700112"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700115"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700116"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700118"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700119"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700131"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700133"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700139"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700140"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700142"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700143"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700149"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700150"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700152"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700153"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700156"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700160"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700164"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700169"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700176"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700178"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700197"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700207"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700220"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700228"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700237"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700238"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700245"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700269"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700283"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700286"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700291"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700304"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700307"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700308"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700309"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700317"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700318"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700319"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700320"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700332"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700334"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700348"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700378"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700382"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700389"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700410"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700447"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700458"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700470"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700471"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700488"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700489"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700507"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700546"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700554"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700578"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700581"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700589"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700592"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700616"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700642"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700713"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700716"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700717"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700743"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700746"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700749"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700752"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700753"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700757"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700762"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700770"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700773"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700776"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700779"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700796"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700829"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700833"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700837"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700859"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700860"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1700866"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1710001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1710002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1710003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1710021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1720001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1720003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1720004"
+[1] "TX1720005"
+[1] "TX1720013"
+Error in curl::curl_fetch_memory(url, handle = handle) : 
+  Failure when receiving data from the peer
+[1] "TX1730001"
+Error in curl::curl_fetch_memory(url, handle = handle) : 
+  Failure when receiving data from the peer
+[1] "TX1730002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740014"
+Error in curl::curl_fetch_memory(url, handle = handle) : 
+  Failure when receiving data from the peer
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1740029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1750032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1760023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1770001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1770002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1770003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1770007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1780052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1790001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1790002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1790003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1800001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1800003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1800004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810139"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810144"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810175"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1810186"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820069"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820076"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1820080"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1830030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840079"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840086"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840087"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840088"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840089"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840091"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840096"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840103"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840126"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840146"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1840164"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1850001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1850002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1850003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1850023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1860001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1860002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1860004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1860026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1860029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870068"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870076"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870089"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870093"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870094"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870105"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870123"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870125"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870126"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870129"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870144"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1870165"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1880001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1880002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1890001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1890002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1890011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1900001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1900004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1900009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1900011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1900015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1910001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1910006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1910009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1910024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1920001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1920007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1930001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1930002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1930007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1930015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1940008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1950001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1950002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1950004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1950006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1960001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1960003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1960004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1960006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1960007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1970002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1970003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1980013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1990001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1990002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1990004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1990006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1990010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX1990014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2000001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2000002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2000003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2000004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2000005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010030"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010049"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010058"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010062"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2010067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020067"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2020070"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2030001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2030002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2030003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2030004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2030007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2030034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040051"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2040058"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050070"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2050078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2060001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2060002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2060003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2060004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2060012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2070001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2080001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2080002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2080003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2080004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2080022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2090001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2090002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2090005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2100034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2110001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2110002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120099"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120100"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2120105"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2130001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2130042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2140029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2150001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2150007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2160001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2170001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2170002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2180001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2190001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2190002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2190003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200031"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200034"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200043"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200048"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200054"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200060"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200066"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200069"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200071"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200075"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200078"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200079"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200081"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200096"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200105"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200115"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200131"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200199"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200310"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200328"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2200350"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2210024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2220002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2230001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2230002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2230003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2240001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2250001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2250002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2250003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2250004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2250024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2260001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2260003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2260004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2260052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2260101"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270042"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270044"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270083"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270092"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270112"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270126"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270172"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270182"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270191"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270207"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270226"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270227"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270229"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270231"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270235"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270241"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270242"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270252"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270264"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270308"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270309"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270312"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270313"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270316"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270324"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270325"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270333"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270352"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270353"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270355"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270371"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270373"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270379"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270380"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270382"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2270403"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2280036"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2290037"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2300033"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2310001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2310002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2310027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2310028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320032"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2320045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2330001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2330003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2330013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2330021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340019"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340045"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2340050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2350001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2350002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2350004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2350006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360014"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360024"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360035"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360040"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360058"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360069"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2360074"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370047"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370063"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370085"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370089"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2370093"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2380028"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2390001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2390002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2390003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2390005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2390055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2400001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2400003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2400006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2400022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2400025"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2400029"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410052"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2410055"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2420001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2420002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2420004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2420006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2430012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2440009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2450001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2450003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2450004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2450006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460012"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460013"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460027"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460038"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460050"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460061"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460110"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460120"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460128"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460139"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460145"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460152"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460155"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460157"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460159"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460160"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460164"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460165"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2460166"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470009"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470021"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2470026"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2480001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2480002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490011"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490017"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2490064"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500010"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500015"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500016"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500018"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500020"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2500039"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2510001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2510002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2520001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2520002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2520003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2520006"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2520007"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2520008"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2530002"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2530003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2530004"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2530022"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2530023"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2540001"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2540003"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2540005"
+No encoding supplied: defaulting to UTF-8.
+[1] "TX2540009"
+No encoding supplied: defaulting to UTF-8.
+> 
+> 
+> save.image('echo_query_api_results.RData')
+> 

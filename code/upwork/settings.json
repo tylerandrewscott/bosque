@@ -1,0 +1,28 @@
+{
+    "Project Name": "Districts",
+    "Proxies": [],
+    "Check Proxies": false,
+    "Headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:51.0) Gecko/20100101 Firefox/51.0"
+    },
+    "URL": "http://www14.tceq.texas.gov/iwud/reports/index.cfm?RequestTimeout=1000&fuseaction=RunDistrictInformationReport",
+    "hURL": "http://www14.tceq.texas.gov/iwud/reports/index.cfm?RequestTimeout=1000&fuseaction=RunDistrictInformationReport",
+    "Gather": {
+        "Email": false,
+        "Links": false
+    },
+    "Allow": {
+        "Images": false,
+        "Javascript": false
+    },
+    "Logging": {
+        "Filename": "info.log",
+        "On Screen": true,
+        "Verbose": false
+    },
+    "Spreadsheet":{
+        "Name": false,
+        "Headers": false
+    }
+    
+}
