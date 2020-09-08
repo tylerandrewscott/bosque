@@ -80,7 +80,7 @@ owner_df$Average_Daily_Consump_MGD[!is.na(owner_df$Average_Daily_Consump_MGD)&ow
 #     data.frame(PWS_ID = str_extract(quers[x],'TX[0-9]{1,}'),owner_type = own,stringsAsFactors = F)}})
 # owner_df = rbind(owner_df,do.call(rbind,extra))
 
-saveRDS(owner_df,paste0(scratch_loc,paste0('scratch/pws_details_',Sys.Date(),'.RDS')))
+saveRDS(owner_df,paste0(paste0('scratch/pws_details_',Sys.Date(),'.RDS')))
 
 
 

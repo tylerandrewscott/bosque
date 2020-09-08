@@ -6,7 +6,7 @@ library(tidyverse)
 library(stringr)
 library(stringi)
 #empty_df = read_csv('test.csv')
-library(slackr)
+
 library(lubridate)
 #slackr_setup(config_file = '../proj3/.slackr')
 
@@ -45,7 +45,7 @@ library(magrittr)
 
 system_operators_table_list = mclapply(data_sheet_urls,function(x) 
   gsub(' ','',paste0(prefix,x)) %>% read_html() %>% rvest::html_node(operator_css_selector) %>% 
-    html_table() %>% mutate(System = str_extract(x,'TX[0-9]{7}')),mc.cores=4,mc.cleanup=T)
+    html_table() %>% mutate(System = str_extract(x,'TX[0-9]{7}')),mc.cores=2,mc.cleanup=T)
 
 
  system_operators_df = do.call(rbind,system_operators_table_list[!sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
