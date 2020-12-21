@@ -16,12 +16,13 @@ prefix = 'https://dww2.tceq.texas.gov/DWW/JSP/'
 page_links = base_site %>% read_html() %>% html_nodes('a') 
 data_sheet_urls = page_links[grepl('Summary',page_links %>% html_text(trim=T))] %>% html_attr('href')
 
+
 temp = do.call(rbind,mclapply(data_sheet_urls,function(x) 
 {temp_tds =  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% html_nodes('td');
 data.frame(System = str_extract(x,'TX[0-9]{7}'),
            Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
            NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))},
-mc.cores=4,mc.cleanup=T))
+mc.cores=2,mc.cleanup=T))
 
 poc = temp %>% mutate(
                 Position = stri_replace_all_regex(Position,"\n|\t|\r|&nbsp",""),

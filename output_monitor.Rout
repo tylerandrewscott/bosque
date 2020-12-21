@@ -1,0 +1,61 @@
+
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> #$ sudo docker run -d -p 4445:4444 selenium/standalone-firefox:2.53.0
+> #$ sudo docker ps
+> library(parallel)
+> library(rvest)
+Loading required package: xml2
+> library(tidyverse)
+── [1mAttaching packages[22m ─────────────────────────────────────── tidyverse 1.3.0 ──
+[32m✓[39m [34mggplot2[39m 3.3.2     [32m✓[39m [34mpurrr  [39m 0.3.4
+[32m✓[39m [34mtibble [39m 3.0.4     [32m✓[39m [34mdplyr  [39m 1.0.2
+[32m✓[39m [34mtidyr  [39m 1.1.1     [32m✓[39m [34mstringr[39m 1.4.0
+[32m✓[39m [34mreadr  [39m 1.3.1     [32m✓[39m [34mforcats[39m 0.5.0
+── [1mConflicts[22m ────────────────────────────────────────── tidyverse_conflicts() ──
+[31mx[39m [34mdplyr[39m::[32mfilter()[39m         masks [34mstats[39m::filter()
+[31mx[39m [34mreadr[39m::[32mguess_encoding()[39m masks [34mrvest[39m::guess_encoding()
+[31mx[39m [34mdplyr[39m::[32mlag()[39m            masks [34mstats[39m::lag()
+[31mx[39m [34mpurrr[39m::[32mpluck()[39m          masks [34mrvest[39m::pluck()
+> library(stringr)
+> library(stringi)
+> #empty_df = read_csv('test.csv')
+> 
+> library(lubridate)
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+> #slackr_setup(config_file = '../proj3/.slackr')
+> 
+> base_site = 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=C&SourceWaterType=All&SampleType=null&begin_date=4%2F19%2F2015&end_date=4%2F19%2F2017&action=Search+For+Water+Systems'
+> #length(system_summary_urls)
+> prefix = 'https://dww2.tceq.texas.gov/DWW/JSP/'
+> page_links = base_site %>% read_html() %>% html_nodes('a') 
+> data_sheet_urls = page_links[grepl('Summary',page_links %>% html_text(trim=T))] %>% html_attr('href')
+> 
+> temp = do.call(rbind,mclapply(data_sheet_urls,function(x) 
++ {temp_tds =  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% html_nodes('td');
++ data.frame(System = str_extract(x,'TX[0-9]{7}'),
++            Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
++            NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))},
++ mc.cores=4,mc.cleanup=T))
