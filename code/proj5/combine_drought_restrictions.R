@@ -15,7 +15,7 @@ old_restrictions = pblapply(old_page,function(p) {print(p);
   if(any(colnames(tdf)=='Date Notified')){tdf = tdf %>% rename(Notified = `Date Notified`)}
   if(any(colnames(tdf)=='Last Updated')){tdf = tdf %>% rename(Notified = `Last Updated`)}
   tdf
-},cl = 16)
+},cl = 1)
 
 old_restrictions <- lapply(seq_along(old_restrictions),function(x) old_restrictions[[x]] %>% 
                              mutate(file = old_page[x]))
@@ -39,3 +39,5 @@ rest_all = plyr::rbind.fill(rest_df,rest_df2)
 rest_all = rest_all %>% rename(PWS_ID = `PWS ID`,PWS_NAME = `PWS Name`)
 
 write_csv(x = rest_all,path = 'input/combined_drought_records.csv')
+
+
