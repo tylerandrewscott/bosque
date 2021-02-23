@@ -19,7 +19,7 @@ library(rgeos)
 require(spdep)
 #setwd('../../')
 not_district = '0000000'
-tx_query = "https://usdmdataservices.unl.edu/api/StateStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=48&startdate=1/1/2000&enddate=1/1/2019&statisticsType=2/json"
+tx_query = "https://usdmdataservices.unl.edu/api/StateStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=48&startdate=1/1/2000&enddate=12/28/2020&statisticsType=2/json"
 library(jsonlite)
 start_year = 2010
 tx_dsci = fromJSON(tx_query)
@@ -66,7 +66,7 @@ tx_tracts = tigris::tracts(state = 'TX',class='sf',year = 2010)
 tx_tracts = st_transform(tx_tracts,st_crs(albersNA))
 tx_tracts = st_make_valid(tx_tracts)
 #tx_county = st_read('https://opendata.arcgis.com/datasets/8b902883539a416780440ef009b3f80f_0.geojson')
-tx_county = tigris::counties(state = 'TX',class = 'sf')
+tx_county = tigris::counties(state = 'TX',class = 'sf',year = '2017')
 tx_county <- st_transform(tx_county,albersNA)
 tx_county <- st_make_valid(tx_county)
 pws_over_tracts = st_intersection(twd_boundaries,tx_tracts)
@@ -112,7 +112,12 @@ tx_systems <- merge(tx_systems,tx_dww_info,on = 'PWS_ID')
 tx_systems$`First Reported Date` = dmy(tx_systems$`First Reported Date`)
 tx_systems = tx_systems[tx_systems$`First Reported Date`< mdy(paste0('1/1/',start_year)),]
 #tx_systems = tx_systems[tx_systems$PWS_ID %in% twd_boundaries$PWS_ID,]
-tx_info = as.data.table(readRDS('input/texas_dww/pws_details_2019-07-02.RDS'))
+
+tx_info = as.data.table(readRDS('scratch/pws_details_2020-11-15.RDS'))
+tx_info2 = as.data.table(readRDS('input/texas_dww/pws_details_2019-07-02.RDS'))
+tx_info = rbind(tx_info,tx_info2[!PWS_ID %in% tx_info$PWS_ID])
+
+
 #tx_info = data.table(readRDS('scratch/pws_details_2019-09-16.RDS'),stringsAsFactors = F)
 
 tx_info$PWS_NAME = gsub('\\s\\&nbsp$','',tx_info$PWS_NAME)
@@ -135,7 +140,7 @@ tx_systems$Avg_Consumption_Per_Connection_G = (tx_systems$Average_Daily_Consump_
 tx_systems$Owner_Type = as.character(tx_systems$Owner_Type)
 tx_systems = tx_systems[!tx_systems$Owner_Type %in% c('Federal Government','State Government'),]
 tx_systems$Owner_Type[tx_systems$PWS_ID%in%c('TX1700784','TX1013113','TX1700589','TX1050019','TX1260016','TX1050038','TX2090005','TX0390019','TX0430037','TX0740031')] <- 'District'
-interconnects = fread('input/texas_dww/sales_connections_2018-07-03.csv')
+interconnects = fread('input/texas_dww/sales_connections_2020-11-30.csv')
 interconnects = interconnects[!duplicated(interconnects),]
 interconnects = interconnects[!duplicated(paste(Seller,Buyer)),]
 interconnects = interconnects[!paste(Seller,Buyer) %in% paste(Buyer,Seller),]
@@ -241,7 +246,7 @@ tx_systems = tx_systems[tx_systems$`Is School Or Daycare`=='N',]
 tx_systems$Owner_Type = as.character(tx_systems$Owner_Type)
 tx_systems$Total_Storage_MG[tx_systems$PWS_ID%in%c('TX1110098','TX1300010')] <- NA
 tx_systems = tx_systems[tx_systems$`PWS Type Code`=='CWS',]
-
+tx_systems = tx_systems[PWS_ID!='TX1290046'&PWS_ID!='TX1013350',]
 stormod = lm(Total_Storage_MG~Total_Service_Connections,data= tx_systems)
 tx_systems$Predicted_Total_Storage_MG <- as.numeric(unlist(predict.lm(stormod,newdata = data.frame(Total_Service_Connections = tx_systems$Total_Service_Connections))))
 tx_systems$Total_Storage_MG_Impute = ifelse(is.na(tx_systems$Total_Storage_MG),tx_systems$Predicted_Total_Storage_MG,tx_systems$Total_Storage_MG)
@@ -274,7 +279,7 @@ library(tidycensus)
 #               state = 'TX',year = x,geometry = F) %>% mutate(Year = x)})
 # acs_pull_dt = rbindlist(acs_pull)
 # saveRDS(acs_pull_dt,'../../../../net/tmp/tscott1/bosque_scratch/proj5/raw_acs_tract_data.RDS')
-temp_congress = congressional_districts(resolution = "500k", year = 2012,class='sf')
+temp_congress = congressional_districts(resolution = "500k", year = 2013,class='sf')
 temp_congress <- st_transform(temp_congress,albersNA)
 temp_congress <- st_make_valid(temp_congress)
 temp_congress=temp_congress[temp_congress$STATEFP=='48',]
@@ -325,7 +330,7 @@ cfips$CFIPS = paste0(cfips$state_code,cfips$county_code)
 cfips$county = gsub(' County','',cfips$county)
 cfips = cfips[cfips$state=='TX',]
 tdf$Primary_CFIPS = cfips$CFIPS[match(toupper(tdf$`County Served`),toupper(cfips$county))]
-tdf$CFIPS_ID= match(tdf$Primary_CFIPS,tx_county_sp@data$GEOID)
+tdf$CFIPS_ID= match(tdf$Primary_CFIPS,tx_county_sp$GEOID)
 
 start_date = mdy('5/4/2010')
 start_date_dec = decimal_date(start_date)
@@ -333,12 +338,15 @@ tdf$start_date = start_date
 tdf$start_date_dec = start_date_dec
 tdf$Date = tdf$start_date
 
-tx_connections = fread('input/twdb_historicalestimates/20170630_Connections.csv')
+tx_connections = fread('input/twdb_historicalestimates/20170630_Connections.csv',na.strings = "-")
 tx_connections = melt(tx_connections,id = 1:5,measure.vars = as.character(2010:2015))
 tx_connections$value <- gsub('\\,','',tx_connections$value)
+
 tx_connections$value <- as.numeric(tx_connections$value)
 setnames(tx_connections,c('variable','value','PWS ID'),c('Year','Connections','PWS_ID'))
 tx_connections = tx_connections[,c('PWS_ID','Year','Connections')]
+tx_connections[order(PWS_ID,Year) ,]$Connections = tx_connections[order(PWS_ID,Year) ,][,zoo::na.locf(Connections,fromLast=T,na.rm = F),by=.(PWS_ID)]$V1
+
 tx_population = fread('input/twdb_historicalestimates/20170630_PopServed.csv')
 tx_population = melt(tx_population,id = 1:5,measure.vars = as.character(2010:2015))
 tx_population$value <- gsub('\\,','',tx_population$value)
@@ -363,20 +371,23 @@ tx_population$Year <- as.numeric(as.character(tx_population$Year))
 #tx_population[is.na(PopServed)|is.na(Connections)|is.na(Usage),Connections:=NA]
 #tx_population[is.na(PopServed)|is.na(Connections)|is.na(Usage),Usage:=NA]
 tx_population$Year = as.numeric(as.numeric(as.character(tx_population$Year)))
-#tx_population$Usage_Per_Connection = tx_population$Usage/tx_population$Connections
-#tx_population[order(PWS_ID,Year),Usage_Per_Connection_P1:=lag(Usage_Per_Connection,1),by=.(PWS_ID)]
+tx_population$Usage_Per_Connection = tx_population$Usage/tx_population$Connections
+tx_population[order(PWS_ID,Year),Usage_Per_Connection_P1:=lag(Usage_Per_Connection,1),by=.(PWS_ID)]
 
 #tx_population = tx_population[!is.na(PopServed),]
-tx_population = tx_population[Year%in%c(2010,2015),]
+#tx_population = tx_population[Year%in%c(2010,2015),]
+#tx_population[order(PWS_ID,Year),Connections_2015:=lead(Connections,1),by=.(PWS_ID)]
+#tx_population[order(PWS_ID,Year),PopServed_2015:=lead(PopServed,1),by=.(PWS_ID)]
 
-tx_population[order(PWS_ID,Year),Connections_2015:=lead(Connections,1),by=.(PWS_ID)]
-tx_population[order(PWS_ID,Year),PopServed_2015:=lead(PopServed,1),by=.(PWS_ID)]
+tx_population$Restrict = tx_population$PWS_ID %in% cox_dt$PWS_ID[cox_dt$Event==1]
+tx_population$Year_Adopt = floor(cox_dt$Time[match(tx_population$PWS_ID,cox_dt$PWS_ID)] + start_date_dec)
+tx_population$Year_Adopt[tx_population$Restrict==F]<-NA
+
+
 tx_population = tx_population[Year==2010,]
 setkey(tx_population,PWS_ID)
 setkey(tdf,PWS_ID)
-
 cox_dt = merge(tdf,tx_population,all.x=T)
-
 acs_pull_dt = readRDS('input/raw_acs_tract_data.RDS')
 #acs_pull_dt = readRDS('scratch/proj5/raw_acs_tract_data.RDS')
 setnames(acs_pull_dt,'GEOID','GEOID10')
@@ -414,12 +425,10 @@ fill_vars = names(demo_df)[sapply(demo_df,is.numeric)]
 fill_vars = fill_vars[fill_vars!='Year']
 demo_df[order(PWS_ID,Year),(fill_vars):=lapply(.SD,zoo::na.locf,na.rm=F),by = .(PWS_ID),.SDcols = fill_vars]
 demo_df = demo_df[Year==2010,]
-
-
+demo_df[,Year:=NULL]
 setkey(demo_df,PWS_ID)
 setkey(cox_dt,PWS_ID)
 cox_dt = merge(cox_dt,demo_df,on=c('PWS_ID'),all.x = T)#demo_df[cox_dt,]
-
 
 #congress_overlap_dt = readRDS('../../../../net/tmp/tscott1/bosque_scratch/proj5/congress_overlap_file.RDS')
 house_recs = data.table(readRDS('input/houseAtts_5-2019.RDS'))
@@ -479,23 +488,30 @@ fiscal_dt[order(District_ID,FiscalYear),`WATER CUSTOMERS - EQ SINGLE FAMILY UNIT
 
 setkey(cox_dt,District_ID,join_time)
 setkey(fiscal_dt,District_ID,join_time)
-cox_dt = fiscal_dt[cox_dt,roll = 730]
 
-district_total_connections = cox_dt[,sum(Connections,na.rm=T),by = .(District_ID,FiscalYear)]
+cox_dt2 = fiscal_dt[cox_dt,roll = 730]
+
+
+sub_in_pop = tx_info[,sum(as.numeric(PopulationType_ServiceConnections_Residential),as.numeric(PopulationType_ServiceConnections_NonResidential),na.rm = T),by=.(PWS_ID)]
+cox_dt2$Connections[is.na(cox_dt2$Connections)] <- sub_in_pop$V1[match(cox_dt2$PWS_ID[is.na(cox_dt2$Connections)],sub_in_pop$PWS_ID)]
+cox_dt2$Connections[cox_dt2$PWS_ID=='TX1013360']<-cox_dt2$Connections[cox_dt2$PWS_ID=='TX1013360']
+
+cox_dt2$Connections[cox_dt2$Connections==1]<-as.numeric(cox_dt2$PopulationType_ServiceConnections_Total[cox_dt2$Connections==1])
+district_total_connections = cox_dt2[,sum(Connections,na.rm=T),by = .(District_ID,FiscalYear)]
 setnames(district_total_connections,'V1','District_Connections')
 district_total_connections = district_total_connections[!is.na(FiscalYear)&District_ID!='0000000']
 setkey(district_total_connections,'District_ID','FiscalYear')
-setkey(cox_dt,'District_ID','FiscalYear')
+setkey(cox_dt2,'District_ID','FiscalYear')
+cox_dt2 = district_total_connections[cox_dt2,]
+
+cox_dt2$CWS_Prop = cox_dt2$Connections/cox_dt2$District_Connections
+cox_dt2$CWS_Prop[cox_dt2$District_ID %in% cox_dt2[,.N,by=.(District_ID)][N==1,]$District_ID] <- 1
 
 
-
-cox_dt = district_total_connections[cox_dt,]
-cox_dt$CWS_Prop = cox_dt$Connections/cox_dt$District_Connections
-aud_vars = names(cox_dt)[grepl('TAX|FUND|REV|EXP|ISSUE|DEBT|PRINC|INTEREST|BONDS',toupper(names(cox_dt)))&!grepl('RATE',toupper(names(cox_dt)))]
-cox_dt[,(aud_vars):=lapply(.SD,function(x) x * CWS_Prop),.SDcols = aud_vars]
-cox_dt$Connections_2015[is.na(cox_dt$Connections_2015)] <- fiscal_dt$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`[match(paste(cox_dt$District_ID[is.na(cox_dt$Connections_2015)],cox_dt$FiscalYear[is.na(cox_dt$Connections_2015)]),
+aud_vars = names(cox_dt2)[grepl('TAX|FUND|REV|EXP|ISSUE|DEBT|PRINC|INTEREST|BONDS',toupper(names(cox_dt2)))&!grepl('RATE',toupper(names(cox_dt2)))]
+cox_dt2[,(aud_vars):=lapply(.SD,function(x) x * CWS_Prop),.SDcols = aud_vars]
+cox_dt2$Connections_2015[is.na(cox_dt2$Connections_2015)] <- fiscal_dt$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`[match(paste(cox_dt2$District_ID[is.na(cox_dt2$Connections_2015)],cox_dt2$FiscalYear[is.na(cox_dt2$Connections_2015)]),
             paste(fiscal_dt$District_ID,fiscal_dt$FiscalYear))]
-
 
 # aud_vars = unique(c('BONDS OUTSTANDING',"CURRENT ASSESSED VALUATION" ,"DEBT SERVICE TAX LEVIED" , "ENTERPRISE FUND - ASSETS" ,  "ENTERPRISE FUND - LIABILITIES" ,          
 #                     "ENTERPRISE FUND - NET ASSETS", "ENTERPRISE FUND - OPERATING EXPENSES", "ENTERPRISE FUND - OPERATING REVENUES" ,   
@@ -506,124 +522,124 @@ cox_dt$Connections_2015[is.na(cox_dt$Connections_2015)] <- fiscal_dt$`WATER CUST
 
 
 
-cox_dt$Total_Principal_Outstanding[is.na(cox_dt$Total_Principal_Outstanding)&{cox_dt$`BONDS OUTSTANDING`==0|(is.na(cox_dt$`BONDS OUTSTANDING`)&!is.na(cox_dt$DOC_ID))}] <- 0
-cox_dt$Total_Debt_Service_Outstanding[is.na(cox_dt$Total_Debt_Service_Outstanding)&{cox_dt$`BONDS OUTSTANDING`==0|(is.na(cox_dt$`BONDS OUTSTANDING`)&!is.na(cox_dt$DOC_ID))}] <- 0
+cox_dt2$Total_Principal_Outstanding[is.na(cox_dt2$Total_Principal_Outstanding)&{cox_dt2$`BONDS OUTSTANDING`==0|(is.na(cox_dt2$`BONDS OUTSTANDING`)&!is.na(cox_dt2$DOC_ID))}] <- 0
+cox_dt2$Total_Debt_Service_Outstanding[is.na(cox_dt2$Total_Debt_Service_Outstanding)&{cox_dt2$`BONDS OUTSTANDING`==0|(is.na(cox_dt2$`BONDS OUTSTANDING`)&!is.na(cox_dt2$DOC_ID))}] <- 0
 
-#cox_dt$TotalPrincipalOutstanding_REV[is.na(cox_dt$TotalPrincipalOutstanding_REV)&cox_dt$`BONDS OUTSTANDING`==0] <- 0
-#cox_dt$TotalPrincipalOutstanding_GO[is.na(cox_dt$TotalPrincipalOutstanding_GO)&cox_dt$`BONDS OUTSTANDING`==0] <- 0
-#cox_dt$TotalPrincipalOutstanding_GO[is.na(cox_dt$TotalPrincipalOutstanding_GO)&cox_dt$District_ID%in%debt_dt$District_ID] <- 0
-#cox_dt$TotalPrincipalOutstanding_REV[is.na(cox_dt$TotalPrincipalOutstanding_REV)&cox_dt$District_ID%in%debt_dt$District_ID] <- 0
-#cox_dt$Total_Principal_Outstanding[is.na(cox_dt$Total_Principal_Outstanding)&cox_dt$District_ID%in%debt_dt$District_ID] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV[is.na(cox_dt2$TotalPrincipalOutstanding_REV)&cox_dt2$`BONDS OUTSTANDING`==0] <- 0
+#cox_dt2$TotalPrincipalOutstanding_GO[is.na(cox_dt2$TotalPrincipalOutstanding_GO)&cox_dt2$`BONDS OUTSTANDING`==0] <- 0
+#cox_dt2$TotalPrincipalOutstanding_GO[is.na(cox_dt2$TotalPrincipalOutstanding_GO)&cox_dt2$District_ID%in%debt_dt$District_ID] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV[is.na(cox_dt2$TotalPrincipalOutstanding_REV)&cox_dt2$District_ID%in%debt_dt$District_ID] <- 0
+#cox_dt2$Total_Principal_Outstanding[is.na(cox_dt2$Total_Principal_Outstanding)&cox_dt2$District_ID%in%debt_dt$District_ID] <- 0
 
-cox_dt$District_Type <- as.character(cox_dt$District_Type)
-cox_dt$District_Type[is.na(cox_dt$District_Type)] <- 'Not a district'
-#cox_dt$TotalPrincipalOutstanding_REV[is.na(cox_dt$TotalPrincipalOutstanding_REV)&cox_dt$District_Type=='SUD'] <- cox_dt$`BONDS OUTSTANDING`[is.na(cox_dt$TotalPrincipalOutstanding_REV)&cox_dt$District_Type=='SUD']
-#cox_dt$TotalPrincipalOutstanding_GO[is.na(cox_dt$TotalPrincipalOutstanding_REV)&cox_dt$District_Type=='SUD'] <- 0
-cox_dt$Total_Principal_Outstanding[is.na(cox_dt$Total_Principal_Outstanding)&cox_dt$District_Type=='SUD'] <- cox_dt$TotalPrincipalOutstanding_REV[is.na(cox_dt$Total_Principal_Outstanding)&cox_dt$District_Type=='SUD']
-#cox_dt$TotalPrincipalOutstanding_REV[is.na(cox_dt$TotalPrincipalOutstanding_REV)&!is.na(cox_dt$TotalPrincipalOutstanding_GO)] <- 0
-#cox_dt$TotalPrincipalOutstanding_GO[!is.na(cox_dt$TotalPrincipalOutstanding_REV)&is.na(cox_dt$TotalPrincipalOutstanding_GO)] <- 0
-#cox_dt$TotalPrincipalOutstanding_REV[cox_dt$District_ID=='3398000'] <- cox_dt$`BONDS OUTSTANDING`[cox_dt$District_ID=='3398000']
-cox_dt$Total_Principal_Outstanding[cox_dt$District_ID=='3398000'] <- cox_dt$TotalPrincipalOutstanding_REV[cox_dt$District_ID=='3398000']
-#cox_dt$TotalPrincipalOutstanding_GO[cox_dt$District_ID=='3398000'] <- 0
-cox_dt$`BONDS OUTSTANDING`[cox_dt$District_ID=='4880000'] <- 0
-#cox_dt$TotalPrincipalOutstanding_GO[cox_dt$District_ID=='4880000'] <- 0
-#cox_dt$TotalPrincipalOutstanding_REV[cox_dt$District_ID=='4880000'] <- 0
-cox_dt$Total_Principal_Outstanding[cox_dt$District_ID=='4880000'] <- 0
-cox_dt$`BONDS OUTSTANDING`[cox_dt$District_ID=='7103000'] <- 0
-#cox_dt$TotalPrincipalOutstanding_GO[cox_dt$District_ID=='7103000'] <- 0
-#cox_dt$TotalPrincipalOutstanding_REV[cox_dt$District_ID=='7103000'] <- 0
-cox_dt$Total_Principal_Outstanding[cox_dt$District_ID=='7103000'] <- 0
-cox_dt$`BONDS OUTSTANDING`[cox_dt$District_ID=='7322000'] <- 0
-#cox_dt$TotalPrincipalOutstanding_GO[cox_dt$District_ID=='7322000'] <- 0
-#cox_dt$TotalPrincipalOutstanding_REV[cox_dt$District_ID=='7322000'] <- 0
-cox_dt$Total_Principal_Outstanding[cox_dt$District_ID=='7322000'] <- 0
+cox_dt2$District_Type <- as.character(cox_dt2$District_Type)
+cox_dt2$District_Type[is.na(cox_dt2$District_Type)] <- 'Not a district'
+#cox_dt2$TotalPrincipalOutstanding_REV[is.na(cox_dt2$TotalPrincipalOutstanding_REV)&cox_dt2$District_Type=='SUD'] <- cox_dt2$`BONDS OUTSTANDING`[is.na(cox_dt2$TotalPrincipalOutstanding_REV)&cox_dt2$District_Type=='SUD']
+#cox_dt2$TotalPrincipalOutstanding_GO[is.na(cox_dt2$TotalPrincipalOutstanding_REV)&cox_dt2$District_Type=='SUD'] <- 0
+cox_dt2$Total_Principal_Outstanding[is.na(cox_dt2$Total_Principal_Outstanding)&cox_dt2$District_Type=='SUD'] <- cox_dt2$TotalPrincipalOutstanding_REV[is.na(cox_dt2$Total_Principal_Outstanding)&cox_dt2$District_Type=='SUD']
+#cox_dt2$TotalPrincipalOutstanding_REV[is.na(cox_dt2$TotalPrincipalOutstanding_REV)&!is.na(cox_dt2$TotalPrincipalOutstanding_GO)] <- 0
+#cox_dt2$TotalPrincipalOutstanding_GO[!is.na(cox_dt2$TotalPrincipalOutstanding_REV)&is.na(cox_dt2$TotalPrincipalOutstanding_GO)] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV[cox_dt2$District_ID=='3398000'] <- cox_dt2$`BONDS OUTSTANDING`[cox_dt2$District_ID=='3398000']
+cox_dt2$Total_Principal_Outstanding[cox_dt2$District_ID=='3398000'] <- cox_dt2$TotalPrincipalOutstanding_REV[cox_dt2$District_ID=='3398000']
+#cox_dt2$TotalPrincipalOutstanding_GO[cox_dt2$District_ID=='3398000'] <- 0
+cox_dt2$`BONDS OUTSTANDING`[cox_dt2$District_ID=='4880000'] <- 0
+#cox_dt2$TotalPrincipalOutstanding_GO[cox_dt2$District_ID=='4880000'] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV[cox_dt2$District_ID=='4880000'] <- 0
+cox_dt2$Total_Principal_Outstanding[cox_dt2$District_ID=='4880000'] <- 0
+cox_dt2$`BONDS OUTSTANDING`[cox_dt2$District_ID=='7103000'] <- 0
+#cox_dt2$TotalPrincipalOutstanding_GO[cox_dt2$District_ID=='7103000'] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV[cox_dt2$District_ID=='7103000'] <- 0
+cox_dt2$Total_Principal_Outstanding[cox_dt2$District_ID=='7103000'] <- 0
+cox_dt2$`BONDS OUTSTANDING`[cox_dt2$District_ID=='7322000'] <- 0
+#cox_dt2$TotalPrincipalOutstanding_GO[cox_dt2$District_ID=='7322000'] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV[cox_dt2$District_ID=='7322000'] <- 0
+cox_dt2$Total_Principal_Outstanding[cox_dt2$District_ID=='7322000'] <- 0
 
-#cox_dt$Total_Principal_Outstanding[is.na(cox_dt$Total_Principal_Outstanding)&!is.na(cox_dt$`BONDS OUTSTANDING`) &cox_dt$`BONDS OUTSTANDING`>0] <- cox_dt$`BONDS OUTSTANDING`[is.na(cox_dt$Total_Principal_Outstanding)&!is.na(cox_dt$`BONDS OUTSTANDING`) & cox_dt$`BONDS OUTSTANDING`>0]
-cox_dt$Two_Year_Match = (decimal_date(cox_dt$Date) - decimal_date(cox_dt$`FISCAL YEAR ENDED`) > 1) + 0
-cox_dt$Total_Principal_Outstanding = ifelse(cox_dt$Total_Principal_Outstanding==0,0, cox_dt$Total_Principal_Outstanding * cox_dt$CWS_Prop)
-cox_dt$Total_Debt_Service_Outstanding = ifelse(cox_dt$Total_Debt_Service_Outstanding==0,0, cox_dt$Total_Debt_Service_Outstanding * cox_dt$CWS_Prop)
+#cox_dt2$Total_Principal_Outstanding[is.na(cox_dt2$Total_Principal_Outstanding)&!is.na(cox_dt2$`BONDS OUTSTANDING`) &cox_dt2$`BONDS OUTSTANDING`>0] <- cox_dt2$`BONDS OUTSTANDING`[is.na(cox_dt2$Total_Principal_Outstanding)&!is.na(cox_dt2$`BONDS OUTSTANDING`) & cox_dt2$`BONDS OUTSTANDING`>0]
+cox_dt2$Two_Year_Match = (decimal_date(cox_dt2$Date) - decimal_date(cox_dt2$`FISCAL YEAR ENDED`) > 1) + 0
+cox_dt2$Total_Principal_Outstanding = ifelse(cox_dt2$Total_Principal_Outstanding==0,0, cox_dt2$Total_Principal_Outstanding * cox_dt2$CWS_Prop)
+cox_dt2$Total_Debt_Service_Outstanding = ifelse(cox_dt2$Total_Debt_Service_Outstanding==0,0, cox_dt2$Total_Debt_Service_Outstanding * cox_dt2$CWS_Prop)
 
 
-#cox_dt$TotalPrincipalOutstanding_REV = cox_dt$TotalPrincipalOutstanding_REV * cox_dt$CWS_Prop
-#cox_dt$TotalPrincipalOutstanding_GO = cox_dt$TotalPrincipalOutstanding_GO * cox_dt$CWS_Prop
-cox_dt$`GENERAL FUND - TOTAL REVENUES`[is.na(cox_dt$`GENERAL FUND - TOTAL REVENUES`)]<- 0
-cox_dt$`ENTERPRISE FUND - OPERATING REVENUES`[is.na(cox_dt$`ENTERPRISE FUND - OPERATING REVENUES`)] <- 0
-cox_dt$`BONDS OUTSTANDING`[is.na(cox_dt$`BONDS OUTSTANDING`)] <- 0
+#cox_dt2$TotalPrincipalOutstanding_REV = cox_dt2$TotalPrincipalOutstanding_REV * cox_dt2$CWS_Prop
+#cox_dt2$TotalPrincipalOutstanding_GO = cox_dt2$TotalPrincipalOutstanding_GO * cox_dt2$CWS_Prop
+cox_dt2$`GENERAL FUND - TOTAL REVENUES`[is.na(cox_dt2$`GENERAL FUND - TOTAL REVENUES`)]<- 0
+cox_dt2$`ENTERPRISE FUND - OPERATING REVENUES`[is.na(cox_dt2$`ENTERPRISE FUND - OPERATING REVENUES`)] <- 0
+cox_dt2$`BONDS OUTSTANDING`[is.na(cox_dt2$`BONDS OUTSTANDING`)] <- 0
 #### capacity indicator 1
-cox_dt$Total_Revenue = as.numeric(cox_dt$`GENERAL FUND - TOTAL REVENUES`)  +
-  as.numeric(cox_dt$`ENTERPRISE FUND - OPERATING REVENUES`)
-cox_dt$Enterprise_Revenue = as.numeric(cox_dt$`ENTERPRISE FUND - OPERATING REVENUES`)
-cox_dt$General_Revenue = as.numeric(cox_dt$`GENERAL FUND - TOTAL REVENUES`)  
+cox_dt2$Total_Revenue = as.numeric(cox_dt2$`GENERAL FUND - TOTAL REVENUES`)  +
+  as.numeric(cox_dt2$`ENTERPRISE FUND - OPERATING REVENUES`)
+cox_dt2$Enterprise_Revenue = as.numeric(cox_dt2$`ENTERPRISE FUND - OPERATING REVENUES`)
+cox_dt2$General_Revenue = as.numeric(cox_dt2$`GENERAL FUND - TOTAL REVENUES`)  
 
-cox_dt$Connections[is.na(cox_dt$Connections)&!is.na(cox_dt$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`)] <-  cox_dt$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`[is.na(cox_dt$Connections)&!is.na(cox_dt$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`)]
-cox_dt$Total_Revenue_Per_Connection = cox_dt$Total_Revenue/cox_dt$Connections
-cox_dt$Enterprise_Revenue_Per_Connection = cox_dt$Enterprise_Revenue/cox_dt$Connections
-cox_dt$General_Revenue_Per_Connection = cox_dt$General_Revenue/cox_dt$Connections
+cox_dt2$Connections[is.na(cox_dt2$Connections)&!is.na(cox_dt2$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`)] <-  cox_dt2$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`[is.na(cox_dt2$Connections)&!is.na(cox_dt2$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`)]
+cox_dt2$Total_Revenue_Per_Connection = cox_dt2$Total_Revenue/cox_dt2$Connections
+cox_dt2$Enterprise_Revenue_Per_Connection = cox_dt2$Enterprise_Revenue/cox_dt2$Connections
+cox_dt2$General_Revenue_Per_Connection = cox_dt2$General_Revenue/cox_dt2$Connections
 
-cox_dt$`TOTAL TAX RATE`[!is.na(cox_dt$District_Name) & cox_dt$District_Name == 'HARRIS COUNTY MUD 86' & cox_dt$Year%in%start_year:2012] <- 0.85
-cox_dt$Fee_Based_Revenue =  as.numeric(cox_dt$`GENERAL FUND - TOTAL REVENUES`)  +
-  as.numeric(cox_dt$`ENTERPRISE FUND - OPERATING REVENUES`) - as.numeric(cox_dt$`OPERATION & MAINTENANCE TAX LEVIED`)
-cox_dt$Fee_Based_Revenue = cox_dt$Fee_Based_Revenue/cox_dt$Connections
+cox_dt2$`TOTAL TAX RATE`[!is.na(cox_dt2$District_Name) & cox_dt2$District_Name == 'HARRIS COUNTY MUD 86' & cox_dt2$Year%in%start_year:2012] <- 0.85
+cox_dt2$Fee_Based_Revenue =  as.numeric(cox_dt2$`GENERAL FUND - TOTAL REVENUES`)  +
+  as.numeric(cox_dt2$`ENTERPRISE FUND - OPERATING REVENUES`) - as.numeric(cox_dt2$`OPERATION & MAINTENANCE TAX LEVIED`)
+cox_dt2$Fee_Based_Revenue = cox_dt2$Fee_Based_Revenue/cox_dt2$Connections
 ##### slush fund
-cox_dt$`GENERAL FUND - FUND BALANCE`[is.na(cox_dt$`GENERAL FUND - FUND BALANCE`)] <- 0
-cox_dt$Fund_Balance_Per_Connection = (as.numeric(cox_dt$`GENERAL FUND - FUND BALANCE`)) / cox_dt$Connections
+cox_dt2$`GENERAL FUND - FUND BALANCE`[is.na(cox_dt2$`GENERAL FUND - FUND BALANCE`)] <- 0
+cox_dt2$Fund_Balance_Per_Connection = (as.numeric(cox_dt2$`GENERAL FUND - FUND BALANCE`)) / cox_dt2$Connections
 #### debt load
-cox_dt$Total_Principal_Outstanding[is.na(cox_dt$Total_Principal_Outstanding)] <- cox_dt$`BONDS OUTSTANDING`[is.na(cox_dt$Total_Principal_Outstanding)]
-cox_dt$Debt_Per_Connection = cox_dt$Total_Principal_Outstanding/cox_dt$Connections
+cox_dt2$Total_Principal_Outstanding[is.na(cox_dt2$Total_Principal_Outstanding)] <- cox_dt2$`BONDS OUTSTANDING`[is.na(cox_dt2$Total_Principal_Outstanding)]
+cox_dt2$Debt_Per_Connection = cox_dt2$Total_Principal_Outstanding/cox_dt2$Connections
 
-#cox_dt$Debt_Per_Connection_REV = cox_dt$TotalPrincipalOutstanding_REV/cox_dt$Connections
-#cox_dt$Debt_Per_Connection_GO = cox_dt$TotalPrincipalOutstanding_GO/cox_dt$Connections
-#cox_dt$Revenue_Backed_Debt <- (cox_dt$TotalPrincipalOutstanding_REV>0) + 0
-#cox_dt$TotalDebtServiceOutstanding_REV[is.na(cox_dt$TotalDebtServiceOutstanding_REV)] <- 0
-#cox_dt$REV_Debt_Per_Connection = cox_dt$TotalDebtServiceOutstanding_REV/cox_dt$Connections
-#cox_dt$REV_Debt_Per_Connection_1k = cox_dt$TotalDebtServiceOutstanding_REV/1000
+#cox_dt2$Debt_Per_Connection_REV = cox_dt2$TotalPrincipalOutstanding_REV/cox_dt2$Connections
+#cox_dt2$Debt_Per_Connection_GO = cox_dt2$TotalPrincipalOutstanding_GO/cox_dt2$Connections
+#cox_dt2$Revenue_Backed_Debt <- (cox_dt2$TotalPrincipalOutstanding_REV>0) + 0
+#cox_dt2$TotalDebtServiceOutstanding_REV[is.na(cox_dt2$TotalDebtServiceOutstanding_REV)] <- 0
+#cox_dt2$REV_Debt_Per_Connection = cox_dt2$TotalDebtServiceOutstanding_REV/cox_dt2$Connections
+#cox_dt2$REV_Debt_Per_Connection_1k = cox_dt2$TotalDebtServiceOutstanding_REV/1000
 #### operating expense ratio (OER) 
-cox_dt$`GENERAL FUND - TOTAL EXPENDITURES`[is.na(cox_dt$`GENERAL FUND - TOTAL EXPENDITURES`)] <- 0
-cox_dt$`ENTERPRISE FUND - OPERATING EXPENSES`[is.na(cox_dt$`ENTERPRISE FUND - OPERATING EXPENSES`)] <- 0
-cox_dt$Total_Expenditure = as.numeric(cox_dt$`GENERAL FUND - TOTAL EXPENDITURES`)  + as.numeric(cox_dt$`ENTERPRISE FUND - OPERATING EXPENSES`)
+cox_dt2$`GENERAL FUND - TOTAL EXPENDITURES`[is.na(cox_dt2$`GENERAL FUND - TOTAL EXPENDITURES`)] <- 0
+cox_dt2$`ENTERPRISE FUND - OPERATING EXPENSES`[is.na(cox_dt2$`ENTERPRISE FUND - OPERATING EXPENSES`)] <- 0
+cox_dt2$Total_Expenditure = as.numeric(cox_dt2$`GENERAL FUND - TOTAL EXPENDITURES`)  + as.numeric(cox_dt2$`ENTERPRISE FUND - OPERATING EXPENSES`)
 
-#cox_dt$Prop_Rev_Deb = cox_dt$TotalPrincipalOutstanding_REV / cox_dt$Total_Principal_Outstanding
-#cox_dt$Have_Ent_Rev = (cox_dt$Enterprise_Revenue_Per_Connection_1k>0)+0
-#cox_dt$Debt_Service_Tax = (cox_dt$`DEBT SERVICE TAX LEVIED` > 0) + 0
-#cox_dt$Any_Debt = (cox_dt$Debt_Per_Connection>0)+0
-cox_dt$District_Type <- as.character(cox_dt$District_Type)
-#cox_dt$FWSD <- (cox_dt$District_Type %in% 'FWSD') + 0
-#cox_dt$WCID <- (cox_dt$District_Type %in% 'WCID') + 0
-#cox_dt$SUD <- (cox_dt$District_Type %in% 'SUD') + 0
-#cox_dt$Tax_Rate <- cox_dt$`TOTAL TAX RATE`
-#cox_dt$Revenue_Backed_Debt <- {cox_dt$TotalPrincipalOutstanding_REV>0} + 0
-#cox_dt$Enterprise_Revenue <- {cox_dt$Enterprise_Revenue_Per_Connection>0} + 0
-#cox_dt$Yearly_Payment_Per_Connection = cox_dt$Yearly_Debt_Payment/cox_dt$Connections
-#cox_dt$Yearly_Payment_To_Revenue = cox_dt$Yearly_Debt_Payment/cox_dt$Total_Revenue
-cox_dt$MO_Tax <- (cox_dt$`OPERATIONS & MAINTENANCE TAX RATE`>0) +0
-cox_dt$Debt_Tax <- (cox_dt$`DEBT SERVICE TAX RATE`>0) +0
-cox_dt$Median_Structure_Age = decimal_date(cox_dt$Date)-cox_dt$Median_Year_Structure_Built
+#cox_dt2$Prop_Rev_Deb = cox_dt2$TotalPrincipalOutstanding_REV / cox_dt2$Total_Principal_Outstanding
+#cox_dt2$Have_Ent_Rev = (cox_dt2$Enterprise_Revenue_Per_Connection_1k>0)+0
+#cox_dt2$Debt_Service_Tax = (cox_dt2$`DEBT SERVICE TAX LEVIED` > 0) + 0
+#cox_dt2$Any_Debt = (cox_dt2$Debt_Per_Connection>0)+0
+cox_dt2$District_Type <- as.character(cox_dt2$District_Type)
+#cox_dt2$FWSD <- (cox_dt2$District_Type %in% 'FWSD') + 0
+#cox_dt2$WCID <- (cox_dt2$District_Type %in% 'WCID') + 0
+#cox_dt2$SUD <- (cox_dt2$District_Type %in% 'SUD') + 0
+#cox_dt2$Tax_Rate <- cox_dt2$`TOTAL TAX RATE`
+#cox_dt2$Revenue_Backed_Debt <- {cox_dt2$TotalPrincipalOutstanding_REV>0} + 0
+#cox_dt2$Enterprise_Revenue <- {cox_dt2$Enterprise_Revenue_Per_Connection>0} + 0
+#cox_dt2$Yearly_Payment_Per_Connection = cox_dt2$Yearly_Debt_Payment/cox_dt2$Connections
+#cox_dt2$Yearly_Payment_To_Revenue = cox_dt2$Yearly_Debt_Payment/cox_dt2$Total_Revenue
+cox_dt2$MO_Tax <- (cox_dt2$`OPERATIONS & MAINTENANCE TAX RATE`>0) +0
+cox_dt2$Debt_Tax <- (cox_dt2$`DEBT SERVICE TAX RATE`>0) +0
+cox_dt2$Median_Structure_Age = decimal_date(cox_dt2$Date)-cox_dt2$Median_Year_Structure_Built
 
-cox_dt$Operating_Ratio = cox_dt$Total_Revenue/cox_dt$Total_Expenditure
-cox_dt$Fund_Balance = cox_dt$`GENERAL FUND - FUND BALANCE`
-cox_dt$Water_Bond_P1 = (!is.na(cox_dt$Issue_WaterRelated_P1)) + 0
-cox_dt$Refund_Bond_P1 = (!is.na(cox_dt$Issue_Refund_P1)) + 0
-cox_dt$Expenditure_Per_Connection = cox_dt$Total_Expenditure/cox_dt$Connections
-cox_dt$OM_Tax_Over_Expenditure = cox_dt$`OPERATION & MAINTENANCE TAX LEVIED`/cox_dt$Total_Expenditure
-cox_dt$Total_Debt_Service_Outstanding[is.na(cox_dt$Total_Debt_Service_Outstanding)] <- 0
+cox_dt2$Operating_Ratio = cox_dt2$Total_Revenue/cox_dt2$Total_Expenditure
+cox_dt2$Fund_Balance = cox_dt2$`GENERAL FUND - FUND BALANCE`
+cox_dt2$Water_Bond_P1 = (!is.na(cox_dt2$Issue_WaterRelated_P1)) + 0
+cox_dt2$Refund_Bond_P1 = (!is.na(cox_dt2$Issue_Refund_P1)) + 0
+cox_dt2$Expenditure_Per_Connection = cox_dt2$Total_Expenditure/cox_dt2$Connections
+cox_dt2$OM_Tax_Over_Expenditure = cox_dt2$`OPERATION & MAINTENANCE TAX LEVIED`/cox_dt2$Total_Expenditure
+cox_dt2$Total_Debt_Service_Outstanding[is.na(cox_dt2$Total_Debt_Service_Outstanding)] <- 0
 
-cox_dt$Total_Debt_Service_Outstanding = ifelse(cox_dt$Total_Debt_Service_Outstanding==0&!is.na(cox_dt$`BONDS OUTSTANDING`)&cox_dt$`BONDS OUTSTANDING`>0,cox_dt$`BONDS OUTSTANDING`,cox_dt$Total_Debt_Service_Outstanding)
-cox_dt$Total_Debt_Service_Outstanding = ifelse(is.na(cox_dt$Total_Debt_Service_Outstanding)&!is.na(cox_dt$`BONDS OUTSTANDING`),cox_dt$`BONDS OUTSTANDING`,cox_dt$Total_Debt_Service_Outstanding)
-cox_dt$Growth_Over_Drought = 100 * (cox_dt$Connections_2015 - cox_dt$Connections)/cox_dt$Connections 
-cox_dt$Connections_Added_During_Drought = cox_dt$Connections_2015 - cox_dt$Connections
+cox_dt2$Total_Debt_Service_Outstanding = ifelse(cox_dt2$Total_Debt_Service_Outstanding==0&!is.na(cox_dt2$`BONDS OUTSTANDING`)&cox_dt2$`BONDS OUTSTANDING`>0,cox_dt2$`BONDS OUTSTANDING`,cox_dt2$Total_Debt_Service_Outstanding)
+cox_dt2$Total_Debt_Service_Outstanding = ifelse(is.na(cox_dt2$Total_Debt_Service_Outstanding)&!is.na(cox_dt2$`BONDS OUTSTANDING`),cox_dt2$`BONDS OUTSTANDING`,cox_dt2$Total_Debt_Service_Outstanding)
+cox_dt2$Growth_Over_Drought = 100 * (cox_dt2$Connections_2015 - cox_dt2$Connections)/cox_dt2$Connections 
+cox_dt2$Connections_Added_During_Drought = cox_dt2$Connections_2015 - cox_dt2$Connections
 
-cox_dt[order(PWS_ID,Date),Usage_Per_Connection_P1:=zoo::na.locf0(Usage_Per_Connection_P1,fromLast=T),by = .(PWS_ID)]
-cox_dt$`OTHER TAX RATE(S)`[is.na(cox_dt$`OTHER TAX RATE(S)`)] <- 0
-cox_dt[,Total_Tax_Rate:=`OPERATIONS & MAINTENANCE TAX RATE`+`DEBT SERVICE TAX RATE`+`OTHER TAX RATE(S)`+`OTHER TAX RATES(S)`]
-
+cox_dt2[order(PWS_ID,Date),Usage_Per_Connection_P1:=zoo::na.locf0(Usage_Per_Connection_P1,fromLast=T),by = .(PWS_ID)]
+cox_dt2$`OTHER TAX RATE(S)`[is.na(cox_dt2$`OTHER TAX RATE(S)`)] <- 0
+cox_dt2[,Total_Tax_Rate:=`OPERATIONS & MAINTENANCE TAX RATE`+`DEBT SERVICE TAX RATE`+`OTHER TAX RATE(S)`+`OTHER TAX RATES(S)`]
 
 
 weeks = length(seq.Date(from = mdy('05/04/2010'),to = mdy('07/07/2015'),by = 'week'))
 months = round(weeks/4)
 months2 = months/2
-cox_dt$Connections[is.na(cox_dt$Connections)] <- cox_dt$Total_Service_Connections[is.na(cox_dt$Connections)]
+cox_dt2$Connections[is.na(cox_dt2$Connections)] <- cox_dt2$Total_Service_Connections[is.na(cox_dt2$Connections)]
 
-saveRDS(cox_dt,'scratch/data_for_coxph_model.RDS')
+#cox_dt2[District_ID=='1206100',grepl('REV|DEBT|CWS_PROP|CONNECTIONS|URL|PWS_ID',toupper(colnames(cox_dt2))),with = F]
 
+saveRDS(cox_dt2,'scratch/data_for_coxph_model.RDS')
 
 
