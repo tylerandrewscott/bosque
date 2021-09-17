@@ -17,18 +17,33 @@ page_links = base_site %>% read_html() %>% html_nodes('a')
 data_sheet_urls = page_links[grepl('Summary',page_links %>% html_text(trim=T))] %>% html_attr('href')
 
 
-temp = do.call(rbind,mclapply(data_sheet_urls,function(x) 
+temp = mclapply(data_sheet_urls,function(x) 
 {temp_tds =  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% html_nodes('td');
 data.frame(System = str_extract(x,'TX[0-9]{7}'),
            Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
            NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))},
-mc.cores=2,mc.cleanup=T))
+mc.cores=2,mc.cleanup=T)
 
-poc = temp %>% mutate(
+while('try-error' %in% sapply(temp,class)){
+  index = which(sapply(temp,class)=='try-error')
+  for(i in index){
+    print(i)
+    temp_tds =  gsub(' ','',paste0(prefix,data_sheet_urls[i])) %>% read_html() %>% html_nodes('td');
+    replacement = data.frame(System = str_extract(data_sheet_urls[i],'TX[0-9]{7}'),
+               Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
+               NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))
+    temp[[i]]<-replacement
+  }
+}
+
+
+
+mutate_temp  = pblapply(temp,function(x){x%>% mutate(
                 Position = stri_replace_all_regex(Position,"\n|\t|\r|&nbsp",""),
                 NAME = stri_replace_all_regex(NAME,"\n|\t|\r|&nbsp","")) %>%
-  filter(!is.na(NAME))
+  filter(!is.na(NAME))})
 
+poc = rbindlist(mutate_temp)
 
 write_csv(poc,paste('input/texas_dww/personnel_records',paste0(Sys.Date(),'.csv'),sep='_'))
 
@@ -49,7 +64,7 @@ system_operators_table_list = mclapply(data_sheet_urls,function(x)
     html_table() %>% mutate(System = str_extract(x,'TX[0-9]{7}')),mc.cores=2,mc.cleanup=T)
 
 
- system_operators_df = do.call(rbind,system_operators_table_list[!sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
+system_operators_df = do.call(rbind,system_operators_table_list[!sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
  
  nosystem_operators_df = do.call(rbind,system_operators_table_list[sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
  

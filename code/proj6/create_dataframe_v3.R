@@ -3,8 +3,10 @@ library(rgeos)
 library(rgdal)
 library(sp)
 library(maptools)
-library(lucr)
-library(tidyquant)
+devtools::install_github("ironholds/lucr")
+require(lucr)
+library(readxl)
+library(hhi)
 library(spdep)
 library(lubridate)
 library(pbapply)
@@ -17,6 +19,8 @@ library(sf)
 library(geojsonsf)
 library(tigris)
 library(lwgeom)
+
+library(tidyquant)
 
 dinfo_dt = fread('input/twdd_records/district_list_2019-01-03.csv',stringsAsFactors = F,na.strings = "")
 dinfo_dt$PWS_ID[dinfo_dt$PWS_ID == "NA"] <- NA
@@ -37,16 +41,16 @@ dinfo_dt <- dinfo_dt[mdy(dinfo_dt$Created)<mdy('01/01/2010'),]
 dinfo_dt <- dinfo_dt[is.na(dinfo_dt$Ended),]
 dinfo_dt <- dinfo_dt[!grepl('MWA',dinfo_dt$District_Name),]
 
-master_dt <- data.table(expand.grid(District_ID = dinfo$District_ID,PERIOD = c('2009-2011','2012-2014','2015-2017')))
+master_dt <- data.table(expand.grid(District_ID = dinfo_dt$District_ID,PERIOD = c('2009-2011','2012-2014','2015-2017')))
 master_dt$District_Name <- dinfo_dt$District_Name[match(master_dt$District_ID,dinfo_dt$District_ID)]
 master_dt$PERIOD_START <- gsub('-[0-9]{4}','',master_dt$PERIOD)
 master_dt$PERIOD_END <- gsub('[0-9]{4}-','',master_dt$PERIOD)
 
 
 ######### collect PWS data ######
-tx_counties <- tigris::counties(state = 'TX',class = 'sf')
+tx_counties <- tigris::counties(state = 'TX',class = 'sf',year= 2017)
 system_find <- 'https://ofmpub.epa.gov/echo/sdw_rest_services.get_systems?output=JSON&p_st=TX&p_act=A'
-res <- fromJSON(get_systems)
+res <- fromJSON(system_find)
 qid <- res$Results$QueryID
 return_systems <- fread(paste0('https://ofmpub.epa.gov/echo/sdw_rest_services.get_download?qid=',qid,'&qcolumns=6,9,10,11,14'))
 setnames(return_systems,'PWSId','PWS_ID')
@@ -67,9 +71,10 @@ tx_info$Nonresidential_Service_Connections[is.na(tx_info$Nonresidential_Service_
 tx_info$Total_Service_Connections = replace_na(tx_info$Wholesale_Service_Connections,0) + replace_na(tx_info$Nonresidential_Service_Connections,0) + replace_na(tx_info$Residential_Service_Connections,0)
 consump_units = str_extract(tx_info$AverageDailyConsump.,'[A-Z]{1,}')
 tx_info$Avg_Consumption_Per_Connection_G = (tx_info$Average_Daily_Consump_MGD/tx_info$Total_Service_Connections) * 1e6
-tx_info$District_ID = unlist(sapply(tx_info$PWS_ID,function(p) ifelse(any(grepl(p,dinfo$PWS_ID)),dinfo$District_ID[grepl(p,dinfo$PWS_ID)],NA),simplify = T))
+tx_info$District_ID = unlist(sapply(tx_info$PWS_ID,function(p) ifelse(any(grepl(p,dinfo_dt$PWS_ID)),dinfo_dt$District_ID[grepl(p,dinfo_dt$PWS_ID)],NA),simplify = T))
 #tx_info = tx_info[tx_info$`Activity Status` != "Inactive",]
 tx_info <- tx_info[,-'PWS_NAME']
+
 setkey(tx_info,PWS_ID)
 setkey(return_systems,PWS_ID)
 pws_dt <- return_systems[tx_info,]
@@ -90,7 +95,7 @@ cfips$county = gsub(' County','',cfips$county)
 cfips = cfips[cfips$state=='TX',]
 
 pws_dt$CFIPS_Served <- sapply(pws_dt$Counties_Served,function(x) cfips$CFIPS[match(x,cfips$county)])
-library(readxl)
+
 cbsa_ref = read_excel('input/census/cbsa_delineations.xls',skip = 1) %>% 
   mutate(CFIPS = paste0(formatC(`FIPS State Code`,width = 2,flag = 0),formatC(`FIPS County Code`,width=3,flag=0)))
 pws_dt$CBSA_FIPS <- sapply(pws_dt$CFIPS_Served,function(x) cbsa_ref$`CBSA Code`[match(x,cbsa_ref$CFIPS)])
@@ -105,7 +110,7 @@ cbsa_total <- pws_dt[,sum(Total_Service_Connections),by=.(CBSA_FIPS)]
 setnames(cbsa_total,'V1','CBSA_Total_Connections')
 pws_dt$Prop_CBSA_Connection_Total <- 100 * pws_dt$Total_Service_Connections/cbsa_total$CBSA_Total_Connections[match(pws_dt$CBSA_FIPS,cbsa_total$CBSA_FIPS)]
 
-library(hhi)
+
 cbsa_hhi <- do.call(rbind,lapply(split(pws_dt,by = 'CBSA_FIPS'),function(x) hhi(x,'Prop_CBSA_Connection_Total')))
 cbsas <-  rownames(cbsa_hhi)
 cbsa_hhi <- data.table(cbsa_hhi)
@@ -125,14 +130,16 @@ pws_time_dt$PERIOD_START <- gsub('-[0-9]{4}','',pws_time_dt$PERIOD)
 pws_time_dt$PERIOD_END <- gsub('[0-9]{4}-','',pws_time_dt$PERIOD)
 
 viol_dt = fread('input/epa_sdwis/proj6/TX_PWS_violation_report_2-4-19.csv',na.strings = '-')
+viol_dt = readRDS(paste0('scratch/viol_list_2021-03-02.rds'))
 viol_dt[viol_dt=='-'] <- NA
-setnames(viol_dt, "PWS ID", "PWS_ID")
-viol_dt$COMP_BEGIN_DATE <- dmy(viol_dt$`Compliance Period Begin Date`)
+setnames(viol_dt, "PWSID", "PWS_ID")
+
+viol_dt$COMP_BEGIN_DATE <- dmy(viol_dt$COMPL_PER_BEGIN_DATE)
 viol_dt$COMP_YEAR <- year(viol_dt$COMP_BEGIN_DATE)
-viol_counts_dt <- viol_dt[,.N,by=.(PWS_ID,COMP_YEAR,`Is Health Based`)]
+viol_counts_dt <- viol_dt[,.N,by=.(PWS_ID,COMP_YEAR,IS_HEALTH_BASED_IND)]
 viol_counts_dt <- viol_counts_dt[viol_counts_dt$COMP_YEAR>=2010,]
 viol_counts_dt$PERIOD= ifelse(viol_counts_dt$COMP_YEAR %in% c(2009:2011),'2009-2011',ifelse(viol_counts_dt$COMP_YEAR %in% c(2012:2014),'2012-2014','2015-2017'))
-viol_count_period <- dcast(viol_counts_dt[,sum(N),by=.(PERIOD,PWS_ID,`Is Health Based`)],PWS_ID + PERIOD ~`Is Health Based`)
+viol_count_period <- dcast(viol_counts_dt[,sum(N),by=.(PERIOD,PWS_ID,IS_HEALTH_BASED_IND)],PWS_ID + PERIOD ~IS_HEALTH_BASED_IND)
 setnames(viol_count_period,c('N','Y'),c('NonHealth','Health'))
 setkey(pws_time_dt,PWS_ID,PERIOD)
 setkey(viol_count_period,PWS_ID,PERIOD)
@@ -158,9 +165,9 @@ pws_to_district$CBSA_HHI_Index <- pws_dt$CBSA_HHI_Index[match(pws_to_district$Di
 
 
 audits = fread('input/tceq_audits/district_audits.csv')
-library(lucr)
 money = as.vector(which(apply(audits,2,function(x) any(grepl('\\$',x)))))
 audits = cbind(audits[,-money,with=F],audits[,lapply(.SD,from_currency),.SDcols = money])
+
 audits$Year = year(mdy(audits$`FISCAL YEAR ENDED`))
 audits$`FISCAL YEAR ENDED` <- mdy(audits$`FISCAL YEAR ENDED`)
 setnames(audits,"DISTRICT_ID", "District_ID")
@@ -372,6 +379,8 @@ pws_tracts$prop_weight = st_area(pws_tracts)/pws_tracts$Total_Area
 total_vars = c('Total_Population','White_Population','Household_Pop','Household_Owner_Occupied','Pop_Over_25','Pop_Bach')
 summary_vars = c('Median_Income','Median_Home_Value','Median Year Structure Built')
 
+fill_grid = data.table(expand.grid(District_ID = as.character(unique(dinfo_dt$District_ID)),Year = 2000:2020))
+
 demo_list = pblapply(1:nrow(fill_grid),function(i){
   temp_weights = pws_tracts[pws_tracts$District_ID== fill_grid$District_ID[i],]
   temp_acs = demos[demos$GEOID %in% temp_weights$GEOID & demos$Year == fill_grid$Year[i],]
@@ -385,11 +394,13 @@ demo_list = pblapply(1:nrow(fill_grid),function(i){
                                         District_ID = fill_grid$District_ID[i],Year = fill_grid$Year[i])}
   tdt},cl = 12)
 demo_dt = rbindlist(demo_list)
+
 setnames(demo_dt,old = 'Median Year Structure Built',new = 'Median_Year_Structure_Built')
 demo_dt$PERIOD= ifelse(demo_dt$Year %in% 2009:2011,'2009-2011',ifelse(demo_dt$Year %in% 2012:2014,'2012-2014','2015-2017'))
 avg3yr = c('Total_Population','White_Population','Household_Pop','Household_Owner_Occupied','Pop_Over_25','Pop_Bach',
 'Median_Income','Median_Home_Value','Median_Year_Structure_Built')
 demo_values <- demo_dt[,lapply(.SD,mean),by = .(District_ID,PERIOD),.SDcols = avg3yr]
+
 
 setkey(demo_values,District_ID,PERIOD)
 setkey(master_dt,District_ID,PERIOD)
@@ -510,14 +521,29 @@ mod0 = inla(as.formula(paste('Health',form_string,sep='~')),family = 'nbinomial'
             data=modeldata_dt[modeldata_dt$PERIOD_ID%in%2:3,],quantiles = c(0.01,0.025,0.05,0.5,0.95,0.975,0.99),
             control.compute=list(dic=TRUE, cpo=TRUE,waic=TRUE))
 
-sumlist = do.call(rbind,apply(modeldata_dt[PERIOD_ID!=1,vars_to_std,with=F],2,summary))
+sumlist = do.call(rbind,apply(modeldata_dt[PERIOD_ID!=1,vars_to_std,with=F],2,summary),use.names = T,fill =T)
+
+data_summary = apply(modeldata_dt[PERIOD_ID!=1,vars_to_std,with=F],2,summary)
+
+
+sum_table = rbindlist(lapply(seq_along(data_summary),function(x) data.table(COEF = names(data_summary)[x],data.table(rbind(data_summary[[x]])))),use.names = T,fill = T)
+
 htmlTable::htmlTable(round(sumlist[,c(1,3,4,6)],3))
 
+dvs = c('Health','Health+NonHealth','NonHealth')
 
 
-tt = mod0$summary.fixed[,c(1,3:9)]
-mod0$summary.fixed[,c(1,3,5)]
-tt$Coef = rownames(tt)
+mod_list = lapply(dvs,function(d){
+  inla(as.formula(paste(d,form_string,sep='~')),family = 'nbinomial',
+       data=modeldata_dt[modeldata_dt$PERIOD_ID%in%2:3,],quantiles = c(0.025,0.5,0.975),
+       control.compute=list(dic=TRUE, cpo=TRUE,waic=TRUE))
+})
+
+
+summary(mod_list[[2]])
+
+tt = rbindlist(mapply(function(x,y) data.table(x$summary.fixed,Coef = rownames(x$summary.fixed),DV = y),x = mod_list,y = dvs,SIMPLIFY = F))
+
 tt$Sig <- !(tt$`0.025quant`<0&tt$`0.975quant`>0)+0
 tt$Coef <- as.factor(tt$Coef)
 library(forcats)
@@ -555,48 +581,50 @@ tt$Coef <- fct_recode(tt$Coef,'Health violations in prior 3 years'="std_Health_L
 'Source-purchased groundwater'="Primary_SourceGWP" )
 
 tt$Coef <- fct_rev(tt$Coef)
-
-ggplot(data=tt[!grepl('Intercept',tt$Coef),]) + 
-  geom_errorbar(aes(ymin = `0.01quant`,ymax = `0.99quant`,x = Coef,colour = 'p(0.99) interval'),width=0,lwd=0.4)+ 
-  geom_errorbar(aes(ymin = `0.025quant`,ymax = `0.975quant`,x = Coef,colour='p(0.95) interval'),width=0,lwd=1)+ 
-  geom_errorbar(aes(ymin = `0.05quant`,ymax = `0.95quant`,x = Coef,colour='p(0.90) interval'),width=0,lwd=1.6)+ 
-  geom_point(aes(x = Coef,y = mean,fill=as.factor(Sig)),shape=21,size = 2)+
+tt[DV=='Health+NonHealth']
+require(ggthemes)
+ggplot(data=tt[{!grepl('Intercept',Coef)}&DV=="Health+NonHealth",]) + 
+  geom_hline(yintercept = 0,lty = 2,col = 'grey50')+
+  #geom_errorbar(aes(ymin = `0.01quant`,ymax = `0.99quant`,x = Coef,color = DV,fill = DV),width=0,lwd=0.4)+ 
+  geom_errorbar(aes(ymin = `0.025quant`,ymax = `0.975quant`,x = Coef),width=0,lwd=1,position = position_dodge(0.5))+ 
+  #geom_errorbar(aes(ymin = `0.05quant`,ymax = `0.95quant`,x = Coef,color=DV,fill = DV),width=0,lwd=1.6) +
+  #facet_wrap(~DV) +
+  geom_point(aes(x = Coef,y = mean,fill = as.factor(`0.975quant`>0&`0.025quant`<0)),shape=21,size = 2,position = position_dodge(0.5))+
  # scale_y_continuous(limits=c(-3,2),name = ~Delta[ln(violations)]/Delta[Beta])+
-  scale_fill_manual(values=c('white','black'),labels=c('0 in 95% interavl','0 !in 95% interval')) + 
-  scale_color_manual(values = rep('black',3))+
-  guides(color=guide_legend(override.aes = list(lwd = c(0.4,1,1.6), pch=c(NA,NA,NA))))+
+ # scale_fill_manual(values=c('white','black'),labels=c('0 in 95% interavl','0 !in 95% interval')) + 
+#  scale_color_manual(values = rep('black',3))+
+  scale_fill_manual(values = c('black','white'),labels=c('no','yes'),name ='95% CI includes 0')+
+ # guides(color=guide_legend(override.aes = list(lwd = c(0.4,1,1.6), pch=c(NA,NA,NA))))+
   coord_flip() + geom_vline(xintercept=0) + theme_bw() +
-  theme(axis.text = element_text(size = 12),axis.title.y = element_blank(),legend.position = c(0.8,0.4),
-        legend.title = element_blank())
+  scale_y_continuous(name = 'Additive log-scale parameter estimate')+
+  #scale_color_colorblind(labels = c('Health viols.','All viols.','Manage. viols.'))+
+ # guides(fill = F)+
+  theme(axis.text = element_text(size = 12),axis.title.y = element_blank(),legend.position = c(0.8,0.4))+
+       ggtitle('Posterior mean and 95% credible interval estimates')
   
 
+tt = tt[,.(Coef,mean,`0.025quant`,`0.975quant`,DV)]
+tt$present = paste0(formatC(tt$mean,drop0trailing = F,digits = 2,format = 'f'),' (',formatC(tt$`0.025quant`,drop0trailing = F,digits = 2,format = 'f'),', ',formatC(tt$`0.975quant`,drop0trailing = F,digits = 2,format = 'f'),')')
 
-scale_linetype_manual(name="Line Color",
-                      values=c(myline1="red", myline2="blue", myline3="purple"))
+htmlTable::htmlTable(dcast(tt,Coef~DV,value.var = 'present'))
 
 
-tt
 
 library(plm)
 library(pglm)
+
 pld <- as.data.frame(modeldata_dt)
 pld <- pld[pld$PERIOD_ID %in% 2:3,]
-pld <- pld[,c('Health','std_Fund_Balance_L1','std_Prop_Nonwhite','std_Urban_Prop','std_ln_REV_PER_CONNECTION_L1',
+pld <- pld[,colnames(pld) %in% c('Health','std_Fund_Balance_L1','std_Prop_Nonwhite','std_Urban_Prop','std_ln_REV_PER_CONNECTION_L1',
               'std_ln_Median_Home_Value','std_ln_Total_Service_Connections','District_ID','PERIOD_ID',
               'std_NonHealth_L1','std_CBSA_HHI_Index','std_Severe_Weather_Events','std_DSCI_3yr_Weekly_Avg')]
+
 pld <- pld[rowSums(is.na(pld))==0,]
 form_test = as.formula(paste0('Health~',paste(grep('^std',colnames(pld),value=T),collapse='+')))
 est = pglm(formula = form_test,
            data = pld,model = 'random',family = negbin,method = "nr",index = c('District_ID','PERIOD_ID'))
 summary(est)
 
-
-warnings()
-
-la <- pglm(patents ~ lag(log(rd), 0:5) + scisect + log(capital72) + factor(year), PatentsRDUS,
-           family = negbin, model = "within", print.level = 3, method = "nr",
-           index = c('cusip', 'year'))
-:
 library(corrplot)
 cvals <- cor(as.matrix(mod0$model.matrix[,-1]))
 test = gather(as.data.frame(cvals) %>% mutate(v1 = rownames(.)),key,value,-v1)
@@ -612,10 +640,6 @@ observed = master_dt[PERIOD_ID%in%2:3,Health]
 
 ggplot_inla_residuals2(mod0, observed, se = FALSE)
 INLAutils::plot_fixed_marginals(mod0)
-
-
-
-
 
 
 mod1 = inla(as.formula(paste('Health',form_string,sep='~')),family = 'poisson',data=master_dt[master_dt$PERIOD_ID%in%2:3,],
@@ -743,15 +767,6 @@ setkey(demo_dt,District_ID,Year)
 fill_grid = as.data.table(fill_grid)
 setkey(fill_grid,District_ID,Year)
 fill_grid = demo_dt[fill_grid ,]
-
-
-
-test = viol_dt[viol_dt$`Is Health Based`=='Y',]
-vcount <- test[,.N,by=PWS_ID]
-vcount$Service_Connections <- viol_dt$`Service Connections Count`[match(vcount$PWS_ID,viol_dt$PWS_ID)]
-ggplot(data = vcount[vcount$Service_Connections<15000,]) + 
-  geom_point(aes(x = Service_Connections,y = N)) +
-  geom_vline(xintercept = c(500,3300,10000))
 
 
 
@@ -986,22 +1001,7 @@ temp$REV_PER_CONNECTION_L1 = temp$TOTAL_REVENUE_L1/temp$SERVICE_CONNECTIONS_L1
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-table(full_data$FISCAL_YEAR_END_YEAR)
-
 tract_sp = tx_tracts[!duplicated(tx_tracts@data$GEOID),]
-
 tx_tract_df = fortify(tract_sp, region = 'GEOID')
 tx_tract_df$GEOID = as.character(tx_tract_df$id)
 tx_tract_df = left_join(tx_tract_df,tract_sp@data)
@@ -1070,7 +1070,8 @@ pws_df$hviol_since_2006[pws_df$hviol_since_2006>50]<- 50
 
 tx_counties = spTransform(tx_counties,CRS(proj4string(keep_polys)))
 tx_counties_df = fortify(tx_counties)
-
+geom_path(data = tx_counties_df,aes(x = long,y=lat,group = group),col = 'grey80',lwd=0.25)+
+  theme_map() + 
 
 ggplot() + 
   geom_path(data = tx_counties_df,aes(x = long,y=lat,group = group),col = 'grey80',lwd=0.25)+
