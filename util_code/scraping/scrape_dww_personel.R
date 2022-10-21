@@ -45,7 +45,7 @@ mutate_temp  = pblapply(temp,function(x){x%>% mutate(
 
 poc = rbindlist(mutate_temp)
 
-write_csv(poc,paste('input/texas_dww/personnel_records',paste0(Sys.Date(),'.csv'),sep='_'))
+write_csv(poc,paste('scraped_input/texas_dww/personnel_records',paste0(Sys.Date(),'.csv'),sep='_'))
 
 #slackr(print('dww scrape done'))
 
@@ -59,10 +59,12 @@ operator_css_selector = 'table:nth-child(18)'
 system_number_css = "#AutoNumber7 td:nth-child(1) a"
 library(magrittr)
 
-system_operators_table_list = mclapply(data_sheet_urls,function(x) 
-  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% rvest::html_node(operator_css_selector) %>% 
-    html_table() %>% mutate(System = str_extract(x,'TX[0-9]{7}')),mc.cores=2,mc.cleanup=T)
 
+system_operators_table_list = pblapply(data_sheet_urls,function(x) {#print(x);
+  Sys.sleep(0.05)
+  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% rvest::html_node(operator_css_selector) %>% 
+    html_table() %>% mutate(System = str_extract(x,'TX[0-9]{7}'))},cl = 4)
+  
 
 system_operators_df = do.call(rbind,system_operators_table_list[!sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
  
@@ -73,8 +75,8 @@ system_operators_df = do.call(rbind,system_operators_table_list[!sapply(system_o
  
 system_operators_df = full_join(system_operators_df ,nosystem_operators_df %>% rename(LICENSE_HOLDER = X1))
 
-write.csv(system_operators_df,paste('input/texas_dww/licensed_operators',paste0(Sys.Date(),'.csv'),sep='_'))
+write.csv(system_operators_df,paste('scraped_input/texas_dww/licensed_operators',paste0(Sys.Date(),'.csv'),sep='_'))
 
 drought_site = 'https://www.tceq.texas.gov/drinkingwater/trot/droughtw.html'
 dtable = drought_site %>% read_html() %>% html_table(fill=T,header=T)
-write_csv(dtable[[1]],paste('input/texas_dww/system_water_restrictions',paste0(Sys.Date(),'.csv'),sep='_'))
+write_csv(dtable[[1]],paste('scraped_input/texas_dww/system_water_restrictions',paste0(Sys.Date(),'.csv'),sep='_'))
