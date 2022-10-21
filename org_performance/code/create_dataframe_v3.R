@@ -1,28 +1,11 @@
 
-library(rgeos)
-library(rgdal)
-library(sp)
-library(maptools)
-devtools::install_github("ironholds/lucr")
-require(lucr)
-library(readxl)
-library(hhi)
-library(spdep)
-library(lubridate)
-library(pbapply)
-library(tidyverse)
-library(jsonlite)
-library(data.table)
-library(tidyverse)
-library(lubridate)
-library(sf)
-library(geojsonsf)
-library(tigris)
-library(lwgeom)
+packs = c('rgeos','rgdal','sp','maptools','readxl','hhi','spdep','lubridate','pbapply','jsonlite','tidyverse','data.table','sf','tigris','lwgeom','tidyquant')
+need = packs[!packs %in% installed.packages()[,'Package']]
+sapply(need,install.packages)
+sapply(packs,require,character.only = T)
 
-library(tidyquant)
 
-dinfo_dt = fread('input/twdd_records/district_list_2019-01-03.csv',stringsAsFactors = F,na.strings = "")
+dinfo_dt = fread('org_performance/input/district_list_2019-03-08.csv',stringsAsFactors = F,na.strings = "")
 dinfo_dt$PWS_ID[dinfo_dt$PWS_ID == "NA"] <- NA
 dinfo_dt$District_ID = as.character(dinfo_dt$District_ID)
 dinfo_dt = dinfo_dt[!is.na(PWS_ID)]
@@ -49,14 +32,15 @@ master_dt$PERIOD_END <- gsub('[0-9]{4}-','',master_dt$PERIOD)
 
 ######### collect PWS data ######
 tx_counties <- tigris::counties(state = 'TX',class = 'sf',year= 2017)
-system_find <- 'https://ofmpub.epa.gov/echo/sdw_rest_services.get_systems?output=JSON&p_st=TX&p_act=A'
+#generate query using this tool: https://echo.epa.gov/tools/web-services/facility-search-drinking-water
+system_find <- 'https://echodata.epa.gov/echo/sdw_rest_services.get_systems?p_st=TX&p_act=A'
 res <- fromJSON(system_find)
 qid <- res$Results$QueryID
-return_systems <- fread(paste0('https://ofmpub.epa.gov/echo/sdw_rest_services.get_download?qid=',qid,'&qcolumns=6,9,10,11,14'))
+return_systems <- fread(paste0('https://echodata.epa.gov/echo/sdw_rest_services.get_download?qid=',qid,'&qcolumns=6,9,10,11,14'))
 setnames(return_systems,'PWSId','PWS_ID')
 setnames(return_systems,'PWSName','PWS_NAME')
 
-tx_info = as.data.table(readRDS('scratch/pws_details_2019-02-05.RDS') %>% dplyr::select(-PWS_ID_EX))
+tx_info = as.data.table(readRDS('org_performance/input/pws_details_2019-02-05.RDS') %>% dplyr::select(-PWS_ID_EX))
 tx_info$Counties_Served <- return_systems$CountiesServed[match(tx_info$PWS_ID,return_systems$PWS_ID)]
 tx_info$Counties_Served <- str_split(tx_info$Counties_Served,', ')
 
@@ -96,7 +80,7 @@ cfips = cfips[cfips$state=='TX',]
 
 pws_dt$CFIPS_Served <- sapply(pws_dt$Counties_Served,function(x) cfips$CFIPS[match(x,cfips$county)])
 
-cbsa_ref = read_excel('input/census/cbsa_delineations.xls',skip = 1) %>% 
+cbsa_ref = read_excel('org_performance/input/cbsa_delineations.xls',skip = 1) %>% 
   mutate(CFIPS = paste0(formatC(`FIPS State Code`,width = 2,flag = 0),formatC(`FIPS County Code`,width=3,flag=0)))
 pws_dt$CBSA_FIPS <- sapply(pws_dt$CFIPS_Served,function(x) cbsa_ref$`CBSA Code`[match(x,cbsa_ref$CFIPS)])
 pws_dt = pws_dt[!sapply(pws_dt$CBSA_FIPS,function(x) any(is.na(x))),]
@@ -129,10 +113,11 @@ pws_time_dt <- data.table(expand.grid(PWS_ID = pws_dt$PWS_ID,PERIOD = c('2009-20
 pws_time_dt$PERIOD_START <- gsub('-[0-9]{4}','',pws_time_dt$PERIOD)
 pws_time_dt$PERIOD_END <- gsub('[0-9]{4}-','',pws_time_dt$PERIOD)
 
-viol_dt = fread('input/epa_sdwis/proj6/TX_PWS_violation_report_2-4-19.csv',na.strings = '-')
-viol_dt = readRDS(paste0('scratch/viol_list_2021-03-02.rds'))
+
+vfiles = list.files('org_performance/input/violation_records/',full.names = T)
+viol_dt = rbindlist(lapply(vfiles,fread),use.names = T,fill = T)
 viol_dt[viol_dt=='-'] <- NA
-setnames(viol_dt, "PWSID", "PWS_ID")
+names(viol_dt) <- str_replace_all(names(viol_dt),'\\s','_')
 
 viol_dt$COMP_BEGIN_DATE <- dmy(viol_dt$COMPL_PER_BEGIN_DATE)
 viol_dt$COMP_YEAR <- year(viol_dt$COMP_BEGIN_DATE)
@@ -333,24 +318,29 @@ master_dt$Num_PWS_Operated = master_dt$Num_PWS_Operated/3
 
 
 library(sf)
-wd = st_read('spatial_inputs/water_districts_shp/TCEQ_WaterDistricts.shp')
+tceq_geojson='https://opendata.arcgis.com/datasets/e7f6dd0a88c046fba1f54d440941a061_0.geojson'
+wd = st_read(tceq_geojson)
 albersNA = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
 wd = st_transform(wd,crs = 3083)
 
 wd <- wd[wd$DISTRICT_I %in% master_dt$District_ID,]
 wd$District_ID <- as.character(wd$DISTRICT_I)
-sb = st_read('spatial_inputs/Service_Area_Boundaries/PWS_Export.shp')
+
+
+sb = st_read('https://services.twdb.texas.gov/arcgis/rest/services/PWS/Public_Water_Service_Areas_Grid/FeatureServer/0/query?f=json&where=1%3D1&returnGeometry=false&spatialRel=esriSpatialRelIntersects&outFields=PWSCode%2CPWSId%2CpwsName%2CSubmitDateTime%2CArea')
 sb = st_transform(sb,crs = 3083)
 sb = st_make_valid(sb)
 sb$District_ID  <- pws_dt$District_ID[match(sb$PWSId,pws_dt$PWS_ID)]
 sb <- sb[!is.na(sb$District_ID),]
 sb = st_union(sb,by_feature = T)
 sb_combo <- sb %>% group_by(District_ID) %>% summarize()
-wd_simple <- wd[!wd$District_ID %in% sb_combo$District_ID,c('District_ID')]
-wd_simple <- wd_simple[!duplicated(wd_simple$District_ID),]
+wd_simple <- wd[!wd$DISTRICT_ID %in% sb_combo$District_ID,c('DISTRICT_ID')]
+wd_simple <- wd_simple[!duplicated(wd_simple$DISTRICT_ID),]
+setnames(wd_simple,'DISTRICT_ID','District_ID')
+
 district_sf = rbind(sb_combo,wd_simple)
 
-urban = st_read('spatial_inputs/government_units/cb_2016_us_ua10_500k.shp')
+urban = tigris::urban_areas(class = 'sf')
 urban = st_transform(urban,crs = 3083)
 urban = urban[grepl('TX',urban$NAME10),]
 #urban_tx = st_union(urban)
@@ -363,7 +353,7 @@ urban_props <- pbsapply(seq_along(inters),function(x) sum(as.numeric(st_area(st_
 district_sf$Prop_Urban <- urban_props 
 district_sf$Area = st_area(district_sf)
 
-demos = fread('input/census/ACS_tracts/proj6/tract_data_2009_2017.csv',stringsAsFactors = F)
+demos = fread('org_performance/input/tract_data_2008_2019.csv',stringsAsFactors = F)
 demos$GEOID = gsub('.*US','',demos$GEOID)
 tracts = tigris::tracts(state = 'TX',class='sf',year = '2015')
 tracts = st_transform(tracts,crs = 3083)
@@ -398,7 +388,7 @@ demo_dt = rbindlist(demo_list)
 setnames(demo_dt,old = 'Median Year Structure Built',new = 'Median_Year_Structure_Built')
 demo_dt$PERIOD= ifelse(demo_dt$Year %in% 2009:2011,'2009-2011',ifelse(demo_dt$Year %in% 2012:2014,'2012-2014','2015-2017'))
 avg3yr = c('Total_Population','White_Population','Household_Pop','Household_Owner_Occupied','Pop_Over_25','Pop_Bach',
-'Median_Income','Median_Home_Value','Median_Year_Structure_Built')
+           'Median_Income','Median_Home_Value','Median_Year_Structure_Built')
 demo_values <- demo_dt[,lapply(.SD,mean),by = .(District_ID,PERIOD),.SDcols = avg3yr]
 
 
@@ -476,7 +466,7 @@ vars_to_lag=c("Debt_Issued_In_Period","Total_Revenue"  ,"Fund_Balance" ,
               "TotalDebtServiceOutstanding_3yrAvg",'Health','NonHealth')
 lag_var_names = paste(vars_to_lag,'L1',sep='_')
 modeldata_dt[order(District_ID,PERIOD_ID), (lag_var_names ) := data.table::shift(.SD, n = 1,fill= NA,type="lag"), 
-          .SDcols=vars_to_lag,by = District_ID]
+             .SDcols=vars_to_lag,by = District_ID]
 modeldata_dt$REV_PER_CONNECTION_L1 = modeldata_dt$Total_Revenue_L1/modeldata_dt$Total_Service_Connections
 modeldata_dt$EXP_PER_CONNECTION_L1 = modeldata_dt$Total_Expenditure_L1/modeldata_dt$Total_Service_Connections
 modeldata_dt$TotalDebtServiceOutstanding_3yrAvg_L1[is.na(modeldata_dt$TotalDebtServiceOutstanding_3yrAvg_L1)&modeldata_dt$PERIOD_ID==3]<-0
@@ -490,9 +480,9 @@ modeldata_dt$TotalDebtServiceOutstanding_L1_Per_Connection = modeldata_dt$TotalD
 
 vars_to_std= c("Debt_Issued_In_Period_L1", "REV_PER_CONNECTION_L1","Prop_Bach",
                "Fund_Balance_L1","Health_L1", "NonHealth_L1",'NUM_PWS_IN_CBSA',
-                "TotalDebtServiceOutstanding_L1_Per_Connection",  "Severe_Weather_Events" ,"DSCI_3yr_Weekly_Avg" ,
-                "Total_Service_Connections" ,"Urban_Prop","Median_Year_Structure_Built",
-              "Median_Home_Value", "Prop_Nonwholesale", "CBSA_HHI_Index")
+               "TotalDebtServiceOutstanding_L1_Per_Connection",  "Severe_Weather_Events" ,"DSCI_3yr_Weekly_Avg" ,
+               "Total_Service_Connections" ,"Urban_Prop","Median_Year_Structure_Built",
+               "Median_Home_Value", "Prop_Nonwholesale", "CBSA_HHI_Index")
 
 std_var_names = paste('std',vars_to_std,sep='_')
 modeldata_dt[, (std_var_names) := lapply(.SD,scale), .SDcols=vars_to_std]
@@ -512,10 +502,10 @@ modeldata_dt$CBSA_FIPS <- pws_dt$CBSA_FIPS[match(modeldata_dt$District_ID,pws_dt
 pcprior <- list(prec = list(prior = "pc.prec",param = c(3, 0.01)))
 
 form_string <- paste(c(grep('std_',names(modeldata_dt),value=T),
-# "Health_L1", "NonHealth_L1", 
-"Primary_Source",
-"f(District_ID,model = 'iid',hyper=pcprior)",
-"f(CBSA_FIPS,model = 'iid',hyper=pcprior)"),collapse='+')
+                       # "Health_L1", "NonHealth_L1", 
+                       "Primary_Source",
+                       "f(District_ID,model = 'iid',hyper=pcprior)",
+                       "f(CBSA_FIPS,model = 'iid',hyper=pcprior)"),collapse='+')
 
 mod0 = inla(as.formula(paste('Health',form_string,sep='~')),family = 'nbinomial',
             data=modeldata_dt[modeldata_dt$PERIOD_ID%in%2:3,],quantiles = c(0.01,0.025,0.05,0.5,0.95,0.975,0.99),
@@ -550,35 +540,35 @@ library(forcats)
 
 tt$Coef <- fct_relevel(tt$Coef,
                        "(Intercept)"    ,
-     "std_Health_L1" , "std_NonHealth_L1"  ,
-     "std_NUM_PWS_IN_CBSA" , "std_CBSA_HHI_Index" ,
-     "std_Severe_Weather_Events" , "std_DSCI_3yr_Weekly_Avg"    ,
-     "std_Median_Home_Value" ,   "std_Prop_Bach" ,
-     "std_Total_Service_Connections"  ,    "std_Prop_Nonwholesale"    ,
-     "std_Median_Year_Structure_Built", "std_Urban_Prop" ,"std_Debt_Issued_In_Period_L1"   ,
-     "std_TotalDebtServiceOutstanding_L1_Per_Connection" ,  "std_REV_PER_CONNECTION_L1"  ,
-     "std_Fund_Balance_L1" ,"Primary_SourceSW", "Primary_SourceSWP"  , "Primary_SourceGWP"  )  
-               
+                       "std_Health_L1" , "std_NonHealth_L1"  ,
+                       "std_NUM_PWS_IN_CBSA" , "std_CBSA_HHI_Index" ,
+                       "std_Severe_Weather_Events" , "std_DSCI_3yr_Weekly_Avg"    ,
+                       "std_Median_Home_Value" ,   "std_Prop_Bach" ,
+                       "std_Total_Service_Connections"  ,    "std_Prop_Nonwholesale"    ,
+                       "std_Median_Year_Structure_Built", "std_Urban_Prop" ,"std_Debt_Issued_In_Period_L1"   ,
+                       "std_TotalDebtServiceOutstanding_L1_Per_Connection" ,  "std_REV_PER_CONNECTION_L1"  ,
+                       "std_Fund_Balance_L1" ,"Primary_SourceSW", "Primary_SourceSWP"  , "Primary_SourceGWP"  )  
+
 
 tt$Coef <- fct_recode(tt$Coef,'Health violations in prior 3 years'="std_Health_L1" ,
-'Management violations in prior 3 years'= "std_NonHealth_L1"   ,
-'# water systems in CBSA'="std_NUM_PWS_IN_CBSA"  ,
-"% college degree" = "std_Prop_Bach",
-'CBSA HHI (market concentration)'="std_CBSA_HHI_Index",
-'Severe weather events'="std_Severe_Weather_Events" ,
-'Drought index (weekly average)'="std_DSCI_3yr_Weekly_Avg"  ,
-'Median home value'="std_Median_Home_Value",
-'Service connections'="std_Total_Service_Connections" ,
-'% retail connections'="std_Prop_Nonwholesale",
-'Median structure build year'="std_Median_Year_Structure_Built",
-'Debt issued during the last 3 years'= "std_Debt_Issued_In_Period_L1"   ,
-'Debt per connection'="std_TotalDebtServiceOutstanding_L1_Per_Connection" ,
-'Revenue per connection'= "std_REV_PER_CONNECTION_L1" ,
-'Fund balance'= "std_Fund_Balance_L1"  ,
-'% urban area' =  "std_Urban_Prop"  ,
-'Source-surface water'="Primary_SourceSW" ,
-'Source-purchased surface water' =  "Primary_SourceSWP",
-'Source-purchased groundwater'="Primary_SourceGWP" )
+                      'Management violations in prior 3 years'= "std_NonHealth_L1"   ,
+                      '# water systems in CBSA'="std_NUM_PWS_IN_CBSA"  ,
+                      "% college degree" = "std_Prop_Bach",
+                      'CBSA HHI (market concentration)'="std_CBSA_HHI_Index",
+                      'Severe weather events'="std_Severe_Weather_Events" ,
+                      'Drought index (weekly average)'="std_DSCI_3yr_Weekly_Avg"  ,
+                      'Median home value'="std_Median_Home_Value",
+                      'Service connections'="std_Total_Service_Connections" ,
+                      '% retail connections'="std_Prop_Nonwholesale",
+                      'Median structure build year'="std_Median_Year_Structure_Built",
+                      'Debt issued during the last 3 years'= "std_Debt_Issued_In_Period_L1"   ,
+                      'Debt per connection'="std_TotalDebtServiceOutstanding_L1_Per_Connection" ,
+                      'Revenue per connection'= "std_REV_PER_CONNECTION_L1" ,
+                      'Fund balance'= "std_Fund_Balance_L1"  ,
+                      '% urban area' =  "std_Urban_Prop"  ,
+                      'Source-surface water'="Primary_SourceSW" ,
+                      'Source-purchased surface water' =  "Primary_SourceSWP",
+                      'Source-purchased groundwater'="Primary_SourceGWP" )
 
 tt$Coef <- fct_rev(tt$Coef)
 tt[DV=='Health+NonHealth']
@@ -590,18 +580,18 @@ ggplot(data=tt[{!grepl('Intercept',Coef)}&DV=="Health+NonHealth",]) +
   #geom_errorbar(aes(ymin = `0.05quant`,ymax = `0.95quant`,x = Coef,color=DV,fill = DV),width=0,lwd=1.6) +
   #facet_wrap(~DV) +
   geom_point(aes(x = Coef,y = mean,fill = as.factor(`0.975quant`>0&`0.025quant`<0)),shape=21,size = 2,position = position_dodge(0.5))+
- # scale_y_continuous(limits=c(-3,2),name = ~Delta[ln(violations)]/Delta[Beta])+
- # scale_fill_manual(values=c('white','black'),labels=c('0 in 95% interavl','0 !in 95% interval')) + 
-#  scale_color_manual(values = rep('black',3))+
+  # scale_y_continuous(limits=c(-3,2),name = ~Delta[ln(violations)]/Delta[Beta])+
+  # scale_fill_manual(values=c('white','black'),labels=c('0 in 95% interavl','0 !in 95% interval')) + 
+  #  scale_color_manual(values = rep('black',3))+
   scale_fill_manual(values = c('black','white'),labels=c('no','yes'),name ='95% CI includes 0')+
- # guides(color=guide_legend(override.aes = list(lwd = c(0.4,1,1.6), pch=c(NA,NA,NA))))+
+  # guides(color=guide_legend(override.aes = list(lwd = c(0.4,1,1.6), pch=c(NA,NA,NA))))+
   coord_flip() + geom_vline(xintercept=0) + theme_bw() +
   scale_y_continuous(name = 'Additive log-scale parameter estimate')+
   #scale_color_colorblind(labels = c('Health viols.','All viols.','Manage. viols.'))+
- # guides(fill = F)+
+  # guides(fill = F)+
   theme(axis.text = element_text(size = 12),axis.title.y = element_blank(),legend.position = c(0.8,0.4))+
-       ggtitle('Posterior mean and 95% credible interval estimates')
-  
+  ggtitle('Posterior mean and 95% credible interval estimates')
+
 
 tt = tt[,.(Coef,mean,`0.025quant`,`0.975quant`,DV)]
 tt$present = paste0(formatC(tt$mean,drop0trailing = F,digits = 2,format = 'f'),' (',formatC(tt$`0.025quant`,drop0trailing = F,digits = 2,format = 'f'),', ',formatC(tt$`0.975quant`,drop0trailing = F,digits = 2,format = 'f'),')')
@@ -616,8 +606,8 @@ library(pglm)
 pld <- as.data.frame(modeldata_dt)
 pld <- pld[pld$PERIOD_ID %in% 2:3,]
 pld <- pld[,colnames(pld) %in% c('Health','std_Fund_Balance_L1','std_Prop_Nonwhite','std_Urban_Prop','std_ln_REV_PER_CONNECTION_L1',
-              'std_ln_Median_Home_Value','std_ln_Total_Service_Connections','District_ID','PERIOD_ID',
-              'std_NonHealth_L1','std_CBSA_HHI_Index','std_Severe_Weather_Events','std_DSCI_3yr_Weekly_Avg')]
+                                 'std_ln_Median_Home_Value','std_ln_Total_Service_Connections','District_ID','PERIOD_ID',
+                                 'std_NonHealth_L1','std_CBSA_HHI_Index','std_Severe_Weather_Events','std_DSCI_3yr_Weekly_Avg')]
 
 pld <- pld[rowSums(is.na(pld))==0,]
 form_test = as.formula(paste0('Health~',paste(grep('^std',colnames(pld),value=T),collapse='+')))
@@ -832,12 +822,15 @@ vars_to_scale = c("Median_Year_Structure_Built"  ,"Median_Home_Value" ,"Prop_Bac
                   'Management_Violation_Count_L1',"Health_Violation_Count_L1",'Total_Service_Connections','Daily_MGD_Connection')
 scale_labs = paste0('Std_',vars_to_scale)
 dinfo_dt[ , (scale_labs) := lapply(.SD, scale), .SDcols=vars_to_scale]
-saveRDS(file = 'scratch/proj6/df_for_model.RDS',object = dinfo_dt)
-
-library(INLA)
 dinfo_dt$Have_Health_Violation = (dinfo_dt$Health_Violation_Count>0)+0
 dinfo_dt$Total_Viol_Count = dinfo_dt$Health_Violation_Count + dinfo_dt$Management_Violation_Count
 dinfo_dt$Total_Viol_Count_L1 = dinfo_dt$Health_Violation_Count_L1 + dinfo_dt$Management_Violation_Count_L1
+
+saveRDS(file = 'df_for_model.RDS',object = dinfo_dt)
+
+
+
+library(INLA)
 
 idf = apply(dinfo_dt,2,unlist)
 
@@ -1072,8 +1065,8 @@ tx_counties = spTransform(tx_counties,CRS(proj4string(keep_polys)))
 tx_counties_df = fortify(tx_counties)
 geom_path(data = tx_counties_df,aes(x = long,y=lat,group = group),col = 'grey80',lwd=0.25)+
   theme_map() + 
-
-ggplot() + 
+  
+  ggplot() + 
   geom_path(data = tx_counties_df,aes(x = long,y=lat,group = group),col = 'grey80',lwd=0.25)+
   theme_map() + 
   geom_polygon(data = pws_df,aes(y = lat,x = long,fill = hviol_since_2006,group = group)) + 
