@@ -35,7 +35,7 @@ inter_temp = base_page %>% html_nodes(css_inter) %>% html_text(trim=T) #%>% matr
 table_nodes = base_page %>% html_nodes('table')
 table_nodes = table_nodes[!sapply(sapply(seq_along(table_nodes),function(t) tryCatch({html_table(table_nodes[[t]],fill=T,trim=T)},error = function(e) NULL)),is.null)]
 table_list = html_table(table_nodes,trim=T,fill=T)
-inter_temp = table_list[[which(grepl('w/other PWS',table_list,fixed = T ))[2]]][,-5]
+inter_temp = table_list[[which(grepl('w/other PWS',table_list,fixed = T ))[2]]]
 colnames(inter_temp) <- inter_temp[1,]
 inter_temp = inter_temp[-1,]
 if(nrow(inter_temp)>0){pop_temp = inter_temp %>% dplyr::select(-`# ofConnect`,-`# I/Cw/other PWS`) %>% spread(PopulationType,PopulationServed,sep = '_Population_')
@@ -56,8 +56,7 @@ pop_temp,sc_temp),
 Interconnections = interconnects_temp,
 stringsAsFactors = F)
 df})
-},cl = 5)
-
+},cl = 8)
 
 while(any(sapply(owner_list,class)=='try-error')){
   index = which(sapply(owner_list,class)=='try-error')
@@ -72,7 +71,7 @@ while(any(sapply(owner_list,class)=='try-error')){
     table_nodes = base_page %>% html_nodes('table')
     table_nodes = table_nodes[!sapply(sapply(seq_along(table_nodes),function(t) tryCatch({html_table(table_nodes[[t]],fill=T,trim=T)},error = function(e) NULL)),is.null)]
     table_list = html_table(table_nodes,trim=T,fill=T)
-    inter_temp = table_list[[which(grepl('w/other PWS',table_list,fixed = T ))[2]]][,-5]
+    inter_temp = table_list[[which(grepl('w/other PWS',table_list,fixed = T ))[2]]]
     colnames(inter_temp) <- inter_temp[1,]
     inter_temp = inter_temp[-1,]
     if(nrow(inter_temp)>0){pop_temp = inter_temp %>% dplyr::select(-`# ofConnect`,-`# I/Cw/other PWS`) %>% spread(PopulationType,PopulationServed,sep = '_Population_')
@@ -118,7 +117,7 @@ owner_df$Average_Daily_Consump_MGD[!is.na(owner_df$Average_Daily_Consump_MGD)&ow
 #     data.frame(PWS_ID = str_extract(quers[x],'TX[0-9]{1,}'),owner_type = own,stringsAsFactors = F)}})
 # owner_df = rbind(owner_df,do.call(rbind,extra))
 
-saveRDS(owner_df,paste0(paste0('scraped_input/pws_details/pws_details_',Sys.Date(),'.RDS')))
+saveRDS(owner_df,paste0(paste0('input/texas_dww/pws_details_',Sys.Date(),'.RDS')))
 
 
 

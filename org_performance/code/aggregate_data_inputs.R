@@ -4,11 +4,18 @@ packs = c('rgeos','rgdal','sp','maptools','readxl','hhi','spdep','lubridate',
 need = packs[!packs %in% installed.packages()[,'Package']]
 sapply(need,install.packages)
 sapply(packs,require,character.only = T)
-if(!require(lucr)){remotes::install_github('Ironholds/lucr');require(lucr)}
+#if(!require(lucr)){remotes::install_github('Ironholds/lucr');require(lucr)}
 
-dinfo_dt = fread('org_performance/input/district_list_2019-03-08.csv',stringsAsFactors = F,na.strings = "")
+fl <- list.files('input/',recursive = T,full = T)
+grep('district_list',fl,value = T)
+
+dinfo_dt = fread('input/twdd_records/district_list_2019-03-08.csv',stringsAsFactors = F,na.strings = "")
 dinfo_dt$PWS_ID[dinfo_dt$PWS_ID == "NA"] <- NA
 dinfo_dt$District_ID = as.character(dinfo_dt$District_ID)
+
+install.packages('sf')
+install.packages('units', configure.args = c('--with-udunits2-include=~/homebrew/bin/udunits2'))
+
 dinfo_dt = dinfo_dt[!is.na(PWS_ID)]
 setkey(dinfo_dt,District_ID)
 dinfo_dt$PWS_ID = str_split(dinfo_dt$PWS_ID,'\\|')

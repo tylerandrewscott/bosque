@@ -1,19 +1,19 @@
 library(tidyverse)
 
 acs_population = do.call(rbind,
-        lapply(paste0('input/census/ACS_tracts/proj6/',grep('B01003_with',list.files('input/census/ACS_tracts/proj6'),value=T)),function(x)
+        lapply(paste0('input/census/ACS_tracts/proj6/',grep('B01003.*(with|Data)',list.files('input/census/ACS_tracts/proj6'),value=T)),function(x)
           read_csv(x,na = '-',skip=1) %>% mutate(Year = str_extract(x,'ACS_[0-9]{2}')) %>% mutate(Year = paste0('20',gsub('ACS_','',Year)))))
 acs_population = acs_population %>% dplyr::select(-`Margin of Error; Total`) %>% 
   rename(Population = `Estimate; Total`) %>% mutate(Id2 = as.character(Id2))
 
 
-acs_ed = lapply(paste0('input/census/ACS_tracts/proj6/',grep('S1501_with',list.files('input/census/ACS_tracts/proj6'),value=T)),function(x){
+acs_ed = lapply(paste0('input/census/ACS_tracts/proj6/',grep('S1501.*(with|Data)',list.files('input/census/ACS_tracts/proj6'),value=T)),function(x){
   print(x); invisible(read_csv(x,na = '-',skip=0)) %>% 
     rename(Id = GEO.id, Id2 = GEO.id2) %>%
     mutate(Year = paste0('20',gsub('ACS_','',str_extract(x,'ACS_[0-9]{2}')))) %>% .[-1,]})
 names(acs_ed) <- grep('S1501_with',list.files('input/census/ACS_tracts/proj6'),value=T)
 ed_guide = data.frame(Year = 2017:2009,
-                      file = sort(grep('S1501_with',list.files('input/census/ACS_tracts/proj6'),value=T),decreasing = T),
+                      file = sort(grep('S1501.*(with|Data)',list.files('input/census/ACS_tracts/proj6'),value=T),decreasing = T),
                       code = c('HC02_EST_VC18',
            'HC02_EST_VC18',
            'HC01_EST_VC17',

@@ -11,12 +11,14 @@ system_summary_links = all_links[grepl('^TX[0-9]',all_links %>% html_text(trim=T
 system_summary_links = system_summary_links
 prefix = 'https://dww2.tceq.texas.gov/DWW/JSP/'
 
+
 temp_results = do.call(rbind,mclapply(system_summary_links,function(x) {
-  temp_nodes = gsub(' ', '',paste0(prefix,x)) %>% read_html() %>% html_nodes('td')
+  temp_nodes = URLencode(paste0(prefix,x)) %>% read_html() %>% html_nodes('td')
   cbind(temp_nodes[which({temp_nodes %>% html_attr('width')} == '100%' & !is.na(temp_nodes %>% html_attr('bgcolor')))] %>% html_text(trim=T),str_extract(x,'TX[0-9]{7}'))
 },mc.cores = 5,mc.cleanup = T))
 
-temp_df = as.tibble(temp_results)  %>% 
+
+temp_df = as_tibble(temp_results)  %>% 
   rename(Transfer = V1, Head = V2) %>% filter(Transfer != 'No Buyers') %>%
   mutate(Transfer = stri_replace_all_regex(Transfer,"\n|\t|\r|&nbsp",""))
 
@@ -39,5 +41,5 @@ purchase_df = tibble(Buyer = str_extract(purchases,'^TX[0-9]{7}'),
        Water_Type = gsub('providing ','',str_extract(purchases,'providing.*')))
 purchase_df = purchase_df[!duplicated(purchase_df)&!is.na(purchase_df$Seller),]
 
-write_csv(purchase_df,path = paste('input/texas_dww/purchasing_connections',paste0(Sys.Date(),'.csv'),sep='_'))
-write_csv(sale_df, path = paste('input/texas_dww/sales_connections',paste0(Sys.Date(),'.csv'),sep='_'))
+write_csv(purchase_df,file = paste('input/texas_dww/purchasing_connections',paste0(Sys.Date(),'.csv'),sep='_'))
+write_csv(sale_df, file = paste('input/texas_dww/sales_connections',paste0(Sys.Date(),'.csv'),sep='_'))

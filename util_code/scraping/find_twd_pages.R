@@ -1,8 +1,11 @@
-iwdd_base = "http://www14.tceq.texas.gov/iwud/dist/index.cfm?fuseaction=ListDistricts&Command=list"
+iwdd_base = "https://www14.tceq.texas.gov/iwud/dist/index.cfm?fuseaction=ListDistricts&COMMAND=LIST"
 i = 0
 library(rvest)
 library(tidyverse)
 library(pbapply)
+library(httr)
+
+
 base_sess = html_session(iwdd_base)
 page_html = base_sess %>% read_html()
 dtable = page_html %>% html_nodes('table') %>% html_table(trim=T,fill=T)  
@@ -39,9 +42,9 @@ status = base_sess %>% read_html() %>% html_nodes('.iwud~ .iwud+ .iwud') %>% htm
 name = page_html %>% html_nodes('.iwud+ .iwud:nth-child(3)') %>% html_text(trim=T)
 district_links = unlist(district_links)
 
-saveRDS(unlist(district_links),'scratch/texas_water_district_pages.RDS')
+saveRDS(unlist(district_links),'input/texas_water_district_pages.RDS')
 
-district_links = readRDS('scratch/texas_water_district_pages.RDS')
+district_links = readRDS('input/texas_water_district_pages.RDS')
 css_district_id = "table:nth-child(5) tr:nth-child(1) .iwud+ .iwuddata"
 css_ccn = "table:nth-child(5) tr+ tr .iwud+ .iwuddata"
 css_acres = "table:nth-child(11) tr:nth-child(1) .iwuddata"
@@ -59,7 +62,7 @@ css_primary_county = "table+ table tr:nth-child(4) .iwuddata"
 which(district_links == "index.cfm?fuseaction=DetailDistrict&ID=12694&command=list&name=RED%20RIVER%20AUTHORITY%20OF%20TEXAS")
 info_list = pblapply(seq_along(district_links),function(x){
 #print(x)
-url = paste0('http://www14.tceq.texas.gov/iwud/dist/',district_links[x])
+url = paste0('https://www14.tceq.texas.gov/iwud/dist/',district_links[x])
 district_session = html_session(url)
 link_urls = district_session  %>% read_html() %>% html_nodes('a') %>% html_attr('href')
 
@@ -88,6 +91,8 @@ full_df = do.call(rbind,info_list)
 #full_df$PWS_ID = str_extract(full_df$PWS_ID,'TX[0-9]{1,}')
 full_df$District_Link = district_links
 write_csv(x = full_df,path = paste0('input/twdd_records/district_list_',Sys.Date(),'.csv'))
+
+
 
 district_links = readRDS('scratch/texas_water_district_pages.RDS')
 affiliates = pblapply(seq_along(district_links),function(x){
