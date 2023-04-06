@@ -10,11 +10,11 @@ library(stringi)
 
 library(lubridate)
 
-if(any(list.files('scraped_input/tceq_audits/') == 'district_audit_reference_sheet.csv'))
-{doc_df = read_csv('scraped_input/tceq_audits/district_audit_reference_sheet.csv') %>% mutate(DOC_ID = as.character(DOC_ID),
+if(any(list.files('input/tceq_audits/') == 'district_audit_reference_sheet.csv')){
+doc_df = read_csv('input/tceq_audits/district_audit_reference_sheet.csv') %>% mutate(DOC_ID = as.character(DOC_ID),
                                                                                       DISTRICT_ID = as.character(DISTRICT_ID))}
-if(!any(list.files('scraped_input/tceq_audits/') == 'district_audit_reference_sheet.csv'))
-{doc_df = data.frame()}
+if(!any(list.files('input/tceq_audits/') == 'district_audit_reference_sheet.csv')){
+doc_df = data.frame()}
 
 audit_links = 'https://www14.tceq.texas.gov/iwud/document/index.cfm?fuseaction=ListDocumentsByType&COMMAND=LIST&DocType=Audit-District'
 audit_session = rvest::html_session(audit_links)
@@ -36,7 +36,7 @@ if(nrow(doc_df)==0){doc_df = temp_df}
 if(nrow(doc_df)!=0){doc_df = full_join(doc_df,temp_df)}
 if(any((audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt')) == 'Next page'))
 {
-audit_session <- audit_session %>% follow_link(i = 
+audit_session <- audit_session %>% session_follow_link(i = 
                     intersect(which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt') == 'Next page'),
                       which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('name') == 'next')))
 go_on = TRUE}}
@@ -69,20 +69,21 @@ if(any((audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt'
 write_csv(doc_df,'input/tceq_audits/district_audit_reference_sheet.csv')
 
 
-rm(list=ls())
+rows <- 1
+while(rows>0){
+#rm(list=ls())
 if(any(list.files('input/tceq_audits/') == 'district_audits.csv'))
 {audit_df = read_csv('input/tceq_audits/district_audits.csv',trim_ws = T)
 for (c in colnames(audit_df))
 {audit_df[[c]] <- as.character(audit_df[[c]])}}
 
-if(!any(list.files('scraped_input/tceq_audits/') == 'district_audits.csv'))
-{audit_df = data.frame()}
+if(!any(list.files('input/tceq_audits/') == 'district_audits.csv')){audit_df = data.frame()}
 library(pbapply)
 doc_df = read_csv('input/tceq_audits/district_audit_reference_sheet.csv')
 new_audits = doc_df %>% filter(!DOC_ID %in% audit_df$DOC_ID)
-
-if(nrow(new_audits)!=0){
-audit_list = pblapply(1:nrow(new_audits),function(i) as.character(new_audits$DOC_URL[i]) %>% read_html() %>% html_nodes(css = 'td.iwud') %>% html_text(trim=T) %>% matrix(.,ncol=2,byrow=T) %>%
+rows <- nrow(new_audits)
+if(rows>0){
+audit_list = pblapply(1:min(nrow(new_audits),100),function(i) as.character(new_audits$DOC_URL[i]) %>% read_html() %>% html_nodes(css = 'td.iwud') %>% html_text(trim=T) %>% matrix(.,ncol=2,byrow=T) %>%
     as.data.frame(.,stringsAsFactors = FALSE) %>% spread(V1,V2) %>% 
     mutate(DOC_URL = new_audits$DOC_URL[i],DOC_ID = new_audits$DOC_ID[i],
            DISTRICT_ID = new_audits$DISTRICT_ID[i],
@@ -92,14 +93,13 @@ new_audit_df <- invisible(Reduce(full_join,audit_list))
 for (c in colnames(new_audit_df))
 {new_audit_df[[c]] <- as.character(new_audit_df[[c]])}}
 
-
 if(nrow(new_audits)!=0){
 if(nrow(audit_df)==0)
 {audit_df = new_audits}
 if(nrow(audit_df!=0))
-{audit_df = full_join(audit_df,new_audit_df)}
+{audit_df = full_join(audit_df,new_audit_df)
+write_csv(audit_df,paste('input/tceq_audits/district_audits.csv',sep='_'))}
 }
-write_csv(audit_df,paste('input/tceq_audits/district_audits.csv',sep='_'))
-
+}
 
 

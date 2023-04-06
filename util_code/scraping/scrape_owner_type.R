@@ -21,13 +21,19 @@ sum_nodes = gsub('\\s','',sum_nodes)
 q = paste0(pref,sum_nodes)
 q})
 
+master_set <- data.table()
 quers = unlist(quers)
+qdt <- data.table(q = quers,grabbed = 0)
+### work in chunks, record results
 
-owner_list = pblapply(seq_along(quers),function(x) {
+
+cl = 2
+while(any(qdt$grabbed==0)){
+  qvec <- sample(qdt$q[qdt$grabbed==0],min(250,length(qdt$q[qdt$grabbed==0])))
+owner_list = pblapply(qvec,function(x) {
   print(x)
-rm(list = grep('temp',ls(),value=T))
 tryCatch({
-base_page = quers[x] %>% read_html() 
+base_page = x %>% read_html() 
 flow_temp = base_page %>% html_nodes(css_flow) %>% html_text(trim=T) %>% matrix(.,nrow=2,byrow = T)
 colnames(flow_temp) <- flow_temp[1,]
 flow_temp = flow_temp[-1,]
@@ -55,48 +61,59 @@ cn_bind_temp,
 pop_temp,sc_temp),
 Interconnections = interconnects_temp,
 stringsAsFactors = F)
-df})
-},cl = 8)
+df$q<-x
+df
+})
+},cl = cl)
+owner_dt <- rbindlist(owner_list[sapply(owner_list,class)!='try-error'],fill = T,use.names = T)
+if(nrow(owner_dt)>0){
+  master_set <- rbind(owner_dt,master_set,use.names = T,fill = T)
+  qdt$grabbed[qdt$q %in% owner_dt$q]<-1
+  }
+}
 
-while(any(sapply(owner_list,class)=='try-error')){
-  index = which(sapply(owner_list,class)=='try-error')
-  for(x in index){
-  rm(list = grep('temp',ls(),value=T))
-  tryCatch({
-    base_page = quers[x] %>% read_html() 
-    flow_temp = base_page %>% html_nodes(css_flow) %>% html_text(trim=T) %>% matrix(.,nrow=2,byrow = T)
-    colnames(flow_temp) <- flow_temp[1,]
-    flow_temp = flow_temp[-1,]
-    inter_temp = base_page %>% html_nodes(css_inter) %>% html_text(trim=T) #%>% matrix(.,nrow=2,byrow = T)
-    table_nodes = base_page %>% html_nodes('table')
-    table_nodes = table_nodes[!sapply(sapply(seq_along(table_nodes),function(t) tryCatch({html_table(table_nodes[[t]],fill=T,trim=T)},error = function(e) NULL)),is.null)]
-    table_list = html_table(table_nodes,trim=T,fill=T)
-    inter_temp = table_list[[which(grepl('w/other PWS',table_list,fixed = T ))[2]]]
-    colnames(inter_temp) <- inter_temp[1,]
-    inter_temp = inter_temp[-1,]
-    if(nrow(inter_temp)>0){pop_temp = inter_temp %>% dplyr::select(-`# ofConnect`,-`# I/Cw/other PWS`) %>% spread(PopulationType,PopulationServed,sep = '_Population_')
-    sc_temp = inter_temp %>% dplyr::select(-PopulationServed,-`# I/Cw/other PWS`) %>% spread( PopulationType,`# ofConnect`,sep = '_ServiceConnections_')
-    }else{pop_temp = NA;sc_temp=NA}
-    interconnects_temp = sum(as.numeric(inter_temp$`# I/Cw/other PWS`))
-    cn_temp = base_page %>% html_nodes(css_cn) %>% html_text(trim=T) %>% matrix(.,ncol=2,byrow=T) %>% .[-1,] %>% matrix(.,ncol=2) %>% data.frame(.,stringsAsFactors = F) %>% mutate(CN_ID = paste('CN',1:nrow(.),sep='_'))
-    org_cn_temp = cn_temp %>% dplyr::select(-X2) %>% spread(CN_ID,X1)
-    colnames(org_cn_temp) = gsub('CN_','CN_ORG_',colnames(org_cn_temp))
-    id_cn_temp = cn_temp %>% dplyr::select(-X1) %>% spread(CN_ID,X2)
-    cn_bind_temp = cbind(org_cn_temp,id_cn_temp)
-    df = data.frame(PWS_ID = str_extract(quers[x],'TX[0-9]{1,}'),
-                    cbind(matrix(base_page %>% html_nodes(css_owner) %>% html_text(trim=T) ,nrow = 1,dimnames = list(x,'Owner_Type')),
-                          matrix(base_page %>% html_nodes(css_rn) %>% html_text(trim=T) ,nrow=1,dimnames = list(x,c('PWS_ID_EX','PWS_NAME','RN'))),
-                          rbind(flow_temp),
-                          cn_bind_temp,
-                          pop_temp,sc_temp),
-                    Interconnections = interconnects_temp,
-                    stringsAsFactors = F)
-    owner_list[[x]]<-df
-    })
-}}
+# 
+# while(any(sapply(owner_list,class)=='try-error')){
+#   index = which(sapply(owner_list,class)=='try-error')
+#   for(x in index){
+#   rm(list = grep('temp',ls(),value=T))
+#   tryCatch({
+#     base_page = quers[x] %>% read_html() 
+#     flow_temp = base_page %>% html_nodes(css_flow) %>% html_text(trim=T) %>% matrix(.,nrow=2,byrow = T)
+#     colnames(flow_temp) <- flow_temp[1,]
+#     flow_temp = flow_temp[-1,]
+#     inter_temp = base_page %>% html_nodes(css_inter) %>% html_text(trim=T) #%>% matrix(.,nrow=2,byrow = T)
+#     table_nodes = base_page %>% html_nodes('table')
+#     table_nodes = table_nodes[!sapply(sapply(seq_along(table_nodes),function(t) tryCatch({html_table(table_nodes[[t]],fill=T,trim=T)},error = function(e) NULL)),is.null)]
+#     table_list = html_table(table_nodes,trim=T,fill=T)
+#     inter_temp = table_list[[which(grepl('w/other PWS',table_list,fixed = T ))[2]]]
+#     colnames(inter_temp) <- inter_temp[1,]
+#     inter_temp = inter_temp[-1,]
+#     if(nrow(inter_temp)>0){pop_temp = inter_temp %>% dplyr::select(-`# ofConnect`,-`# I/Cw/other PWS`) %>% spread(PopulationType,PopulationServed,sep = '_Population_')
+#     sc_temp = inter_temp %>% dplyr::select(-PopulationServed,-`# I/Cw/other PWS`) %>% spread( PopulationType,`# ofConnect`,sep = '_ServiceConnections_')
+#     }else{pop_temp = NA;sc_temp=NA}
+#     interconnects_temp = sum(as.numeric(inter_temp$`# I/Cw/other PWS`))
+#     cn_temp = base_page %>% html_nodes(css_cn) %>% html_text(trim=T) %>% matrix(.,ncol=2,byrow=T) %>% .[-1,] %>% matrix(.,ncol=2) %>% data.frame(.,stringsAsFactors = F) %>% mutate(CN_ID = paste('CN',1:nrow(.),sep='_'))
+#     org_cn_temp = cn_temp %>% dplyr::select(-X2) %>% spread(CN_ID,X1)
+#     colnames(org_cn_temp) = gsub('CN_','CN_ORG_',colnames(org_cn_temp))
+#     id_cn_temp = cn_temp %>% dplyr::select(-X1) %>% spread(CN_ID,X2)
+#     cn_bind_temp = cbind(org_cn_temp,id_cn_temp)
+#     df = data.frame(PWS_ID = str_extract(quers[x],'TX[0-9]{1,}'),
+#                     cbind(matrix(base_page %>% html_nodes(css_owner) %>% html_text(trim=T) ,nrow = 1,dimnames = list(x,'Owner_Type')),
+#                           matrix(base_page %>% html_nodes(css_rn) %>% html_text(trim=T) ,nrow=1,dimnames = list(x,c('PWS_ID_EX','PWS_NAME','RN'))),
+#                           rbind(flow_temp),
+#                           cn_bind_temp,
+#                           pop_temp,sc_temp),
+#                     Interconnections = interconnects_temp,
+#                     stringsAsFactors = F)
+#     owner_list[[x]]<-df
+#     })
+# }}
+# 
 
 
-owner_df = do.call(plyr::rbind.fill,owner_list[sapply(owner_list,class)!='try-error'])
+owner_df <- master_set
+#owner_df = do.call(plyr::rbind.fill,owner_list[sapply(owner_list,class)!='try-error'])
 owner_df$Total_Storage_Units = str_extract(owner_df$TotalStorage.MG.,'[A-Z]{1,}')
 owner_df$Total_Storage_MG = as.numeric(gsub(' [A-Z]{1,}$','',owner_df$TotalStorage.MG.))
 owner_df$Total_Storage_MG = ifelse(is.na(owner_df$Total_Storage_MG ),NA,ifelse(owner_df$Total_Storage_Units=='MG',owner_df$Total_Storage_MG ,owner_df$Total_Storage_MG/1000000))
@@ -118,7 +135,4 @@ owner_df$Average_Daily_Consump_MGD[!is.na(owner_df$Average_Daily_Consump_MGD)&ow
 # owner_df = rbind(owner_df,do.call(rbind,extra))
 
 saveRDS(owner_df,paste0(paste0('input/texas_dww/pws_details_',Sys.Date(),'.RDS')))
-
-
-
 
