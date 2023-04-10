@@ -20,9 +20,6 @@ temp$management_days_L1[is.na(temp$management_days_L1)]<-0
 temp$health_violations_L1[is.na(temp$health_violations_L1)]<-0
 temp$management_violations_L1[is.na(temp$management_violations_L1)]<-0
 
-vs[!grepl("TX",MASTER_ID),.N,by=.(YEAR,IS_HEALTH_BASED_IND)] %>% filter(YEAR>2006) %>% 
-  ggplot(.,aes(x = YEAR,y = as.numeric(N))) + geom_bar(stat = 'identity') +
-  facet_wrap(~IS_HEALTH_BASED_IND)
 
 temp$DROP_FROM_FULL_MODEL <- temp$DROP_FROM_FULL_MODEL
 temp$DROP_FROM_FULL_MODEL <- temp$DROP_FROM_FULL_MODEL|temp$MASTER_ID %in% temp[,.N,by=.(MASTER_ID)][N<4,]$MASTER_ID
@@ -150,8 +147,16 @@ mod_temp <- temp[,grep('^std|^bin|violator|^YEAR$|^MASTER_ID$|DROP',names(temp),
 mod_temp$YEAR_ID <- as.numeric(as.factor(mod_temp$YEAR))
 mod_temp$MASTER_GROUP_NUM <- as.numeric(as.factor(mod_temp$MASTER_ID))
 
+mod_temp$violator <- (mod_temp$health_violator==1|mod_temp$management_violator==1)+0
+mod_temp$violator_L1 <- (mod_temp$health_violator_L1==1|mod_temp$management_violator_L1==1)+0
 
 u = 1
+length(unique(mod_temp$MASTER_ID))
+dinfo_dt = fread('input/twdd_records/district_list_2019-03-08.csv',stringsAsFactors = F,na.strings = "")
+table(dinfo_dt$Type[dinfo_dt$District_ID %in% mod_temp$MASTER_ID & !duplicated(dinfo_dt$District_ID)])
+length(dinfo_dt$Type[dinfo_dt$District_ID %in% mod_temp$MASTER_ID])
+
+
 f1 <- management_violator ~ f(YEAR_ID,model = 'iid') + f(MASTER_GROUP_NUM,model = 'iid')
 f2 <- health_violator ~ f(YEAR_ID,model = 'iid') + f(MASTER_GROUP_NUM,model = 'iid')
 f3 <- management_violator ~ f(YEAR_ID,model = 'iid') + f(MASTER_GROUP_NUM,model = 'iid') +
@@ -174,8 +179,20 @@ f4 <- health_violator ~ f(YEAR_ID,model = 'iid') + f(MASTER_GROUP_NUM,model = 'i
   std_Severe_Weather_Events +  std_DSCI_1yr_Weekly_Avg + 
   health_violator_L1
 
+fB <- violator ~ f(YEAR_ID,model = 'iid') + f(MASTER_GROUP_NUM,model = 'iid') +
+  std_ln_REV_PER_CONNECTION_L1 + 
+  std_ln_FUND_BALANCE_L1 + 
+  std_ln_DEBT_OUTSTANDING_PER_CONNECTION_L1 +
+  std_Prop_Bach + std_Median_Structure_Age + std_ln_MEDIAN_HOME_VALUE + 
+  std_NUM_PWS_CBSA + std_CBSA_HHI + 
+  std_ln_SERVICE_CONNECTIONS_COUNT + bin_Groundwater + bin_Wholesaler + 
+  std_Severe_Weather_Events +  std_DSCI_1yr_Weekly_Avg + 
+  violator_L1
+  
 m1_pre <- inla(f1,family = "binomial", Ntrials = 1,data = mod_temp,verbose = T)
 m2_pre <- inla(f2,family = "binomial", Ntrials = 1,data = mod_temp,verbose = T)
+mB_pre <- inla(violator ~ f(YEAR_ID,model = 'iid') + f(MASTER_GROUP_NUM,model = 'iid'),
+               family = "binomial", Ntrials = 1,data = mod_temp,verbose = T)
 
 dim(mod_temp[!(mod_temp$DROP_FROM_FULL_MODEL|mod_temp$DROP_FROM_PANEL|mod_temp$DROP_YEAR_FROM_MODEL),])
 
@@ -191,9 +208,13 @@ m3 <- inla(f3,family = "binomial", control.compute = list(waic = T,dic = T,mlik 
 m4 <- inla(f4,family = "binomial",control.compute = list(waic = T,dic = T,mlik = T),
            control.mode = list(theta = m2_pre$mode$theta) ,
            Ntrials = 1,data = mod_temp[!mod_temp$DROP_FROM_FULL_MODEL,],verbose = T)
+mB <- inla(fB,family = "binomial",control.compute = list(waic = T,dic = T,mlik = T),
+           control.mode = list(theta = mB_pre$mode$theta) ,
+           Ntrials = 1,data = mod_temp[!mod_temp$DROP_FROM_FULL_MODEL,],verbose = T)
 
-
-
+coefsB <- mB$summary.fixed[,c(1,3,5)] %>% 
+  mutate(Coef = rownames(.),Noncompliance = 'All') %>% 
+  filter(!grepl('factor',Coef))
 
 coefs<-rbind(
   m3$summary.fixed[,c(1,3,5)] %>% mutate(Coef = rownames(.),Noncompliance = 'Management') %>% filter(!grepl('factor',Coef)),
@@ -203,15 +224,18 @@ library(forcats)
 replace_df <- data.frame(old = c("std_ln_REV_PER_CONNECTION_L1","std_ln_FUND_BALANCE_L1","std_ln_DEBT_OUTSTANDING_PER_CONNECTION_L1",
                                  "std_Prop_Bach","std_Median_Structure_Age","std_ln_MEDIAN_HOME_VALUE",
                                  "std_NUM_PWS_CBSA","std_CBSA_HHI","std_ln_SERVICE_CONNECTIONS_COUNT","bin_Groundwater","bin_Wholesaler",
-                                 "std_Severe_Weather_Events","std_DSCI_1yr_Weekly_Avg","health_violator_L1","management_violator_L1"),
+                                 "std_Severe_Weather_Events","std_DSCI_1yr_Weekly_Avg","health_violator_L1","management_violator_L1",
+                                 'violator_L1'),
                          new = c('ln(revenue/connection),t-1','ln(fund balance),t-1','ln(debt/connection),t-1',
                                  "% bachelor's degree","median structure age",'ln(median home value)',
                                  '# PWS in CBSA','HHI for CBSA','ln(service connections)','Primary groundwater','Wholesaler',
                                  '# weather events, t','Weekly drought avg., t','health violator, t-1',
-                                 'management violator, t-1')
-)
+                                 'management violator, t-1','violator, t-1'))
 
 coefs$Coef[coefs$Coef %in% replace_df$old]<-replace_df$new[match(coefs$Coef[coefs$Coef %in% replace_df$old],replace_df$old)]
+
+coefsB$Coef[coefsB$Coef %in% replace_df$old]<-replace_df$new[match(coefsB$Coef[coefsB$Coef %in% replace_df$old],replace_df$old)]
+
 
 library(htmlTable)
 rownames(coefs)<-1:nrow(coefs)
@@ -264,6 +288,63 @@ htmlTable(big_tab,rnames = F,file = 'org_performance/output/table2.html',
                      'Control variables: water district',
                      'Model fit statistics')
 )
+
+
+library(htmlTable)
+rownames(coefsB)<-1:nrow(coefsB)
+coefsB$mean<-round(coefsB$mean,3)
+coefsB$`0.025quant`<-round(coefsB$`0.025quant`,3)
+coefsB$`0.975quant`<-round(coefsB$`0.975quant`,3)
+coefsB$total_coef <- paste0(coefsB$mean,' (',coefsB$`0.025quant`,",",coefsB$`0.975quant`,")")
+
+coefsB$total_coef<-paste0(coefsB$total_coef,ifelse(coefsB$`0.025quant`<0&coefsB$`0.975quant`>0,"","*"))
+
+coefsB<-data.table(coefsB)
+tab_order<-c("(Intercept)" ,
+             "violator, t-1",
+             "# PWS in CBSA" ,
+             "HHI for CBSA" ,
+             "# weather events, t" ,
+             "Weekly drought avg., t",
+             "ln(median home value)",
+             "% bachelor's degree",
+             "ln(service connections)" ,
+             'Wholesaler','Primary groundwater',
+             "median structure age" ,
+             "ln(debt/connection),t-1",
+             "ln(revenue/connection),t-1" ,
+             "ln(fund balance),t-1")
+big_tabB <- dcast(coefsB,Coef~Noncompliance,value.var = 'total_coef')
+big_tabB <- big_tabB[match(tab_order,big_tabB$Coef),]
+
+summary(mB)
+
+big_tabB <- rbind(big_tabB,
+                 data.table(cbind(c('LL','DIC','WAIC'),
+                                  do.call(rbind,list(round(rbind(cbind(mB$mlik[1]),
+                                                                 cbind(mB$dic$dic),
+                                                                 cbind(mB$waic$waic)),2))))),
+                 use.names = F)
+
+
+htmlTable(big_tabB,rnames = F,file = 'org_performance/output/table_allviols.html',
+          n.cgroup = c(1,1),
+          cgroup = c("",'Violation occurence'),
+          #  header = c("","health regulations","management regulations"),
+          n.rgroup = c(1,1,2,4,7,3),
+          rgroup = c('','Prior performance',
+                     'Complexity: competition and density',
+                     'Control variables: context',
+                     'Control variables: water district',
+                     'Model fit statistics'),
+          tfoot = "*95% credible interval does not include 0
+          ^all continuous predictors are mean-centered and scaled
+          ^^LL = log-likelihood; DIC = deviance information criterion; WAIC = Watanabe–Akaike information criterion",
+        
+)
+
+
+big_tabB
 
 coefs2 <- coefs
 coefs2$Coef <- fct_relevel(coefs2$Coef,tab_order)
