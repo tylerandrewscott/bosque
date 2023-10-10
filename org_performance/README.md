@@ -1,27 +1,34 @@
-# TITLE
+# Organizational Fragmentation and Service Performance of Municipal Water Districts
+
 This subdirectory contains all of the data and code materials necessary to replicate the project. For questions, please raise an issue and tag us here on Github.
 
 ## Paper Abstract
+Existing research identifies numerous organizational and contextual covariates that influence how public sector service organizations perform. This research suggests that service quality is of special importance in the public sector as it affects citizens’ quality of life directly. Concerns for service quality often remain at the top of policy makers’ justifications as organizational forms and approaches continue to be tailored to fit the specifics of a particular public service in increasingly fragmented local governance systems. In the context of drinking water provision, which is the focus of this study, functional fragmentation (via specialized utility districts) and the resulting competition is often touted as a means to achieving better service results. However, fragmentation can potentially result in excessive density or disproportionate resource partitioning between water utilities, perhaps even resulting in serial underperformance. Evidence from municipal water districts shows that, while the argument for competition-service quality link appears to be valid, the concentration-service quality link and the incidences of performance path-dependencies should be of significant concern to local governments. 
 
 
 ## Getting Started
 
 ### Dependencies
 
-* The project requires the R statistical programming language, version 4.1.1 (2021-08-10). The project has not been tested on Windows, but it was developed jointly in OSX (11.4) and Linux. Some of the R packages required might require loading underlying dependencies (e.g., if you use the rgdal package, the GDAL and PROJ libraries must be installed).
+* The project requires the R statistical programming language. The project has not been tested on Windows or Linux; it was developed in OSX. Some of the R packages required might require loading underlying dependencies (e.g., if you use the rgdal package, the GDAL and PROJ libraries must be installed).
 
-### Installing
 
 ### Subdirectory items
+    /code #scripts for running analysis
+
+These files can be run in sequence to replicate the project. The scripts also produce the tables and figures in the paper.
+      /01_extract_census_data.R: grab tract-level measures from U.S. Census American Community Survey (requires you to set up a free API key with Census API)
+      /02_aggregate_acs_data.R: create a tract-level file for Texas.
+      /03_make_district_year_dataframe.R: aggregate various inputs, including ACS data + state-level resources to file with district-year observations.
+      /04_fit_inla_model.R: run analysis and produce result tables.
 
 ## Authors
 
 Contributors names and contact info
 
-Tima T. Moldogaziev
-Tyler A. Scott, tascott@ucdavis.edu, @tylerscottphd  
-Robert A. Greer
-
+Tima T. Moldogaziev, temirlan@iu.edu
+Tyler A. Scott, tascott@ucdavis.edu  
+Robert A. Greer, rgreer1@tamu.edu
 
 ## License
 

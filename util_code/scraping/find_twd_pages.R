@@ -58,14 +58,16 @@ css_type = "table:nth-child(8) .iwuddata~ .iwuddata"
 css_status = "table:nth-child(8) tr:nth-child(1) .iwuddata:nth-child(2)"
 css_primary_county = "table+ table tr:nth-child(4) .iwuddata"
 
+
 library(data.table)
 empty_dt <- data.table()
 #which(district_links == "index.cfm?fuseaction=DetailDistrict&ID=12694&command=list&name=RED%20RIVER%20AUTHORITY%20OF%20TEXAS")
 dist_grab <- data.table(links = district_links,grabbed = 0)
-while(any(dist_grab$grabbed==0)){
+while(any(dist_grab$grabbed==0) & mean(dist_grab$grabbed < 0.3)){
   sm <- min(200,sum(dist_grab$grabbed==0))
   lks <- sample(dist_grab$links[dist_grab$grabbed==0],sm)
 info_list = pblapply(seq_along(lks),function(x){
+  x = 100
 #print(x)
 url = paste0('https://www14.tceq.texas.gov/iwud/dist/',lks[x])
 district_session = html_session(url)
@@ -96,10 +98,6 @@ new_dt <- rbindlist(tdf,use.names=T,fill = T)
 dist_grab$grabbed[dist_grab$links %in% new_dt$link]
 empty_dt <- rbind(new_dt,empty_dt,fill = T,use.names = T)
 }
-
-
-
-
 full_df = do.call(rbind,info_list)
 #full_df$PWS_Page = full_df$PWS_ID
 #full_df$PWS_ID = str_extract(full_df$PWS_ID,'TX[0-9]{1,}')

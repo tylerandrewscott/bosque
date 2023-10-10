@@ -10,36 +10,12 @@ library(tigris)
 library(lwgeom)
 library(pbapply)
 library(ggthemes)
-library(esri2sf)
+#library(esri2sf)
 library(rgeos)
 require(spdep)
-not_district = '0000000'
-tx_query = "https://usdmdataservices.unl.edu/api/StateStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=48&startdate=1/1/2000&enddate=1/1/2019&statisticsType=2/json"
-library(jsonlite)
-start_year = 2010
-tx_dsci = fromJSON(tx_query)
-tx_dsci$D0 = as.numeric(tx_dsci$D0);tx_dsci$D1 = as.numeric(tx_dsci$D1);tx_dsci$D2 = as.numeric(tx_dsci$D2)
-tx_dsci$D3 = as.numeric(tx_dsci$D3);tx_dsci$D4 = as.numeric(tx_dsci$D4);
-tx_dsci = tx_dsci[tx_dsci$StatisticFormatID==1,]
-tx_dsci$D0 = as.numeric(tx_dsci$D0);tx_dsci$D1 = as.numeric(tx_dsci$D1);tx_dsci$D2 = as.numeric(tx_dsci$D2)
-tx_dsci$D3 = as.numeric(tx_dsci$D3);tx_dsci$D4 = as.numeric(tx_dsci$D4);
-tx_dsci$ValidStart = ymd(tx_dsci$ValidStart)
-rib_cols = tableau_color_pal(type = 'ordered-sequential',palette = 'Classic Orange')(7)[c(1,2,3,5,6)]
-figure1 =  ggplot(data = tx_dsci,aes(x = ValidStart)) +
-  # geom_point(aes( y=D0),fill = 'yellow') + 
-  geom_ribbon(aes(ymin=0, ymax=D0,fill =  rib_cols[1])) + 
-  geom_ribbon(aes(ymin=0, ymax=D1,fill = rib_cols[2])) + 
-  geom_ribbon(aes(ymin=0, ymax=D2,fill = rib_cols[3])) + 
-  geom_ribbon(aes(ymin=0, ymax=D3,fill = rib_cols[4])) +
-  geom_ribbon(aes(ymin=0, ymax=D4,fill = rib_cols[5])) + 
-  theme_bw() + scale_y_continuous(name = '% of state land area in status',expand = c(0,0)) + 
-  scale_x_date(name = 'Weekly drought status',expand = c(0,0)) + 
-  theme(text = element_text(family = 'Times'),legend.position = c(0.92,0.6),axis.title = element_text(size = 12),
-        legend.background = element_rect(fill = alpha('white',0.5)))+ 
-  ggtitle('Texas statewide drought conditions, 2010 to 2018') + 
-  scale_fill_identity(labels = c('D4','D3-D4','D2-D4','D1-D4','D0-D4'),guide = 'legend',name = 'Category')
+library(readxl)
 
-ggsave(figure1,filename = 'output/proj5/figure1.png',dpi = 500,width=6,height=2.8,units='in')
+
 #Drought score
 #Population served, logged
 #Total storage per 1,000 people 
@@ -49,74 +25,85 @@ ggsave(figure1,filename = 'output/proj5/figure1.png',dpi = 500,width=6,height=2.
 #Average daily consumption per1,000 people
 #% Democratic vote
 #Median household income, logged, #% houses built after 1980, #% rural,#% Black, #% Hispanic, #% four-year college degree
-albersNA = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
-twd_boundaries = st_read('spatial_inputs/Service_Area_Boundaries/PWS_Export.shp')
-twd_boundaries = twd_boundaries %>% rename(PWS_ID = PWSId,PWS_NAME = pwsName)
-twd_boundaries = st_transform(twd_boundaries,st_crs(albersNA))
-twd_boundaries = st_make_valid(twd_boundaries)
-twd_boundaries = twd_boundaries[!duplicated(twd_boundaries$PWS_ID),]
+
+library(readxl)
+
+tx_info = as.data.table(readRDS('input/texas_dww/pws_details_2023-03-21.RDS'))
+tx_info <- tx_info[Owner_Type %in% c('District','Municipality','Water Supply Corporation','Investor Owned','Private')]
+#tx_info = data.table(readRDS('scratch/pws_details_2019-09-16.RDS'),stringsAsFactors = F)
+tx_info[,PWS_ID:=NULL]
+setnames(tx_info,'PWS_ID_EX','PWS_ID')
+tx_info$PWS_NAME = gsub('\\s\\&nbsp$','',tx_info$PWS_NAME)
+#tx_info$Residential_Servicetx_info$PopulationType_ServiceConnections_Residential
+#tx_rest$CN_ORG_1 <- tx_info$CN_ORG_1[match(tx_rest$PWS_ID,tx_info$PWS_ID)]
+#tx_rest$District_ID <- ifelse(is.na(tx_rest$District_ID),tx_rest$CN_ORG_1,tx_rest$District_ID)
+tx_info<-tx_info[,.(PWS_ID,PWS_NAME,Owner_Type,Total_Storage_MG,Interconnections)]
+
+start_date = mdy('5/4/2010')
+end_date = mdy('7/7/2015')
+weekly <- seq(start_date,end_date,by='weeks')
+start_date_dec = decimal_date(start_date)
 
 
-tx_tracts = tigris::tracts(state = 'TX',class='sf',year = 2010)
-tx_tracts = st_transform(tx_tracts,st_crs(albersNA))
-tx_tracts = st_make_valid(tx_tracts)
-#tx_county = st_read('https://opendata.arcgis.com/datasets/8b902883539a416780440ef009b3f80f_0.geojson')
-tx_county = tigris::counties(state = 'TX',class = 'sf')
-tx_county <- st_transform(tx_county,albersNA)
-tx_county <- st_make_valid(tx_county)
-pws_over_tracts = st_intersection(twd_boundaries,tx_tracts)
-tract_overs = data.table(PWS_ID = pws_over_tracts$PWS_ID,GEOID10 = pws_over_tracts$GEOID10,
-                         Prop_Of_Tract = as.numeric(st_area(pws_over_tracts)/st_area(tx_tracts)[match(pws_over_tracts$GEOID10,tx_tracts$GEOID10)]))
 
-pws_over_counties = st_intersection(twd_boundaries,tx_county)
-pws_over_counties = pws_over_counties %>% rename(CFIPS = GEOID)
 
-county_overs = data.table(PWS_ID = pws_over_counties$PWS_ID,CFIPS = pws_over_counties$CFIPS,
-                          Prop_Over_County = as.numeric(st_area(pws_over_counties)/st_area(twd_boundaries)[match(pws_over_counties$PWS_ID,twd_boundaries$PWS_ID)]))
+tx_restrictions <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
+tx_restrictions <- tx_restrictions[!duplicated(tx_restrictions[,.(`PWS ID`,Priority,Stage,Population,Connections,Notified)]),]
+tx_restrictions$PWS_ID = paste0('TX',tx_restrictions$`PWS ID`)
+tx_restrictions[,`PWS ID`:=NULL]
+tx_restrictions = tx_restrictions[!is.na(tx_restrictions$PWS_ID),]
+tx_restrictions$Restriction = NA
+tx_restrictions$Restriction <- tx_restrictions$Mandatory
+tx_restrictions$Date_Notified  = ymd(tx_restrictions$Notified)
+tx_rest = tx_restrictions
+tx_rest = tx_rest[!duplicated(paste(tx_rest$PWS_ID,tx_rest$Date_Notified,tx_rest$STAGE)),]
+tx_rest = tx_rest[tx_rest$Restriction==1,]
+tx_rest = tx_rest[tx_rest$Date_Notified>=mdy('1/1/2010'),]
+tx_rest = tx_rest %>% arrange(PWS_ID,Date_Notified) %>% filter(!duplicated(PWS_ID))
+tx_rest = tx_rest[!is.na(tx_rest$PWS_ID),]
+tx_rest = tx_rest[tx_rest$Date_Notified < end_date,]
+tx_rest$Restriction_Time = decimal_date(tx_rest$Date_Notified) - start_date_dec
+id_crosswalk <- readRDS('drought_and_debt/input/id_crosswalk.RDS')
+tx_rest$District_ID <- id_crosswalk$District_ID[match(tx_rest$PWS_ID,id_crosswalk$PWS_ID)]
 
-county_overs$Prop_Over_County <- round(county_overs$Prop_Over_County,2)
-county_overs = county_overs[county_overs$Prop_Over_County>0,]
 
-#td = tempdir()
-#climate_url = 'ftp://ftp.ncdc.noaa.gov/pub/data/cirs/climdiv/CONUS_CLIMATE_DIVISIONS.shp.zip'
-#tf = tempfile(tmpdir=td, fileext=".zip")
-#download.file(climate_url, tf)
-#fname = unzip(tf, list=TRUE)
-#unzip(tf, files=fname$Name, exdir=td, overwrite=TRUE)
-#fpath = file.path(td, grep('shp$',fname$Name,value=T))
-#climate_div <- st_read(fpath)
-#climate_div <- st_transform(climate_div,albersNA)
-#climate_div <- st_make_valid(climate_div)
-#climate_div = climate_div[climate_div$STATE=='Texas',]
-#pws_over_climatedivs = st_intersection(twd_boundaries,climate_div)
-#climatediv_overs = data.table(PWS_ID = pws_over_climatedivs$PWS_ID,FIPS_CD = pws_over_climatedivs$FIPS_CD,
-#                              Climate_Div_Weight = as.numeric(st_area(pws_over_climatedivs)/
-#                                                                {st_area(twd_boundaries)[match(pws_over_climatedivs$PWS_ID,twd_boundaries$PWS_ID)]}))
-#climatediv_overs$Climate_Div_Weight <- round(climatediv_overs$Climate_Div_Weight,2)
-#climatediv_overs = climatediv_overs[climatediv_overs$Climate_Div_Weight>0,]
+tx_info <- merge(tx_info,tx_rest,all = T,by='PWS_ID')
+tx_info$Restriction_Time[is.na(tx_info$Restriction_Time)] <- decimal_date(end_date) - decimal_date(start_date)
+tx_info$Restriction[is.na(tx_info$Restriction)] <- 0
+tx_info$Total_Storage_MG[is.na(tx_info$Total_Storage_MG)] <- 0
+
+
+
+table(is.na(tx_info$PopulationType_ServiceConnections_Residential))
+
+coxph(Surv(Restriction_Time,Restriction) ~ Owner_Type + Interconnections + log(Total_Storage_MG+0.0001),data = tx_info)
+
+table(tx_info$Owner_Type)
+table(is.na(tx_info$Total_Storage_MG))
+
+summary(tx_info$Total_Storage_MG)
+
+
+tx_rest[,list(.N,min(Notified),sd(Notified)),by=.(District_ID)][order(-N),][N>1,]
+
+
+
+
+
+library(forcats)
 library(tidycensus)
 
-
-tx_systems = fread("input/epa_sdwis/tx_water_system_geographic_area_2-9-19.csv",stringsAsFactors = F)
-setnames(tx_systems,c('PWS ID', 'PWS Name'),c('PWS_ID','PWS_NAME'))
-tx_systems = tx_systems[!duplicated(tx_systems),]
+tx_systems =fread('input/SDWA_latest_downloads/SDWA_GEOGRAPHIC_AREAS.csv',stringsAsFactors = F,na.strings = c('','NA'))
+tx_systems <- tx_systems[grepl('TX',PWSID),]
+setnames(tx_systems,c('PWSID'),c('PWS_ID'))
 tx_dww_info = fread('input/texas_dww/texas_master_pws.csv',stringsAsFactors = F,header=T)
 tx_dww_info = tx_dww_info[,.(PWS_ID,Primary_Source_Type)]
 tx_dww_info$Purchaser = grepl('P',tx_dww_info$Primary_Source_Type) + 0
 tx_dww_info$Groundwater = grepl('G',tx_dww_info$Primary_Source_Type) + 0
 tx_dww_info[,Primary_Source_Type:=NULL]
 tx_systems <- merge(tx_systems,tx_dww_info,on = 'PWS_ID')
-tx_systems$`First Reported Date` = dmy(tx_systems$`First Reported Date`)
-tx_systems = tx_systems[tx_systems$`First Reported Date`< mdy(paste0('1/1/',start_year)),]
-#tx_systems = tx_systems[tx_systems$PWS_ID %in% twd_boundaries$PWS_ID,]
-tx_info = as.data.table(readRDS('../../../../net/tmp/tscott1/bosque_scratch/scratch/pws_details_2019-07-02.RDS'))
-#tx_info = data.table(readRDS('scratch/pws_details_2019-09-16.RDS'),stringsAsFactors = F)
 
-tx_info$PWS_NAME = gsub('\\s\\&nbsp$','',tx_info$PWS_NAME)
-setkey(tx_info,PWS_ID)
-tx_info[,PWS_NAME:=NULL]
-setkey(tx_systems,PWS_ID)
-tx_systems = tx_systems[tx_info,]
+tx_systems <- merge(tx_systems,tx_info,all = T)
 
 tx_systems$Residential_Service_Connections = as.numeric(tx_systems$PopulationType_ServiceConnections_Residential)
 tx_systems$Residential_Service_Connections[is.na(tx_systems$Residential_Service_Connections)] <- 0
@@ -132,38 +119,39 @@ tx_systems$Avg_Consumption_Per_Connection_G = (tx_systems$Average_Daily_Consump_
 tx_systems$Owner_Type = as.character(tx_systems$Owner_Type)
 tx_systems = tx_systems[!tx_systems$Owner_Type %in% c('Federal Government','State Government'),]
 tx_systems$Owner_Type[tx_systems$PWS_ID%in%c('TX1700784','TX1013113','TX1700589','TX1050019','TX1260016','TX1050038','TX2090005','TX0390019','TX0430037','TX0740031')] <- 'District'
-interconnects = fread('input/texas_dww/sales_connections_2018-07-03.csv')
+
+interconnects = fread('input/texas_dww/sales_connections_2020-11-30.csv')
 interconnects = interconnects[!duplicated(interconnects),]
 interconnects = interconnects[!duplicated(paste(Seller,Buyer)),]
 interconnects = interconnects[!paste(Seller,Buyer) %in% paste(Buyer,Seller),]
-
 emergency_interconnects = interconnects[Sale_Type=='E',]
 emergency_interconnects = melt(emergency_interconnects,measure.vars = c('Seller','Buyer'))
 emergency_interconnects_count <- emergency_interconnects[,.N,by=.(value)]
-
 setnames(emergency_interconnects_count,c('value','N'),c('PWS_ID','Num_Emergency_Interconnections'))
 wholesalers = interconnects[Sale_Type%in%c('S','P','O','I'),][!duplicated(Seller),][,(Seller)]
 tx_systems$Wholesale <- (tx_systems$PWS_ID %in% wholesalers) + 0
 tx_systems = merge(tx_systems,emergency_interconnects_count,on = 'PWS_ID',all.x=T,all.y=F)
 tx_systems$Num_Interconnections[is.na(tx_systems$Num_Interconnections)]<-0
 
+#tx_rest = tx_rest %>% group_by(PWS_ID) %>% filter(Time == min(Time))
+#tx_systems$Event = NA
+#tx_systems$Time = NA
+tx_systems$Time = tx_rest$Time[match(tx_systems$PWS_ID,tx_rest$PWS_ID)]
+tx_systems$Event = tx_rest$Event[match(tx_systems$PWS_ID,tx_rest$PWS_ID)]
+tx_systems$Event[is.na(tx_systems$Event)] <- 0
+tx_systems$Time[is.na(tx_systems$Time)] <- decimal_date(end_date) - start_date_dec
 
+tx_systems = tx_systems[is.na(tx_systems$LAST_REPORTED_DATE) | mdy(tx_systems$LAST_REPORTED_DATE)>end_date,]
+tx_systems = tx_systems[tx_systems$Owner_Type!='County',]
+tx_systems$Owner_Type = as.character(tx_systems$Owner_Type)
+tx_systems$Total_Storage_MG[tx_systems$PWS_ID%in%c('TX1110098','TX1300010')] <- NA
+#tx_systems = tx_systems[tx_systems$`PWS Type Code`=='CWS',]
+tx_systems$start_date <- start_date
 
-dinfo = fread('input/twdd_records/district_list_2019-03-08.csv',stringsAsFactors = F)
-dinfo$PWS_ID[dinfo$PWS_ID == "NA"] <- NA
-dinfdt = dinfo[!is.na(PWS_ID)]
-dinfo$PWS_ID_all = dinfo$PWS_ID
-dinfo$PWS_ID = str_split(dinfo$PWS_ID,'\\|')
-dinfo$PWS_ID[grepl('DUVAL COUNTY CONSERVATION & RECLAMATION DISTRICT',dinfo$District_Name)][[1]] = list('TX0660001','TX0660014','TX0660015')
-
-dinfo$District_Name[dinfo$District_Name=="WICKSON CREEK SUD"] <- "WICKSON CREEK SUD GRIMES COUNTY"
-dinfo$District_Name[dinfo$District_Name=="CANEY CREEK MUD OF MATAGORDA COUNTY"] <- 'CANEY CREEK MUD'
-dinfo$District_Name[dinfo$District_Name=="TATTOR ROAD MUNICIPAL DISTRICT"] <- "TATTOR ROAD MUD"
-dinfo$Type[dinfo$District_Name=='TATTOR ROAD MUD'] <- 'MUNICIPAL UTILITY DISTRICT'
-dinfo$Ended = mdy(dinfo$Ended)
-tx_systems$District_ID <- sapply(seq_along(tx_systems$PWS_ID),function(x) {di = dinfo$District_ID[which(grepl(tx_systems$PWS_ID[x],dinfo$PWS_ID_all))]
-if(length(di)==1){di}else{not_district}})
-
+#dinfo_dt = read.csv('input/twdd_records/district_list_2019-03-08.csv',stringsAsFactors = F)
+id_crosswalk <- readRDS('drought_and_debt/input/id_crosswalk.RDS')
+tx_systems$District_ID <- id_crosswalk$District_ID[match(tx_systems$PWS_ID,id_crosswalk$PWS_ID)]
+#### these are hand-coded, fixing errors in the database on the TWDD side
 #tx_systems$District_ID[is.na(tx_systems$District_ID)] <- not_district
 tx_systems$District_ID[tx_systems$PWS_ID=='TX2490016'] <- '8492000'
 tx_systems$District_ID[tx_systems$PWS_ID=='TX0430053'] <- '5952250'
@@ -176,73 +164,108 @@ tx_systems$District_ID[tx_systems$PWS_ID=='TX1290010'] <- '995951'
 tx_systems$District_ID[tx_systems$PWS_ID=='TX0940015'] <- '2412188'
 tx_systems$District_ID[tx_systems$PWS_ID=='TX1650133'] <- '5846750'
 tx_systems$District_ID[tx_systems$PWS_ID=='TX0200706'] <- '1636654'
+tx_systems <- tx_systems[!is.na(District_ID),]
+
+
+tx_rest
+
+
+tx_systems[,list(max(Event),min(Time),sum(Connections)),by=.(District_ID)]
+
+tx_systems[,mean(Event),by=.(District_ID)][V1!=0&V1!=1,]
+
+
+tx_rest[PWS_ID %in% tx_systems[District_ID=='7632500',]$PWS_ID,]
+
+
+audits <- readRDS('drought_and_debt/input/district_audits.RDS')
+audits <- audits[audits$District_ID %in% tx_systems$District_ID & audits$`FISCAL YEAR ENDED` < start_date,]
+audits$join_time <- audits$`FISCAL YEAR ENDED`
+tx_systems$join_time <- tx_systems$start_date
+setkey(audits,District_ID,join_time)
+setkey(tx_systems,District_ID,join_time)
+
+
+
+
+audits[tx_systems,]
+
+
+
+
+
+
+tx_systems[,sum(Total_Service_Connections,na.rm = T),by=.(District_ID)]
+
+
+
+
+
+
+
+
+
+debt <- readRDS('drought_and_debt/input/district_debt_issuances.RDS')
+debt <- debt[FiscalYear==2009,]
+
+
+
+
+
+head(debt)
+table(debt$FiscalYear)
+
+
+coxph(cluster = tx_sys)
+
+
+
+
+
+tx_systems$Time
+
+
+
+wu <- data.table(readxl::read_excel('drought_and_debt/input/Intakes-Sales-Cxns_ForPWS.xlsx'))
+wu <- wu[!is.na(wu$`TCEQ PWS Code`),]
+wu$PWS_ID <- paste0('TX',formatC(wu$`TCEQ PWS Code`,width = 7,flag = '0',mode = 'integer'))
+
+wu[PWS_ID=='TX0250019'&Year==2014,]
+
+tx_systems[tx_systems$PWS_ID=='TX0250019']
+
+wu[,.N,by=.(PWS_ID,Year)]
+wu[wu$`TCEQ PWS Code`=='0030007',]
+formatC(wu$`TCEQ PWS Code`)
+head(wu)
+tx_systems[tx_systems$PWS_ID=='TX0030007']
+#tx_systems = tx_systems[tx_systems$PWS_ID %in% twd_boundaries$PWS_ID,]
+
+
+
+
 
 tx_systems[,CWS_Count:=.N,by=.(District_ID)]
-tx_systems$CWS_Count[tx_systems$District_ID==not_district] <- 1
-#tx_systems[,District_Service_Count:=sum(Total_Service_Connections),by=.(District_ID)]
-#tx_systems$District_Service_Count[is.na(tx_systems$District_ID)] <- NA
-#tx_systems$District_Prop = tx_systems$Total_Service_Connections/tx_systems$District_Service_Count
-tx_systems = tx_systems[tx_systems$`PWS Type`=='Community water system',]
 
-tx_systems$IS_DISTRICT = (tx_systems$District_ID!= not_district & tx_systems$Owner_Type == 'District') + 0
-tx_systems$District_Type = dinfo$Type[match(tx_systems$District_ID,dinfo$District_ID)]
-
-
+tx_systems$District_Type <- dinfo_dt$Type[match(tx_systems$District_ID,dinfo_dt$District_ID)]
+tx_systems$District_Type[is.na(tx_systems$District_Type)] <- 'Not a district'
 tx_systems$District_Type[tx_systems$District_Type %in% c('WATER CONTROL AND IMPROVEMENT DISTR')] <- 'WCID'
 tx_systems$District_Type[tx_systems$District_Type %in% c('MUNICIPAL UTILITY DISTRICT')] <- 'MUD'
 tx_systems$District_Type[tx_systems$District_Type %in% c('FRESH WATER SUPPLY DISTRICT')] <- 'FWSD'
 tx_systems$District_Type[tx_systems$District_Type %in% c('SPECIAL UTILITY DISTRICT')] <- 'SUD'
-tx_systems$District_Type[is.na(tx_systems$District_Type)] <- 'Not a district'
 tx_systems$District_Type[!tx_systems$District_Type %in% c('SUD','FWSD','MUD','WCID','Not a district')] <- 'Other'
+tx_systems$CWS_Count[tx_systems$District_Type == 'Not a district'] <- 1
 
-tx_systems$HAVE_SHAPEFILE = (tx_systems$PWS_ID %in% twd_boundaries$PWS_ID) + 0
-tx_systems$Geog_Area = as.numeric(st_area(twd_boundaries)[match(tx_systems $PWS_ID,twd_boundaries$PWS_ID)])
-library(readxl)
-tx_restrictions = read_excel('input/tceq_drought_notices.xlsx') %>% rename(PWS_ID = ID)# %>% filter(!is.na(PWS_ID))
-tx_restrictions = tx_restrictions[!is.na(tx_restrictions$PWS_ID),]
-tx_restrictions$PWS_ID = paste0('TX',tx_restrictions$PWS_ID)
-tx_restrictions = tx_restrictions[tx_restrictions$PWS_ID %in% tx_systems$PWS_ID,]
-tx_restrictions$Event = NA
-tx_restrictions$Event[is.na(tx_restrictions$STAGE)] <- 0
-tx_restrictions$Event[tx_restrictions$STAGE %in% c(1,2,3)] <- 1
-tx_restrictions$Event[is.na(tx_restrictions$Event)] <- 0
-tx_restrictions$Date_Notified  = ymd(tx_restrictions$NOTIFIED)
-#tx_restrictions = read_csv('input/combined_drought_records.csv') %>% dplyr::select(-Source,-Population,-Connections)
-#tx_restrictions = tx_restrictions[!duplicated(paste(tx_restrictions$PWS_ID,tx_restrictions$Obs_Date)),]
-#tx_restrictions$`Date Notified`[is.na(tx_restrictions$`Date Notified`)] <- tx_restrictions$`Last Updated`[is.na(tx_restrictions$`Date Notified`)]
-#tx_restrictions$Dec_Date = decimal_date(tx_restrictions$Obs_Date) - min(decimal_date(tx_restrictions$Obs_Date))
-tx_rest = tx_restrictions
-tx_rest = tx_rest[!duplicated(paste(tx_rest$PWS_ID,tx_rest$Date_Notified,tx_rest$STAGE)),]
-tx_rest = tx_rest[tx_rest$Event==1,]
-tx_rest = tx_rest[tx_rest$Date_Notified>=mdy('1/1/2010'),]
-tx_rest = tx_rest %>% arrange(PWS_ID,Date_Notified) %>% filter(!duplicated(PWS_ID))
-tx_rest = tx_rest[!is.na(tx_rest$PWS_ID),]
-start_date = mdy('5/4/2010')
-start_date_dec = decimal_date(start_date)
-end_date = mdy('7/7/2015')
+#tx_systems$HAVE_SHAPEFILE = (tx_systems$PWS_ID %in% twd_boundaries$PWS_ID) + 0
 
-tx_rest = tx_rest[tx_rest$Date_Notified < end_date,]
-tx_rest$Time = decimal_date(tx_rest$Date_Notified) - start_date_dec
-#tx_rest = tx_rest %>% group_by(PWS_ID) %>% filter(Time == min(Time))
-#tx_systems$Event = NA
-#tx_systems$Time = NA
-tx_systems$Time = tx_rest$Time[match(tx_systems$PWS_ID,tx_rest$PWS_ID)]
-tx_systems$Event = tx_rest$Event[match(tx_systems$PWS_ID,tx_rest$PWS_ID)]
-tx_systems$Event[is.na(tx_systems$Event)] <- 0
-tx_systems$Time[is.na(tx_systems$Time)] <- decimal_date(end_date) - start_date_dec
-tx_systems = tx_systems[tx_systems$`Activity Status`!='Inactive',]
-tx_systems = tx_systems[tx_systems$Owner_Type!='County',]
-tx_systems$`Deactivation Date`[tx_systems$`Deactivation Date`=='-'] <- NA
-tx_systems = tx_systems[is.na(tx_systems$`Deactivation Date`)|dmy(tx_systems$`Deactivation Date`)>=2016,] 
-tx_systems = tx_systems[tx_systems$`Is School Or Daycare`=='N',]
-tx_systems$Owner_Type = as.character(tx_systems$Owner_Type)
-tx_systems$Total_Storage_MG[tx_systems$PWS_ID%in%c('TX1110098','TX1300010')] <- NA
-tx_systems = tx_systems[tx_systems$`PWS Type Code`=='CWS',]
+#tx_systems$Geog_Area = as.numeric(st_area(twd_boundaries)[match(tx_systems $PWS_ID,twd_boundaries$PWS_ID)])
 
 stormod = lm(Total_Storage_MG~Total_Service_Connections,data= tx_systems)
 tx_systems$Predicted_Total_Storage_MG <- as.numeric(unlist(predict.lm(stormod,newdata = data.frame(Total_Service_Connections = tx_systems$Total_Service_Connections))))
 tx_systems$Total_Storage_MG_Impute = ifelse(is.na(tx_systems$Total_Storage_MG),tx_systems$Predicted_Total_Storage_MG,tx_systems$Total_Storage_MG)
 # 
+tx_systems$
+tx_systems$Total_Storage_MG
 # uac = tigris::urban_areas(class='sf')
 # uac <- st_transform(uac,albersNA)
 # uac <- st_make_valid(uac)
