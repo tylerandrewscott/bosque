@@ -21,6 +21,7 @@ These files can be run in sequence to replicate the project. The scripts also pr
     /code/01_extract_census_data.R
     
 grab tract-level measures from U.S. Census American Community Survey (requires you to set up a free API key with Census API)
+
     /code/02_aggregate_acs_data.R
 
 create a tract-level file for Texas.
