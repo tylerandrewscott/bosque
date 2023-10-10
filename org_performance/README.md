@@ -14,23 +14,19 @@ Existing research identifies numerous organizational and contextual covariates t
 
 
 ### Subdirectory items
-    /code #scripts for running analysis
 
-These files can be run in sequence to replicate the project. The scripts also produce the tables and figures in the paper.
-
+Scripts for running analysis. These files can be run in sequence to replicate the project. The scripts also produce the tables and figures in the paper.
     /code/01_extract_census_data.R #grab tract-level measures from U.S. Census American Community Survey (requires you to set up a free API key with Census API)
-
     /code/02_aggregate_acs_data.R #create a tract-level file for Texas.
-
     /code/03_make_district_year_dataframe.R #aggregate various inputs, including ACS data + state-level resources to file with district-year observations.
-
     /code/04_fit_inla_model.R #run analysis and produce result tables.
 
-    /input
 Data inputs used for the analysis. Some of these are intermediate products, e.g., df_for_model_V2.RDS is the aggregated district-year data.frame.
+    /input
 
-    /output
 Figures and tables, plus a few odds and ends.
+    /output
+
 
 ## Authors
 
