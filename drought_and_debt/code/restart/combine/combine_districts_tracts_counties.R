@@ -2,7 +2,7 @@ library(MASS)
 library(tidyverse)
 library(lubridate)
 library(survival)
-library(mstate)
+
 library(sf)
 library(geojsonsf)
 library(data.table)
@@ -11,7 +11,7 @@ library(lwgeom)
 library(pbapply)
 library(ggthemes)
 #library(esri2sf)
-library(rgeos)
+
 require(spdep)
 
 #Drought score
@@ -26,8 +26,9 @@ require(spdep)
 albersNA = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
 
 #https://www3.twdb.texas.gov/apps/waterserviceboundaries
+id_crosswalk <- readRDS('drought_and_debt/input/id_crosswalk.RDS')
 
-twd_boundaries = st_read('spatial_inputs/Service_Area_Boundaries/PWS_shapefile/PWS_Export.shp')
+twd_boundaries = st_read('spatial_inputs/Service_Area_Boundaries/PWS_shapefile_9-24/PWS_Export.shp')
 twd_boundaries = twd_boundaries %>% rename(PWS_ID = PWSId,PWS_NAME = pwsName)
 twd_boundaries = st_transform(twd_boundaries,st_crs(albersNA))
 twd_boundaries = st_make_valid(twd_boundaries)

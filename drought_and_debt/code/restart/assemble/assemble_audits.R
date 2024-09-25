@@ -8,14 +8,19 @@ sapply(packs,require,character.only = T)
 #if(!require(lucr)){remotes::install_github('Ironholds/lucr');require(lucr)}
 
 audits = fread('input/tceq_audits/district_audits.csv')
+district_files <- list.files('input/twdd_records/',pattern = 'district_list',full.names = T)
+dinfo_dt <- fread(district_files[which.max(file.info(district_files)$mtime)])
+
+audits$DISTRICT_NAME <- dinfo_dt$District_Name[match(audits$DISTRICT_ID,dinfo_dt$District_ID)]
+
 money = as.vector(which(apply(audits,2,function(x) any(grepl('\\$',x)))))
 audits = cbind(audits[,-money,with=F],audits[,lapply(.SD,parse_number),.SDcols = money])
-audits$Year = year(mdy(audits$`FISCAL YEAR ENDED`))
+
+audits$FISCAL_YEAR = year(mdy(audits$`FISCAL YEAR ENDED`))
 audits$`FISCAL YEAR ENDED` <- mdy(audits$`FISCAL YEAR ENDED`)
 setnames(audits,"DISTRICT_ID", "District_ID")
 setnames(audits,"TOTAL TAX RATE", "Total_Tax_Rate")
-audits = audits[, !"YEAR", with=FALSE]  
-audits = audits[, !"DISTRICT_NAME", with=FALSE]  
+
 audits$common = paste(audits$District_ID,audits$`FISCAL YEAR ENDED`,sep='_')
 audits$zeros = rowSums(audits == 0,na.rm = T)
 audits = audits[order(common, -zeros),]
@@ -33,5 +38,19 @@ audits$Total_Expenditure<- audits$`GENERAL FUND - TOTAL EXPENDITURES`+ audits$`E
 audits$Water_SFU <- audits$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`
 audits$Wastewater_SFU <- replace_na(audits$`WASTEWATER CUST - EQ SINGLE FAMILY UNIT`,0) + 
   replace_na(audits$`WASTEWATER CUST - EQ SINGLE FAMILY UNITS`,0)
+
+audits$DISTRICT_NAME = gsub('(\\s)0(?=[0-9])','\\1\\2',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub('DIST$|DISTR$','DISTRICT',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub(' MUNICIPAL UTILITY DISTRICT$',' MUD',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub(' MUNICIPAL UTILITY DISTRICT ',' MUD ',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub(' UD',' UTILITY DISTRICT',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub(' MUNICIPAL DISTRICT$',' MUD',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub('SPECIAL UTILITY DISTRICT','SUD',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub('WATER CONTROL DISTRICT','WCID',audits$DISTRICT_NAME,perl = T)
+#audits$DISTRICT_NAME = gsub('NAVIGATION DISTRICT','ND',audits$DISTRICT_NAME,perl = T)
+#audits$DISTRICT_NAME = gsub('IRRIGATION DISTRICT','ID',audits$DISTRICT_NAME,perl = T)
+#audits$DISTRICT_NAME = gsub('DRAINAGE DISTRICT','DD',audits$DISTRICT_NAME,perl = T)
+#audits$DISTRICT_NAME = gsub('RIVER AUTHORITY','RA',audits$DISTRICT_NAME,perl = T)
+audits$DISTRICT_NAME = gsub(" OF [A-Z]{1,} COUNTY$","",audits$DISTRICT_NAME,perl=T)
 
 saveRDS(audits,'drought_and_debt/input/district_audits.RDS')

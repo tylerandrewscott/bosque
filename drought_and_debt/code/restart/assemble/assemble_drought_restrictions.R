@@ -19,12 +19,12 @@ library(data.table)
 dr <- 'util_code/scraping/dol-wayback/'
 fls <- list.files(dr,pattern = 'html',recursive = T,full.names = T)
 #### skip empty files
-flsize <- file.size(fls2)
+flsize <- file.size(fls)
 fls <- fls[flsize>0]
 
 
-old_restrictions = pblapply(fls2,function(p) {
-  #print(p);
+old_restrictions = pblapply(fls,function(p) {
+  #print(p)
   temp = read_html(p) %>% html_nodes('table') %>% html_table(trim=T,fill=T)
   if(length(temp)==1){tdf = temp[[1]]}
   if(length(temp)>1){tdf = temp[[4]]}
@@ -50,13 +50,15 @@ rest_df$Priority <- toupper(rest_df$Priority)
 #https://www.tceq.texas.gov/drinkingwater/trot/droughtdic.html
 rest_df <- rest_df %>% 
   mutate(Priority = case_when(
-    Priority == 'W' ~ 'Watch',
-    Priority == 'C' ~ 'Concern',
+    Priority %in% c('W','GREATER THAN 180-DAY SUPPLY') ~ 'Watch',
+    Priority %in% c('C','LESS THAN 180-DAY SUPPLY') ~ 'Concern',
     Priority == 'P' ~ 'Priority',
     Priority == 'E' ~ 'Emergency',
     Priority == 'R' ~ 'Resolved',
     Priority == 'O' ~ 'Outage',
     .default = Priority))
+
+table(rest_df$Priority)
 rest_df$Priority_Numeric <- as.numeric(fct_relevel(rest_df$Priority,'Resolved','Watch','Concern','Priority','Emergency','Outage'))
 
 rest_df$Stage<-toupper(rest_df$Stage)
@@ -68,7 +70,6 @@ rest_df <- rest_df %>% mutate(Stage = case_when(
   TRUE ~ 'Voluntary'
 ))
 rest_df$Mandatory <- (rest_df$Stage != "Voluntary") + 0
-
 
 saveRDS(rest_df,'drought_and_debt/input/combined_restriction_records.RDS')
 

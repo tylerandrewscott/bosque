@@ -17,34 +17,7 @@ library(ggthemes)
 
 library(rgeos)
 require(spdep)
-#setwd('../../')
-not_district = '0000000'
-tx_query = "https://usdmdataservices.unl.edu/api/StateStatistics/GetDroughtSeverityStatisticsByAreaPercent?aoi=48&startdate=1/1/2000&enddate=12/28/2020&statisticsType=2/json"
-library(jsonlite)
-start_year = 2010
-tx_dsci = fromJSON(tx_query)
-tx_dsci$D0 = as.numeric(tx_dsci$D0);tx_dsci$D1 = as.numeric(tx_dsci$D1);tx_dsci$D2 = as.numeric(tx_dsci$D2)
-tx_dsci$D3 = as.numeric(tx_dsci$D3);tx_dsci$D4 = as.numeric(tx_dsci$D4);
-tx_dsci = tx_dsci[tx_dsci$StatisticFormatID==1,]
-tx_dsci$D0 = as.numeric(tx_dsci$D0);tx_dsci$D1 = as.numeric(tx_dsci$D1);tx_dsci$D2 = as.numeric(tx_dsci$D2)
-tx_dsci$D3 = as.numeric(tx_dsci$D3);tx_dsci$D4 = as.numeric(tx_dsci$D4);
-tx_dsci$ValidStart = ymd(tx_dsci$ValidStart)
-rib_cols = tableau_color_pal(type = 'ordered-sequential',palette = 'Classic Orange')(7)[c(1,2,3,5,6)]
-figure1 =  ggplot(data = tx_dsci,aes(x = ValidStart)) +
-  # geom_point(aes( y=D0),fill = 'yellow') + 
-  geom_ribbon(aes(ymin=0, ymax=D0,fill =  rib_cols[1])) + 
-  geom_ribbon(aes(ymin=0, ymax=D1,fill = rib_cols[2])) + 
-  geom_ribbon(aes(ymin=0, ymax=D2,fill = rib_cols[3])) + 
-  geom_ribbon(aes(ymin=0, ymax=D3,fill = rib_cols[4])) +
-  geom_ribbon(aes(ymin=0, ymax=D4,fill = rib_cols[5])) + 
-  theme_bw() + scale_y_continuous(name = '% of state land area in status',expand = c(0,0)) + 
-  scale_x_date(name = 'Weekly drought status',expand = c(0,0)) + 
-  theme(text = element_text(family = 'Times'),legend.position = c(0.92,0.6),axis.title = element_text(size = 12),
-        legend.background = element_rect(fill = alpha('white',0.5)))+ 
-  ggtitle('Texas statewide drought conditions, 2010 to 2018') + 
-  scale_fill_identity(labels = c('D4','D3-D4','D2-D4','D1-D4','D0-D4'),guide = 'legend',name = 'Category')
 
-ggsave(figure1,filename = 'output/proj5/figure1.png',dpi = 500,width=6,height=2.8,units='in')
 #Drought score
 #Population served, logged
 #Total storage per 1,000 people 
@@ -60,7 +33,6 @@ twd_boundaries = twd_boundaries %>% rename(PWS_ID = PWSId,PWS_NAME = pwsName)
 twd_boundaries = st_transform(twd_boundaries,st_crs(albersNA))
 twd_boundaries = st_make_valid(twd_boundaries)
 twd_boundaries = twd_boundaries[!duplicated(twd_boundaries$PWS_ID),]
-
 
 tx_tracts = tigris::tracts(state = 'TX',class='sf',year = 2010)
 tx_tracts = st_transform(tx_tracts,st_crs(albersNA))
@@ -173,17 +145,6 @@ tx_systems$District_ID <- sapply(seq_along(tx_systems$PWS_ID),function(x) {di = 
 if(length(di)==1){di}else{not_district}})
 
 #tx_systems$District_ID[is.na(tx_systems$District_ID)] <- not_district
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2490016'] <- '8492000'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0430053'] <- '5952250'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0420034'] <- '2312250'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX1900009'] <- '7585150'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2040033'] <- '7492500'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2290037'] <- '8070000'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2360010'] <- '7634575'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX1290010'] <- '995951'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0940015'] <- '2412188'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX1650133'] <- '5846750'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0200706'] <- '1636654'
 
 tx_systems[,CWS_Count:=.N,by=.(District_ID)]
 tx_systems$CWS_Count[tx_systems$District_ID==not_district] <- 1
