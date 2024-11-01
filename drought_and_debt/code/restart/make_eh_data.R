@@ -11,7 +11,7 @@ library(lwgeom)
 library(pbapply)
 library(ggthemes)
 #library(esri2sf)
-library(rgeos)
+
 require(spdep)
 library(readxl)
 
@@ -28,16 +28,6 @@ library(readxl)
 
 library(readxl)
 
-tx_info = as.data.table(readRDS('input/texas_dww/pws_details_2023-03-21.RDS'))
-tx_info <- tx_info[Owner_Type %in% c('District','Municipality','Water Supply Corporation','Investor Owned','Private')]
-#tx_info = data.table(readRDS('scratch/pws_details_2019-09-16.RDS'),stringsAsFactors = F)
-tx_info[,PWS_ID:=NULL]
-setnames(tx_info,'PWS_ID_EX','PWS_ID')
-tx_info$PWS_NAME = gsub('\\s\\&nbsp$','',tx_info$PWS_NAME)
-#tx_info$Residential_Servicetx_info$PopulationType_ServiceConnections_Residential
-#tx_rest$CN_ORG_1 <- tx_info$CN_ORG_1[match(tx_rest$PWS_ID,tx_info$PWS_ID)]
-#tx_rest$District_ID <- ifelse(is.na(tx_rest$District_ID),tx_rest$CN_ORG_1,tx_rest$District_ID)
-tx_info<-tx_info[,.(PWS_ID,PWS_NAME,Owner_Type,Total_Storage_MG,Interconnections)]
 
 start_date = mdy('5/4/2010')
 end_date = mdy('7/7/2015')

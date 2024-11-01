@@ -73,3 +73,4 @@ rest_df$Mandatory <- (rest_df$Stage != "Voluntary") + 0
 
 saveRDS(rest_df,'drought_and_debt/input/combined_restriction_records.RDS')
 
+table(year(test$Notified))
