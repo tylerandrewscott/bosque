@@ -1,8 +1,8 @@
 scratch_loc = 'scratch/'
 
 starts = list( 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=C&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems',
-               'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=NC&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems',
-               'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=NTNC&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems')
+'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=NC&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems',
+ 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=NTNC&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems')
 
 library(data.table)
 
@@ -15,11 +15,11 @@ library(dplyr)
 
 quers = sapply(starts,function(x) {
   nodes = x[[1]] %>% read_html() %>% html_nodes('a')
-  sum_nodes = nodes[grep('DataSheet',nodes %>% html_attr('href'))] %>% html_attr('href')
-  pref = 'https://dww2.tceq.texas.gov/DWW/JSP/'
-  sum_nodes = gsub('\\s','',sum_nodes)
-  q = paste0(pref,sum_nodes)
-  q})
+sum_nodes = nodes[grep('DataSheet',nodes %>% html_attr('href'))] %>% html_attr('href')
+pref = 'https://dww2.tceq.texas.gov/DWW/JSP/'
+sum_nodes = gsub('\\s','',sum_nodes)
+q = paste0(pref,sum_nodes)
+q})
 
 
 master_set <- data.table()
@@ -50,7 +50,7 @@ for(i in 1:nrow(qdt)) {
       } else {
         # Mark as grabbed if file already exists
         qdt$grabbed[i] <- 1
-        #cat(sprintf("Skipping %s - file already exists\n", pws_id))
+        cat(sprintf("Skipping %s - file already exists\n", pws_id))
       }
     }
     
@@ -62,5 +62,3 @@ for(i in 1:nrow(qdt)) {
     cat(sprintf("Processed %d of %d URLs\n", i, nrow(qdt)))
   }
 }
-
-
