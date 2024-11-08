@@ -23,11 +23,17 @@ pws_drought_weekly <- pws_drought_weekly |>
   mutate(drought = case_when(YMD>d1_start&YMD<=d1_end ~ 'd1',
                                                  YMD>d2_start&YMD<=d2_end ~ 'd2',
                                                  T ~ 'none')) 
-setnames(notice,'PWS ID','PWD_ID')
-
-
+setnames(notice,'PWS ID','PWS_ID')
 notice$YMD <- notice$NOTIFIED_YMD
 
+setkey(notice,'PWS_ID','YMD')
+setkey(pws_drought_weekly,'PWS_ID','YMD')
+
+head(pws_drought_weekly[notice,])
+
+
+dim(notice)
+dim(pws_drought_weekly)
 table(notice$YEAR)
 notice[,.N,by=.(`PWS ID`)][order(-N),]
 
