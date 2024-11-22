@@ -13,6 +13,13 @@ library(xml2)
 library(readr)
 library(dplyr)
 
+tab_list <- lapply(starts,function(x) {
+  x |> read_html() |> html_nodes('table') |> html_table(trim=T,header = T)
+})
+
+main_record <- rbindlist(sapply(tab_list,function(x) x[[3]],simplify = F),fill = T,use.names = T)
+write_csv(x = main_record,file = 'input/texas_dww/district_master_list.csv')
+
 quers = sapply(starts,function(x) {
   nodes = x[[1]] %>% read_html() %>% html_nodes('a')
 sum_nodes = nodes[grep('DataSheet',nodes %>% html_attr('href'))] %>% html_attr('href')
