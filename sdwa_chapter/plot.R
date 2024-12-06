@@ -5,8 +5,8 @@ library(data.table)
 stems <- rbindlist(lst)
 stems <- stems[pws_type_code=='CWS',]
 library(tidyverse)
-
-table(stems$population_served_count<500)
+dim(stems)
+table(stems$population_served_count<10000)/nrow(stems)
 summary(stems$population_served_count)
 stems_sub <- stems[,.(pwsid,population_served_count)]
 
