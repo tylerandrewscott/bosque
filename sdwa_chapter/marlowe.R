@@ -11,7 +11,7 @@ merritt_data |> filter(Credit.Sector=='Water / Sewer',!is.na(Current.Liabilities
 # for now, filter out any cases where current.liabilities = 0
 merritt_data |> filter(Current.Liabilities!=0) -> merritt_data
 
-
+names(merritt_data)
 merritt_data$Quick.Ratio <-  {merritt_data$Cash...Short.Term.Investments +
                 merritt_data$Net.Accounts.Receivable}/merritt_data$Current.Liabilities
 
@@ -24,18 +24,31 @@ merritt_data$Year <- year(mdy(merritt_data$Fiscal.Year.End))
 library(ggridges)
 
 
-p <- ggplot(merritt_data, aes(x=Quick.Ratio, y=factor(Year))) +
-  geom_density_ridges(alpha=0.5) +
-  labs(x="Quick Ratio", y="Year") +
+qr_over_1 = merritt_data |>
+  group_by(Year) |>
+  summarise(over1 = paste0(round(mean(Quick.Ratio>1) * 100,1),'% > 1'))
+
+library(forcats)
+p <- merritt_data |> 
+  ggplot(aes(x=Quick.Ratio, y=fct_rev(factor(Year)),fill = as.factor(after_stat(x) > 1))) +
+  geom_density_ridges_gradient(alpha=0.5) +
+  labs(x="Quick Ratio for water/sewer utilities", y="Year") +
+  geom_vline(xintercept = 1,lty = 2,colour = 'grey20') +
   theme_minimal() +
-  ggtitle("Water and Sewer Utilities: Quick Ratio Distribution by Year, 2012-2021")
-
+  scale_fill_manual(values = c('#E15759','#79706E')) + 
+  annotate('text',size = 3,x = 2.3,color = 'white',y = .75 + as.numeric(fct_rev(as.factor(sort(unique(merritt_data$Year))))),label = qr_over_1$over1) + 
+  ggtitle("Quick Ratio Distribution by Year, 2012-2021") + 
+  guides(fill = 'none')
+p
 ggsave("sdwa_chapter/output/quick_ratio_dist.png", p, width=6, units="in", dpi=450)
+library(data.table)
 
 
-log10(0)
-summary(merritt_data$Total.Assets)
-summary(merritt_data$Long.Term.Debt)
+names(merritt_data)
+merritt_data |>
+  mutate(operating.margin = Total.Water.Sales.Operating.Rev + Total.Sewer.Sales.Operating.Rev - )
+
+merritt_data$
 p2 <- ggplot(merritt_data, aes(x=log10({Long.Term.Debt+1}), y=log10(Total.Assets+1))) +
   geom_point(alpha=0.25,pch = 19,fill = NA) +
   labs(x="Long Term Debt ($)", y="Total Assets ($)") +
