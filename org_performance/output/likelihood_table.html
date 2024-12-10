@@ -1,0 +1,49 @@
+<html>
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div style="margin: 0 auto; display: table; margin-top: 1em;">
+<table class='gmisc_table' style='border-collapse: collapse; margin-top: 1em; margin-bottom: 1em;' >
+<thead>
+<tr><td colspan='3' style='text-align: left;'>
+WAIC scores for baseline* models fit with different likelihoods</td></tr>
+<tr>
+<th style='font-weight: 900; border-bottom: 1px solid grey; border-top: 2px solid grey; text-align: center;'>likelihood</th>
+<th style='font-weight: 900; border-bottom: 1px solid grey; border-top: 2px solid grey; text-align: center;'>Management non-compliance</th>
+<th style='font-weight: 900; border-bottom: 1px solid grey; border-top: 2px solid grey; text-align: center;'>Health non-compliance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style='text-align: center;'>poisson</td>
+<td style='text-align: center;'>70977</td>
+<td style='text-align: center;'>15375</td>
+</tr>
+<tr>
+<td style='text-align: center;'>nbinomial</td>
+<td style='text-align: center;'>19852</td>
+<td style='text-align: center;'>174857</td>
+</tr>
+<tr>
+<td style='text-align: center;'>zeroinflatednbinomial0</td>
+<td style='text-align: center;'>-Inf</td>
+<td style='text-align: center;'></td>
+</tr>
+<tr>
+<td style='text-align: center;'>zeroinflatednbinomial1</td>
+<td style='text-align: center;'>19721</td>
+<td style='text-align: center;'></td>
+</tr>
+<tr>
+<td style='border-bottom: 2px solid grey; text-align: center;'>zeroinflatednbinomial2</td>
+<td style='border-bottom: 2px solid grey; text-align: center;'>19822</td>
+<td style='border-bottom: 2px solid grey; text-align: center;'>267628</td>
+</tr>
+</tbody>
+<tfoot><tr><td colspan='3'>
+* ~ District ID + YEAR fixed effects and lagged only</td></tr></tfoot>
+</table>
+</div>
+</body>
+</html>

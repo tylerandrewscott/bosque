@@ -11,7 +11,8 @@ merritt_data |> filter(Credit.Sector=='Water / Sewer',!is.na(Current.Liabilities
 # for now, filter out any cases where current.liabilities = 0
 merritt_data |> filter(Current.Liabilities!=0) -> merritt_data
 
-names(merritt_data)
+merritt_data |> mutate_if(is.numeric,function(x) x * 1e3) -> merritt_data
+
 merritt_data$Quick.Ratio <-  {merritt_data$Cash...Short.Term.Investments +
                 merritt_data$Net.Accounts.Receivable}/merritt_data$Current.Liabilities
 
@@ -44,24 +45,49 @@ ggsave("sdwa_chapter/output/quick_ratio_dist.png", p, width=6, units="in", dpi=4
 library(data.table)
 
 
-names(merritt_data)
-merritt_data |>
-  mutate(operating.margin = Total.Water.Sales.Operating.Rev + Total.Sewer.Sales.Operating.Rev - )
+merritt_data <- merritt_data |>
+  mutate(operating.ratio = Total.Operating.Rev / Total.Operating.Exp)
 
-merritt_data$
-p2 <- ggplot(merritt_data, aes(x=log10({Long.Term.Debt+1}), y=log10(Total.Assets+1))) +
-  geom_point(alpha=0.25,pch = 19,fill = NA) +
-  labs(x="Long Term Debt ($)", y="Total Assets ($)") +
-  theme_minimal() +
-  ggtitle("Water and Sewer Utilities: Long Term Debt vs Total Assets") +
-  scale_x_log10(labels = function(x) round(10^x,2)) +
-  scale_y_log10(labels = function(y) round(10^y,2))
+p2 <- merritt_data |> 
+  ggplot(aes(y = operating.ratio,
+             x = Total.Operating.Exp+1,
+             color = operating.ratio>1)) + 
+  theme_bw() + 
+  ggtitle("Operating Ratio Distribution by Year, 2012-2021") + 
+  scale_x_log10(name = 'Operating Exp. ($)',
+           breaks = c(1e5,1e7,1e9), 
+          labels = c('$100k','$10M','$1B')) + 
+  geom_point(pch = 19,alpha = 0.25) +
+  scale_color_manual(values = c('#E15759','grey30')) + 
+  geom_hline(yintercept = 1,lty = 2,col = 'grey50')+
+  guides(color = 'none')+
+  scale_y_continuous(limits = c(NA,6),name = 'Operating Revenue/Expenses')
 
-ggsave("sdwa_chapter/output/debt_assets_scatter.png", p2, width=6,height = 6, units="in", dpi=450)
+
+ggsave("sdwa_chapter/output/medterm_operating_ratio.png", p2, width=6, units="in", dpi=450)
+library(data.table)
+p3 <- ggplot(merritt_data, aes(y={Long.Term.Debt+1}/Total.Assets, x=Total.Assets,col = 1 > {Long.Term.Debt+1}/Total.Assets )) +
+  geom_point(alpha=0.15,pch = 19) +
+  theme_bw() +
+  scale_color_manual(values = c('#E15759','grey30')) + 
+  guides(colour = 'none') + 
+  ggtitle("Debt to Assets by Year, 2012-2021") +
+  scale_x_log10(name = 'Total Assets ($)',
+                labels = c('$1M','$100M','$10B'),
+                breaks = c(1e6,1e8,1e10)) +
+  scale_y_continuous(name = 'Total Debt/Total Assets')
+
+ggsave("sdwa_chapter/output/debt_assets_scatter.png", p3, width=6,units="in", dpi=450)
+
+
+mean(1 < merritt_data$Long.Term.Debt/merritt_data$Total.Assets,na.rm = T)
+merritt_data$Operating.Ratio <- (merritt_data$Total.Operating.Rev/merritt_data$Total.Operating.Exp)
 
 
 
-
+summary(merritt_data$Long.Term.Debt)
+table(is.na(merritt_data$Total.Operating.Exp),is.na(merritt_data$Total.Water.Sales.Operating.Rev))
+merritt_data |> filter()
 table(merritt_data$Year)
 table(merritt_data$Current.Liabilities==0)
 summary(merritt_data$Quick.Ratio)
