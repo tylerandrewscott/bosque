@@ -18,7 +18,8 @@ data_sheet_urls = page_links[grepl('Summary',page_links %>% html_text(trim=T))] 
 
 
 temp = mclapply(data_sheet_urls,function(x) 
-{temp_tds =  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% html_nodes('td');
+{
+  temp_tds =  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% html_nodes('td');
 data.frame(System = str_extract(x,'TX[0-9]{7}'),
            Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
            NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))},

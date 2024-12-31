@@ -92,5 +92,41 @@ table(merritt_data$Year)
 table(merritt_data$Current.Liabilities==0)
 summary(merritt_data$Quick.Ratio)
 
+library(data.table)
+
+
+
+merritt_data[merritt_data$Year ==2018&grepl('Seattle',merritt_data$Credit.Name),]
 summary(merritt_data$Quick.Ratio)
 summary(merritt_data$Current.Liabilities)
+
+merritt_data <- merritt_data |> 
+  mutate(liabilities = replace_na(OPEB.Liability,0) + 
+           replace_na(Pension.Liability,0) + 
+           replace_na(Long.Term.Debt,0))
+
+
+p_rev <- merritt_data |> ggplot(aes(x = Total.Operating.Rev+1,
+                           y = liabilities,colour = ifelse(liabilities/{Total.Operating.Rev+1}>10,10,liabilities/{Total.Operating.Rev+1}))) + 
+  geom_point(pch = 19,alpha = 0.5) +
+  scale_color_viridis_c(labels = c(0,1,2,5,'10+'),breaks = c(0,1,2,5,10),
+    name = 'Obligations/Yearly Rev.',option = 'turbo') + 
+  scale_x_log10(labels = c('$10k','$1M','$100M'),breaks = c(1e4,1e6,1e8),limits = c(1e3,NA),name = 'Yearly operating revenue') + 
+  scale_y_log10(labels = c('$100k','$10M','$1B'), breaks = c(1e5,1e7,1e9),name = 'Debt+OPEB+Pension Obligations') + 
+  theme_bw()  +
+  ggtitle('Long term obligation / yearly revenue')+
+  theme(legend.position = c(0.2,0.2),
+        legend.background = element_rect(fill = alpha('white',0.5)),
+        legend.title.position = 'top',
+        legend.direction = 'horizontal')
+p_rev
+ggsave("sdwa_chapter/output/obligations_vs_revenue.png", p_rev, width=6,units="in", dpi=450)
+
+
+
+1e8 - 100000000
+summary(merritt_data$Total.Operating.Rev)
+
+summary(merritt_data$Pension.Liability)
+
+
