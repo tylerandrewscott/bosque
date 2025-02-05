@@ -3,10 +3,8 @@
 library(data.table)
 library(jsonlite)
 library(tigris)
-tigris::urban_areas()
-urbs <- urban_areas(class = 'sf')
 
-final <- 'startdate=1/1/2000&enddate=9/1/2024&statisticsType=1'
+final <- 'startdate=1/1/2000&enddate=1/1/2025&statisticsType=1'
 start <- 'https://usdmdataservices.unl.edu/api/'
 texas_url <- paste0(start,'CountyStatistics/GetDSCI?aoi=TX&',final)
 tx_county_dsci <- fread(texas_url)

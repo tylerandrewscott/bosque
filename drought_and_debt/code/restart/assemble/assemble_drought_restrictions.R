@@ -72,69 +72,102 @@ ntc2 <- ntc2 |> filter(is.na(`IMPLEMENTING/CHANGING/RESCINDING`) | `IMPLEMENTING
 
 ntcM <- ntc2[STAGE %in% c("M1","M2",'M3')]
 
-saveRDS(ntcM,file = 'drought_and_debt/input/combined_restriction_records.RDS')
-# library(rvest)
+library(rvest)
 # library(tidyverse)
 # library(pbapply)
 # library(lubridate)
 # library(data.table)
 # ### older location
 # #dr <- 'web.archive.org/web/'
-# dr <- 'util_code/scraping/dol-wayback/'
-# fls <- list.files(dr,pattern = 'html',recursive = T,full.names = T)
-# #### skip empty files
-# flsize <- file.size(fls)
-# fls <- fls[flsize>0]
+dr <- 'util_code/scraping/dol-wayback/'
+fls <- list.files(dr,pattern = 'html',recursive = T,full.names = T)
+#### skip empty files
+flsize <- file.size(fls)
+fls <- fls[flsize>0]
 # 
 # 
-# old_restrictions = pblapply(fls,function(p) {
-#   #print(p)
-#   temp = read_html(p) %>% html_nodes('table') %>% html_table(trim=T,fill=T)
-#   if(length(temp)==1){tdf = temp[[1]]}
-#   if(length(temp)>1){tdf = temp[[4]]}
-#   if(!any(grepl('PWS ID',names(tdf)))){
-#   colnames(tdf) <- tdf[1,]
-#   tdf = tdf[-1,]}
-#   if(any(colnames(tdf)=='TCEQ Stage')){tdf = tdf %>% rename(Stage = `TCEQ Stage`)}
-#   if(any(colnames(tdf)=='Date Notified')){tdf = tdf %>% rename(Notified = `Date Notified`)}
-#   if(any(colnames(tdf)=='Last Updated')){tdf = tdf %>% rename(Notified = `Last Updated`)}
-#   tdf$file <- p
-#   tdf},cl = 8)
+old_restrictions = pblapply(fls,function(p) {
+   print(p)
+  temp = read_html(p) %>% html_nodes('table') %>% html_table(trim=T,fill=T)
+   if(length(temp)==1){tdf = temp[[1]]}
+   if(length(temp)>1){tdf = temp[[4]]}
+   if(!any(grepl('PWS ID',names(tdf)))){
+   colnames(tdf) <- tdf[1,]
+   tdf = tdf[-1,]}
+   if(any(colnames(tdf)=='TCEQ Stage')){tdf = tdf %>% rename(Stage = `TCEQ Stage`)}
+   if(any(colnames(tdf)=='Date Notified')){tdf = tdf %>% rename(Notified = `Date Notified`)}
+   if(any(colnames(tdf)=='Last Updated')){tdf = tdf %>% rename(Notified = `Last Updated`)}
+   tdf$file <- p
+   tdf},cl = 8)
 # 
-# rest_df <- rbindlist(old_restrictions,fill = T,use.names = T)
-# rest_df <- rest_df[order(-file),]
-# rest_df <- rest_df[!{rest_df %>% dplyr::select(-file) %>% duplicated(.)},]
+rest_df <- rbindlist(old_restrictions,fill = T,use.names = T)
+rest_df <- rest_df[order(-file),]
+rest_df <- rest_df[!{rest_df %>% dplyr::select(-file) %>% duplicated(.)},]
 # library(lubridate)
-# rest_df$Notified <- mdy(rest_df$Notified)
-# rest_df <- rest_df[!is.na(Notified),]
-# rest_df$`PWS ID` <- as.integer(rest_df$`PWS ID`)
-# rest_df$`PWS ID` <- as.character(formatC(rest_df$`PWS ID`,width=7,flag = 0))
-# rest_df$Priority <- toupper(rest_df$Priority)
+rest_df$Notified <- mdy(rest_df$Notified)
+rest_df <- rest_df[!is.na(Notified),]
+rest_df$`PWS ID` <- as.integer(rest_df$`PWS ID`)
+rest_df$`PWS ID` <- as.character(formatC(rest_df$`PWS ID`,width=7,flag = 0))
+rest_df$Priority <- toupper(rest_df$Priority)
 # 
 # #https://www.tceq.texas.gov/drinkingwater/trot/droughtdic.html
-# rest_df <- rest_df %>% 
-#   mutate(Priority = case_when(
-#     Priority %in% c('W','GREATER THAN 180-DAY SUPPLY') ~ 'Watch',
-#     Priority %in% c('C','LESS THAN 180-DAY SUPPLY') ~ 'Concern',
-#     Priority == 'P' ~ 'Priority',
-#     Priority == 'E' ~ 'Emergency',
-#     Priority == 'R' ~ 'Resolved',
-#     Priority == 'O' ~ 'Outage',
-#     .default = Priority))
+rest_df <- rest_df %>% 
+   mutate(Priority = case_when(
+     Priority %in% c('W','GREATER THAN 180-DAY SUPPLY') ~ 'Watch',
+     Priority %in% c('C','LESS THAN 180-DAY SUPPLY') ~ 'Concern',
+     Priority == 'P' ~ 'Priority',
+     Priority == 'E' ~ 'Emergency',
+     Priority == 'R' ~ 'Resolved',
+     Priority == 'O' ~ 'Outage',
+     .default = Priority))
 # 
-# table(rest_df$Priority)
-# rest_df$Priority_Numeric <- as.numeric(fct_relevel(rest_df$Priority,'Resolved','Watch','Concern','Priority','Emergency','Outage'))
+table(rest_df$Priority)
+rest_df$Priority_Numeric <- as.numeric(fct_relevel(rest_df$Priority,'Resolved','Watch','Concern','Priority','Emergency','Outage'))
 # 
-# rest_df$Stage<-toupper(rest_df$Stage)
-# rest_df <- rest_df %>% mutate(Stage = case_when(
-#   Stage == 'V' ~ 'Voluntary',
-#   Stage == '1' ~ 'Mild',
-#   Stage == '2' ~ 'Moderate',
-#   Stage == '3' ~ 'Severe',
-#   TRUE ~ 'Voluntary'
-# ))
-# rest_df$Mandatory <- (rest_df$Stage != "Voluntary") + 0
-# 
+rest_df$Stage<-toupper(rest_df$Stage)
+rest_df <- rest_df %>% mutate(Stage = case_when(
+   Stage == 'V' ~ 'Voluntary',
+   Stage == '1' ~ 'Mild',
+   Stage == '2' ~ 'Moderate',
+   Stage == '3' ~ 'Severe',
+   TRUE ~ 'Voluntary'
+ ))
+rest_df$Mandatory <- (rest_df$Stage != "Voluntary") + 0
+
+
+colnames(rest_df)<-toupper(colnames(rest_df))
+rest_df$NOTIFIED_YMD <- ymd(rest_df$NOTIFIED)
+rest_df <- rest_df |> filter(STAGE %in% c('Mild','Moderate','Severe')) |>
+  mutate(STAGE = case_when(
+    STAGE=='Mild' ~ 'M1',
+    STAGE=='Moderate' ~ 'M2',
+    STAGE=='Severe' ~ 'M3'
+  )) |>
+  mutate(`PWS ID` = paste0('TX',`PWS ID`))
+
+paste(ntcM$`PWS ID`,ntc$NOTIFIED_YMD)
+paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD)
+
+t1 <- ntcM[`PWS ID`=='TX1520005'&NOTIFIED_YMD == '2020-05-05',.(`PWS ID`,NOTIFIED_YMD)]
+t2 <- rest_df[`PWS ID`=='TX1520005'&NOTIFIED_YMD == '2020-05-05',.(`PWS ID`,NOTIFIED_YMD)]
+paste(t1$`PWS ID`,t1$NOTIFIED_YMD) %in% paste(t2$`PWS ID`,t2$NOTIFIED_YMD)
+test <- ntcM[paste(ntcM$`PWS ID`,ntcM$NOTIFIED_YMD) %in% paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD),]
+test[`PWS ID`=='TX1520005',]
+
+
+
+table(paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD) %in% paste(ntcM$`PWS ID`,ntcM$NOTIFIED_YMD))
+rest_df[order(Notified),][1:10,]
+ 
+
+head(ntcM)
+rest_df$STAGE
+ntcM$STAGE
+
+saveRDS(ntcM,file = 'drought_and_debt/input/combined_restriction_records.RDS')
+
+
+
 # saveRDS(rest_df,'drought_and_debt/input/combined_restriction_records.RDS')
 # 
 # table(year(test$Notified))

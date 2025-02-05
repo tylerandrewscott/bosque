@@ -11,10 +11,10 @@ Sys.setenv(
 
 ht_loc <- 'input/texas_dww/html_reports/'
 fls <- rev(list.files(ht_loc))
-mssg <- "This html file has information about a single water district. Aggregate these data into one-row data frame. Exclude table components that describe variable options or code explanations. Return as json object."
+mssg <- "You are a helpful assistant. Record the owner type, # I/C w/other PWS, and total storage of this water system." 
 
 library(jsonlite)
-process_single_html <- function(file_path, save_dir = file.path("input","texas_dww", "html_responses"), CLOBBER = FALSE) {
+process_single_html <- function(file_path, save_dir = file.path("input","texas_dww", "html_extracts"), CLOBBER = FALSE) {
   # Check if file exists and CLOBBER is FALSE
   response_path <- file.path(save_dir, paste0(tools::file_path_sans_ext(basename(file_path)), ".json"))
   if(file.exists(response_path) && !CLOBBER) {

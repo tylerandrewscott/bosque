@@ -1,123 +1,45 @@
 library(data.table)
+library(jsonlite)
+library(stringr)
+library(pbapply)
+library(lubridate)
+library(tidyverse)
 mlist <- fread('input/texas_dww/district_master_list.csv')
 mlist <- mlist[Type=='C']
 setnames(mlist,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
 
-dir <- 'input/texas_dww/html_responses/'
-resp <- list.files(dir)
-resp <- resp[str_remove(resp,'\\.json$') %in% mlist$PWS_ID]
-library(jsonlite)
-library(stringr)
-library(pbapply)
-rlist <- pblapply(resp,function(r) {
-  message <- read_json(paste0(dir,r))
-  js <- message$choices[[1]]$message.content
-  js_return <- tryCatch(fromJSON(js,flatten = T),error = function(e) NULL)
-  return(js_return)
-},cl = 5)
-
-rlist <- rlist[!sapply(rlist,is.null)]
-
-delist <- function(x) {
-  x[sapply(x,is.vector)]
-}
-
-rlist2 <- lapply(rlist,delist)
-
-filter = c('codes','options','phone','fax','contacts','gps','depth','drill_date','treatment_sequence','treatment_plant','source_information\\.active_sources','entry_point','survey','source\\.sources','source_location','sources\\.sourcenumber','sources\\.active','active_sources\\.',
-           'treatment','^sources\\.','_[0-9]$','code_explanations','contact',
-           '^source_types\\.','^source_information','^sourcelocation')
-spreadList <- function(x) {
-  y <- unlist(x)
-  y.names <- names(y)
-  y.values <- as.vector(y)
-  y.dt <- data.table(t(data.table(y)))
-  colnames(y.dt) <- tolower(y.names)
-  colnames(y.dt) <- str_replace_all(colnames(y.dt),'\\s','_')
-  colnames(y.dt) <- str_remove(colnames(y.dt),'tceq_summary_sheet\\.')
-  colnames(y.dt) <- str_remove(colnames(y.dt),'^waterdistrict\\.')
-  colnames(y.dt) <- str_remove(colnames(y.dt),'^water_district\\.')
-  colnames(y.dt) <- str_remove(colnames(y.dt),'^district\\.')
-  y.dt <- y.dt[,!grepl(paste(filter,collapse = '|'),colnames(y.dt)),with = F]
-  return(y.dt)
-  }
-
-dt.list <- lapply(rlist2,spreadList)
-summary(sapply(dt.list,ncol))
-dt.list[sapply(dt.list,ncol)==max(sapply(dt.list,ncol))]
-
-system.dt <- rbindlist(dt.list,use.names = T,fill = T)
-
-url = 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=A&county=All&WaterSystemType=C&SourceWaterType=All&SampleType=null&begin_date=1%2F30%2F2023&end_date=1%2F30%2F2025&action=Search+For+Water+Systems'
-library(rvest)
-test = url |> read_html() |> html_nodes(css = '#AutoNumber7 td:nth-child(1) a') |> html_text(trim = T)
-
-test2 <- test[!test %in% system.dt$pws_id]
-
-
-
-
-system.dt$system_type <- tolower(system.dt$system_type)
-system.dt <- system.dt[!is.na(system.dt$pws_id),]
-
-system.dt[system_type %in% c('community','c - community','com'),]
-
-
-
-table(system.dt$system_type)
-grep('pws',colnames(system.dt),value = T)
-dim(system.dt)
-system.dt[,colMeans(!is.na(system.dt)) > 0.2,with = F]
-
-table(test %in% str_remove(resp,'\\.json$'))
-
-
-system.dt[is.na(population_served) & !is.na(population_served.population),1:10][1:10,]
-grep('population',colnames(system.dt[is.na(population_served)&!is.na(pws_id),]),value = T)[1:10]
-system.dt[!is.na(population.type),grepl('population',colnames(system.dt)),with = F]
-head(system.dt)
-dt.list[[1]]
-rlist[[1]][sapply(rlist[[1]],is.vector)]
-rlist[[1]] %>% select_if(.predicate = is.vector)
-as.data.table(rlist[[1]])
-
-sapply(rlist[[1]],is.vector)
-rlist <- lapply(rlist,function(x){ifelse(is.data.frame(x),x,x[!{sapply(x,is.data.frame)|sapply(x,is.list)}])})
-
-str(rlist)
-
-
 mlist_dt <- rbind(mlist,mlist,mlist)
-mlist_dt$PERIOD <- rep(c('D1','D2','D3'),each = nrow(mlist))
-
-
-
+mlist_dt$PERIOD <- rep(c('P1','P2','P3'),each = nrow(mlist))
 
 
 notice <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
 
 # https://www.twdb.texas.gov/publications/reports/other_reports/doc/Drought-in-Texas-Comparison-1950s-2010s.pdf
 ### this is when PDSI says drought started (before SPI in Feb 2011)
-d1_start <- mdy('08-01-2010')
+p1_start <- mdy('08-01-2010')
 ### this is when SPI says drought ended (after PDSI in Nov 2014)
-d1_end <- mdy('03-31-2015')
+p1_end <- mdy('03-31-2015')
 
-d3_start <- mdy('09-01-2021')
-d3_end <- mdy('10-31-2024')
-library(tidyverse)
+p3_start <- mdy('09-01-2021')
+#p3_end <- mdy('10-31-2024')
+p2_start <- p1_end+days(1)
+p2_end <- p3_start-days(1)
 notice <- notice |> 
-  rename(YMD = NOTIFIED_YMD,PWS_ID = `PWS ID`) |>
+  rename(YMD = NOTIFIED_YMD,PWS_ID = `PWS ID`)
+p3_end <- max(notice$YMD)+days(1)
+
+notice <- notice |>
   ### any day within either D period is included ### (<= on both sides)
-  mutate(PERIOD = case_when(YMD>=d1_start&YMD<=d1_end ~ 'D1',
-                                    YMD>=d2_start&YMD<=d2_end ~ 'D3',
-                                    T ~ 'D2')) 
+  mutate(PERIOD = case_when(YMD>=p1_start&YMD<= p1_end ~ 'P1',
+                                    YMD>=p3_start&YMD<=p3_end ~ 'P3',
+                                    T ~ 'P2')) 
 # find earliest adoption by PWS_ID and PERIOD
 notice <- notice |> group_by(PWS_ID,PERIOD) |> summarize(RESTRICTION_DATE = min(YMD))
 mlist_dt <- merge(mlist_dt,notice,all.x = T)
 
 mlist_dt <- mlist_dt |> mutate(RESTRICTION_TIME = case_when(
-  PERIOD == 'D1' ~ interval(RESTRICTION_DATE,d1_start) %/% days(1),
-  PERIOD == 'D3' ~ interval(RESTRICTION_DATE,d3_start) %/% days(1),
+  PERIOD == 'P1' ~ interval(RESTRICTION_DATE,p1_start) %/% days(1),
+  PERIOD == 'P3' ~ interval(RESTRICTION_DATE,p3_start) %/% days(1),
   T ~ interval(RESTRICTION_DATE,d1_end + days(1)) %/% days(1)))
 
 #### for same day, recode to day 1 ###
@@ -125,16 +47,12 @@ mlist_dt$RESTRICTION_TIME[mlist_dt$RESTRICTION_TIME == 0] <- 1
 ### abs because the interval produces negative time ###
 mlist_dt$RESTRICTION_TIME<-abs(mlist_dt$RESTRICTION_TIME)
 
-
-
-
-
-
-
-
-
 pws_drought_weekly <- readRDS('drought_and_debt/input/pws_drought_weekly.RDS')
-pws_drought_weekly[PWS_ID=='TX0010036']
+
+dsci_month_means <- pws_drought_weekly |> 
+  mutate(month = floor_date(ymd(DroughtDate),unit ='month')) |>
+  group_by(month) |> 
+  summarise(DSCI = mean(DSCI))
 library(reReg)
 library(lubridate)
 library(data.table)
@@ -143,25 +61,14 @@ pws_drought_weekly$YMD <- ymd(pws_drought_weekly$DroughtDate)
 min_date <- min(pws_drought_weekly[year(YMD) == 2010,]$YMD)
 pws_drought_weekly <-pws_drought_weekly[YMD>=min_date,]
 
-
 library(reReg)
-
-# https://www.twdb.texas.gov/publications/reports/other_reports/doc/Drought-in-Texas-Comparison-1950s-2010s.pdf
-### this is when PDSI says drought started (before SPI in Feb 2011)
-d1_start <- mdy('08-01-2010')
-### this is when SPI says drought ended (after PDSI in Nov 2014)
-d1_end <- mdy('03-31-2015')
-
-d2_start <- mdy('09-01-2021')
-d2_end <- mdy('10-31-2024')
 library(tidyverse)
 pws_drought_weekly <- pws_drought_weekly |> 
-  mutate(drought_window = case_when(YMD>d1_start&YMD<=d1_end ~ 'd1',
-                                                 YMD>d2_start&YMD<=d2_end ~ 'd2',
+  mutate(drought_window = case_when(YMD>p1_start&YMD<=p1_end ~ 'p1',
+                                                 YMD>p3_start&YMD<=p2_end ~ 'p3',
                                                  T ~ 'none')) 
-setnames(notice,'PWS ID','PWS_ID')
-notice$YMD <- notice$NOTIFIED_YMD
-
+notice <- data.table(notice)
+notice$YMD <- notice$RESTRICTION_DATE
 setkey(notice,'PWS_ID','YMD')
 setkey(pws_drought_weekly,'PWS_ID','YMD')
 
@@ -189,12 +96,50 @@ df_subset <- df[order(PWS_ID, DroughtDate), ][, {
 setorder(df_subset, PWS_ID, DroughtDate)
 df <- df_subset
 df$YMD_dec <- decimal_date(df$YMD)
-df <- df |> mutate(time = case_when(drought_window=='d1'~YMD_dec - decimal_date(d1_start),
-                              drought_window=='d2'~YMD_dec - decimal_date(d2_start),
-                              T ~ YMD_dec - decimal_date(d1_end+days(1))))
+df <- df |> mutate(time = case_when(drought_window=='p1'~YMD_dec - decimal_date(p1_start),
+                              drought_window=='p2'~YMD_dec - decimal_date(p2_start),
+                              T ~ YMD_dec - decimal_date(p3_start)))
 
 df <- df[order(PWS_ID,time),time0:=lag(time,n = 1),by=.(PWS_ID,drought_window)]
 df$time0[is.na(df$time0)]<-0
+
+restriction_month_year <- notice |> 
+  mutate(month = floor_date(RESTRICTION_DATE, unit = "month")) |> 
+  group_by(month) |>
+  summarise(restr_count = n())
+
+month_year <- merge(restriction_month_year,dsci_month_means,all = T)
+month_year$restr_count[is.na(month_year$restr_count)]<-0
+month_year <- month_year[month_year$month >= p1_start&month_year$month <=p3_end,]
+
+
+month_year
+
+
+restriction_month_year
+g_base <- ggplot(data = restriction_month_year,
+       aes(x = month)) + 
+  scale_x_date(name = 'Month', date_labels = "%b %y", breaks = "year")+
+  theme_bw() 
+
+g1 <- g_base + labs(y = '# restrictions issued') + 
+  geom_bar(aes(y = restr_count),stat = 'identity') + 
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),text = element_text(family = 'Times'))
+g2 <- g_base + labs(y = 'avg. DSCI') + geom_line(aes(y = avg_DSCI)) + 
+  theme(text = element_text(family = 'Times'),axis.text.x = element_text(angle= 45))
+
+library(cowplot)
+cowplot::plot_grid(g1, 
+                   g2, 
+                   nrow = 2,align = 'v',
+                   labels = "auto",label_fontfamily = 'Times')
+grid.arrange(g1,g2,ncol = 1)
+
+
+paste(year(df$RESTRICTION_DATE),month(df$RESTRICTION_DATE),sep='_')
+df$RESTRICTION_DATE
 
 library(survival)
 library(INLA)
