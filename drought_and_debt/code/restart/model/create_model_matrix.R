@@ -34,13 +34,14 @@ notice <- notice |>
                                     YMD>=p3_start&YMD<=p3_end ~ 'P3',
                                     T ~ 'P2')) 
 # find earliest adoption by PWS_ID and PERIOD
-notice <- notice |> group_by(PWS_ID,PERIOD) |> summarize(RESTRICTION_DATE = min(YMD))
+notice <- notice %>% group_by(PWS_ID,PERIOD) %>% summarize(RESTRICTION_DATE = min(YMD))
+
 mlist_dt <- merge(mlist_dt,notice,all.x = T)
 
 mlist_dt <- mlist_dt |> mutate(RESTRICTION_TIME = case_when(
   PERIOD == 'P1' ~ interval(RESTRICTION_DATE,p1_start) %/% days(1),
   PERIOD == 'P3' ~ interval(RESTRICTION_DATE,p3_start) %/% days(1),
-  T ~ interval(RESTRICTION_DATE,d1_end + days(1)) %/% days(1)))
+  T ~ interval(RESTRICTION_DATE,p1_end + days(1)) %/% days(1)))
 
 #### for same day, recode to day 1 ###
 mlist_dt$RESTRICTION_TIME[mlist_dt$RESTRICTION_TIME == 0] <- 1
@@ -52,7 +53,7 @@ pws_drought_weekly <- readRDS('drought_and_debt/input/pws_drought_weekly.RDS')
 dsci_month_means <- pws_drought_weekly |> 
   mutate(month = floor_date(ymd(DroughtDate),unit ='month')) |>
   group_by(month) |> 
-  summarise(DSCI = mean(DSCI))
+  summarise(avg_DSCI = mean(DSCI))
 library(reReg)
 library(lubridate)
 library(data.table)
@@ -64,9 +65,9 @@ pws_drought_weekly <-pws_drought_weekly[YMD>=min_date,]
 library(reReg)
 library(tidyverse)
 pws_drought_weekly <- pws_drought_weekly |> 
-  mutate(drought_window = case_when(YMD>p1_start&YMD<=p1_end ~ 'p1',
-                                                 YMD>p3_start&YMD<=p2_end ~ 'p3',
-                                                 T ~ 'none')) 
+  mutate(drought_window = case_when(YMD>p1_start&YMD<=p1_end ~ 'P1',
+                                                 YMD>p2_start&YMD<=p2_end ~ 'P2',
+                                                 T ~ 'P3')) 
 notice <- data.table(notice)
 notice$YMD <- notice$RESTRICTION_DATE
 setkey(notice,'PWS_ID','YMD')
@@ -75,7 +76,7 @@ setkey(pws_drought_weekly,'PWS_ID','YMD')
 df <- (notice[pws_drought_weekly,])
 
 df <- df[order(PWS_ID,DroughtDate),]
-df <- df[YMD>=d1_start,]
+df <- df[YMD>=p1_start,]
 df$restriction <- ifelse(is.na(df$STAGE),0,1)
 
 # For each PWS_ID and drought_window, get observations up to and including first restriction
@@ -96,8 +97,8 @@ df_subset <- df[order(PWS_ID, DroughtDate), ][, {
 setorder(df_subset, PWS_ID, DroughtDate)
 df <- df_subset
 df$YMD_dec <- decimal_date(df$YMD)
-df <- df |> mutate(time = case_when(drought_window=='p1'~YMD_dec - decimal_date(p1_start),
-                              drought_window=='p2'~YMD_dec - decimal_date(p2_start),
+df <- df |> mutate(time = case_when(drought_window=='P1'~YMD_dec - decimal_date(p1_start),
+                              drought_window=='P2'~YMD_dec - decimal_date(p2_start),
                               T ~ YMD_dec - decimal_date(p3_start)))
 
 df <- df[order(PWS_ID,time),time0:=lag(time,n = 1),by=.(PWS_ID,drought_window)]
@@ -113,13 +114,14 @@ month_year$restr_count[is.na(month_year$restr_count)]<-0
 month_year <- month_year[month_year$month >= p1_start&month_year$month <=p3_end,]
 
 
-month_year
-
-
-restriction_month_year
-g_base <- ggplot(data = restriction_month_year,
+g_base <- ggplot(data = month_year,
        aes(x = month)) + 
-  scale_x_date(name = 'Month', date_labels = "%b %y", breaks = "year")+
+  geom_vline(xintercept = p1_end,lty = 2,col = 'grey50') + 
+  geom_vline(xintercept = p2_end,lty = 2,col = 'grey50') + 
+  scale_x_date(name = 'Month', 
+               labels = function(z) gsub("^0", "", strftime(z, "%m/'%y")),
+               #date_labels = "%m/%y", 
+               breaks = "year")+
   theme_bw() 
 
 g1 <- g_base + labs(y = '# restrictions issued') + 
@@ -128,14 +130,37 @@ g1 <- g_base + labs(y = '# restrictions issued') +
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),text = element_text(family = 'Times'))
 g2 <- g_base + labs(y = 'avg. DSCI') + geom_line(aes(y = avg_DSCI)) + 
-  theme(text = element_text(family = 'Times'),axis.text.x = element_text(angle= 45))
+  theme(text = element_text(family = 'Times'),
+        axis.text.x = element_text(angle= 00,size = 8))
 
 library(cowplot)
-cowplot::plot_grid(g1, 
+grid_plot <- cowplot::plot_grid(g1, 
                    g2, 
                    nrow = 2,align = 'v',
                    labels = "auto",label_fontfamily = 'Times')
-grid.arrange(g1,g2,ncol = 1)
+
+# now add the title
+title <- ggdraw() + 
+  draw_label(
+    "Drought level and water use restrictions",
+    fontface = 'bold',fontfamily = 'Times',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    # add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7)
+  )
+grid_with_title <- plot_grid(
+  title, grid_plot,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+ggsave(plot = grid_with_title,filename = 'drought_and_debt/output/figure1_dsci_restrictions.png',dpi = 450,width = 7,height = 7,units = 'in')
+grid_with_title = grid.arrange(g1,g2,ncol = 1)
 
 
 paste(year(df$RESTRICTION_DATE),month(df$RESTRICTION_DATE),sep='_')
@@ -143,7 +168,7 @@ df$RESTRICTION_DATE
 
 library(survival)
 library(INLA)
-#df1 <- df[df$drought_window=='d1',]
+#df1 <- df[df$drought_window=='p1',]
 df.test <- df %>% group_by(drought_window,PWS_ID) %>%
   filter(time == max(time))
 

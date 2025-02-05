@@ -14,6 +14,7 @@ library(reReg)
 library(data.table)
 library(readxl)
 library(tidyverse)
+library(pbapply)
 tceq_file <- 'input/TCEQ_FOIA/PIR 98118_Copy_Drought_Database_Reported_MASTER.xlsx'
 ntc <- read_excel(tceq_file,sheet = 'Master')
 warnings()
@@ -145,26 +146,14 @@ rest_df <- rest_df |> filter(STAGE %in% c('Mild','Moderate','Severe')) |>
   )) |>
   mutate(`PWS ID` = paste0('TX',`PWS ID`))
 
-paste(ntcM$`PWS ID`,ntc$NOTIFIED_YMD)
-paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD)
 
-t1 <- ntcM[`PWS ID`=='TX1520005'&NOTIFIED_YMD == '2020-05-05',.(`PWS ID`,NOTIFIED_YMD)]
-t2 <- rest_df[`PWS ID`=='TX1520005'&NOTIFIED_YMD == '2020-05-05',.(`PWS ID`,NOTIFIED_YMD)]
-paste(t1$`PWS ID`,t1$NOTIFIED_YMD) %in% paste(t2$`PWS ID`,t2$NOTIFIED_YMD)
-test <- ntcM[paste(ntcM$`PWS ID`,ntcM$NOTIFIED_YMD) %in% paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD),]
-test[`PWS ID`=='TX1520005',]
+scraped_not_in_tceq_file <- rest_df[!paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD) %in% paste(ntcM$`PWS ID`,ntcM$NOTIFIED_YMD),]
+scraped_not_in_tceq_file$scraped = T
+ntcM$scraped = F
 
+ntcBoth <- merge(ntcM,scraped_not_in_tceq_file,all = T)
 
-
-table(paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD) %in% paste(ntcM$`PWS ID`,ntcM$NOTIFIED_YMD))
-rest_df[order(Notified),][1:10,]
- 
-
-head(ntcM)
-rest_df$STAGE
-ntcM$STAGE
-
-saveRDS(ntcM,file = 'drought_and_debt/input/combined_restriction_records.RDS')
+saveRDS(ntcBoth,file = 'drought_and_debt/input/combined_restriction_records.RDS')
 
 
 
