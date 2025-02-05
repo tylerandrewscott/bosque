@@ -9,8 +9,8 @@ mlist <- mlist[Type=='C']
 setnames(mlist,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
 
 mlist_dt <- rbind(mlist,mlist,mlist)
-mlist_dt$PERIOD <- rep(c('P1','P2','P3'),each = nrow(mlist))
 
+mlist_dt$PERIOD <- rep(c('P1','P2','P3'),each = nrow(mlist))
 
 notice <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
 
