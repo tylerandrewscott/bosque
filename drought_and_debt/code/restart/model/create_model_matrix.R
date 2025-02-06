@@ -170,7 +170,7 @@ cox_mod <- coxph(surv_obj ~ 1 + #scale(DSCI) +
 
 summary(cox_mod)
 
-
+head(df)
 
 df[PERIOD=='P2']
 df[,list(.N,mean(RESTRICTION)),by=.(PERIOD)]
