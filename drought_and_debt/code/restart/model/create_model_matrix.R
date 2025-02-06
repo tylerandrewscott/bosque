@@ -65,24 +65,25 @@ pws_drought_weekly <-pws_drought_weekly[YMD>=min_date,]
 library(reReg)
 library(tidyverse)
 pws_drought_weekly <- pws_drought_weekly |> 
-  mutate(drought_window = case_when(YMD>p1_start&YMD<=p1_end ~ 'P1',
+  mutate(PERIOD = case_when(YMD>p1_start&YMD<=p1_end ~ 'P1',
                                                  YMD>p2_start&YMD<=p2_end ~ 'P2',
                                                  T ~ 'P3')) 
 notice <- data.table(notice)
 notice$YMD <- notice$RESTRICTION_DATE
-setkey(notice,'PWS_ID','YMD')
-setkey(pws_drought_weekly,'PWS_ID','YMD')
+setkey(notice,'PWS_ID','YMD','PERIOD')
+setkey(pws_drought_weekly,'PWS_ID','YMD','PERIOD')
 
+notice$RESTRICTION <- 1
 df <- (notice[pws_drought_weekly,])
-
+df$RESTRICTION[is.na(df$RESTRICTION)] <- 0
 df <- df[order(PWS_ID,DroughtDate),]
 df <- df[YMD>=p1_start,]
-df$restriction <- ifelse(is.na(df$STAGE),0,1)
 
-# For each PWS_ID and drought_window, get observations up to and including first restriction
+
+# For each PWS_ID and PERIOD, get observations up to and including first restriction
 df_subset <- df[order(PWS_ID, DroughtDate), ][, {
   # Find index of first restriction in this group, if any
-  first_restrict <- which(restriction == 1)[1]
+  first_restrict <- which(RESTRICTION == 1)[1]
   
   if (is.na(first_restrict)) {
     # If no restriction, keep all rows for this drought window
@@ -91,17 +92,17 @@ df_subset <- df[order(PWS_ID, DroughtDate), ][, {
     # Keep rows up to and including first restriction
     .SD[1:first_restrict]
   }
-}, by = .(PWS_ID, drought_window)]
+}, by = .(PWS_ID, PERIOD)]
 
 # Reorder the final dataset
 setorder(df_subset, PWS_ID, DroughtDate)
 df <- df_subset
 df$YMD_dec <- decimal_date(df$YMD)
-df <- df |> mutate(time = case_when(drought_window=='P1'~YMD_dec - decimal_date(p1_start),
-                              drought_window=='P2'~YMD_dec - decimal_date(p2_start),
+df <- df |> mutate(time = case_when(PERIOD=='P1'~YMD_dec - decimal_date(p1_start),
+                              PERIOD=='P2'~YMD_dec - decimal_date(p2_start),
                               T ~ YMD_dec - decimal_date(p3_start)))
 
-df <- df[order(PWS_ID,time),time0:=lag(time,n = 1),by=.(PWS_ID,drought_window)]
+df <- df[order(PWS_ID,time),time0:=lag(time,n = 1),by=.(PWS_ID,PERIOD)]
 df$time0[is.na(df$time0)]<-0
 
 restriction_month_year <- notice |> 
@@ -160,20 +161,37 @@ grid_with_title <- plot_grid(
 )
 
 ggsave(plot = grid_with_title,filename = 'drought_and_debt/output/figure1_dsci_restrictions.png',dpi = 450,width = 7,height = 7,units = 'in')
-grid_with_title = grid.arrange(g1,g2,ncol = 1)
 
+library(survival)
+
+surv_obj <- Surv(df$time0,df$time,df$RESTRICTION)
+cox_mod <- coxph(surv_obj ~ 1 + #scale(DSCI) + 
+                   PERIOD,cluster = PWS_ID,data = df)
+
+summary(cox_mod)
+
+
+
+df[PERIOD=='P2']
+df[,list(.N,mean(RESTRICTION)),by=.(PERIOD)]
+summary(cox_mod)
+table(is.na(df$restriction))
+table(is.na(df$PWS_ID))
+table(is.na(df$DSCI))
+
+head(df)
 
 paste(year(df$RESTRICTION_DATE),month(df$RESTRICTION_DATE),sep='_')
 df$RESTRICTION_DATE
 
 library(survival)
 library(INLA)
-#df1 <- df[df$drought_window=='p1',]
-df.test <- df %>% group_by(drought_window,PWS_ID) %>%
+#df1 <- df[df$PERIOD=='p1',]
+df.test <- df %>% group_by(PERIOD,PWS_ID) %>%
   filter(time == max(time))
 
 surv.drought <- Surv(time = df.test$time,event = df.test$restriction)
-km.drought <- survfit(surv.drought ~ -1 + drought_window,data = df.test)
+km.drought <- survfit(surv.drought ~ -1 + PERIOD,data = df.test)
 autoplot(km.drought)
 
 df$DSCI_2SD <- {df$DSCI-mean(df$DSCI)} / {sd(df$DSCI)*2}
