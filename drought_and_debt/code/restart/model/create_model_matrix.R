@@ -4,52 +4,15 @@ library(stringr)
 library(pbapply)
 library(lubridate)
 library(tidyverse)
+
+
 mlist <- fread('input/texas_dww/district_master_list.csv')
-mlist <- mlist[Type=='C']
-setnames(mlist,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
+mlist_dt <- mlist[Type=='C']
+setnames(mlist_dt,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
+mlist_dt$PWS_NAME <- stringr::str_remove(stringr::str_extract(mlist_dt$PWS_NAME,"^[A-Z0-9\\s]+"),'\\sF$')
 
-mlist_dt <- rbind(mlist,mlist,mlist)
-
-mlist_dt$PERIOD <- rep(c('P1','P2','P3'),each = nrow(mlist))
-
-notice <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
-
-# https://www.twdb.texas.gov/publications/reports/other_reports/doc/Drought-in-Texas-Comparison-1950s-2010s.pdf
-### this is when PDSI says drought started (before SPI in Feb 2011)
-p1_start <- mdy('08-01-2010')
-### this is when SPI says drought ended (after PDSI in Nov 2014)
-p1_end <- mdy('03-31-2015')
-
-p3_start <- mdy('09-01-2021')
-#p3_end <- mdy('10-31-2024')
-p2_start <- p1_end+days(1)
-p2_end <- p3_start-days(1)
-notice <- notice |> 
-  rename(YMD = NOTIFIED_YMD,PWS_ID = `PWS ID`)
-p3_end <- max(notice$YMD)+days(1)
-
-notice <- notice |>
-  ### any day within either D period is included ### (<= on both sides)
-  mutate(PERIOD = case_when(YMD>=p1_start&YMD<= p1_end ~ 'P1',
-                                    YMD>=p3_start&YMD<=p3_end ~ 'P3',
-                                    T ~ 'P2')) 
-# find earliest adoption by PWS_ID and PERIOD
-notice <- notice %>% group_by(PWS_ID,PERIOD) %>% summarize(RESTRICTION_DATE = min(YMD))
-
-mlist_dt <- merge(mlist_dt,notice,all.x = T)
-
-mlist_dt <- mlist_dt |> mutate(RESTRICTION_TIME = case_when(
-  PERIOD == 'P1' ~ interval(RESTRICTION_DATE,p1_start) %/% days(1),
-  PERIOD == 'P3' ~ interval(RESTRICTION_DATE,p3_start) %/% days(1),
-  T ~ interval(RESTRICTION_DATE,p1_end + days(1)) %/% days(1)))
-
-#### for same day, recode to day 1 ###
-mlist_dt$RESTRICTION_TIME[mlist_dt$RESTRICTION_TIME == 0] <- 1
-### abs because the interval produces negative time ###
-mlist_dt$RESTRICTION_TIME<-abs(mlist_dt$RESTRICTION_TIME)
 
 pws_drought_weekly <- readRDS('drought_and_debt/input/pws_drought_weekly.RDS')
-
 dsci_month_means <- pws_drought_weekly |> 
   mutate(month = floor_date(ymd(DroughtDate),unit ='month')) |>
   group_by(month) |> 
@@ -61,13 +24,75 @@ pws_drought_weekly$YMD <- ymd(pws_drought_weekly$DroughtDate)
 # astart at begining of 2010
 min_date <- min(pws_drought_weekly[year(YMD) == 2010,]$YMD)
 pws_drought_weekly <-pws_drought_weekly[YMD>=min_date,]
+pws_drought_weekly <- pws_drought_weekly[pws_drought_weekly$PWS_ID %in% mlist_dt$PWS_ID,]
+
+pws_drought_weekly <- left_join(pws_drought_weekly,mlist_dt,by = c('PWS_ID' = 'PWS_ID'))
+
+notice <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
+notice <- notice |> 
+  rename(YMD = NOTIFIED_YMD,PWS_ID = `PWS ID`)
+notice <- notice[!duplicated(paste(PWS_ID,YMD)),]
+
+
+
+
+
+
+
+#mlist_dt$PERIOD <- rep(c('P1','P2','P3'),each = nrow(mlist))
+
+
+# https://www.twdb.texas.gov/publications/reports/other_reports/doc/Drought-in-Texas-Comparison-1950s-2010s.pdf
+### this is when PDSI says drought started (before SPI in Feb 2011)
+p1_start <- mdy('08-01-2010')
+### this is when SPI says drought ended (after PDSI in Nov 2014)
+p1_end <- mdy('03-31-2015')
+
+p3_start <- mdy('09-01-2021')
+#p3_end <- mdy('10-31-2024')
+p2_start <- p1_end+days(1)
+p2_end <- p3_start-days(1)
+
+p3_end <- max(notice$YMD)+days(1)
+
+
+
 
 library(reReg)
 library(tidyverse)
-pws_drought_weekly <- pws_drought_weekly |> 
-  mutate(PERIOD = case_when(YMD>p1_start&YMD<=p1_end ~ 'P1',
-                                                 YMD>p2_start&YMD<=p2_end ~ 'P2',
-                                                 T ~ 'P3')) 
+
+head(pws_drought_weekly)
+mlist_dt
+
+mlist_dt$`Water System Name` <- stringr::str_remove(mlist_dt$`Water System Name`,'\\sFact.*Summary\\sSheet$')
+mlist_dt
+#notice <- notice |>
+  ### any day within either D period is included ### (<= on both sides)
+ # mutate(PERIOD = case_when(YMD>=p1_start&YMD<= p1_end ~ 'P1',
+ #                                   YMD>=p3_start&YMD<=p3_end ~ 'P3',
+ #                                   T ~ 'P2')) 
+#
+
+# find earliest adoption by PWS_ID and PERIOD
+#notice <- notice %>% group_by(PWS_ID,PERIOD) %>% summarize(RESTRICTION_DATE = min(YMD))
+
+
+2+2
+mlist_notice <- merge(mlist_dt,notice)
+dim(mlist_notice)
+
+
+mlist_dt <- mlist_dt |> mutate(RESTRICTION_TIME = case_when(
+  PERIOD == 'P1' ~ interval(RESTRICTION_DATE,p1_start) %/% days(1),
+  PERIOD == 'P3' ~ interval(RESTRICTION_DATE,p3_start) %/% days(1),
+  T ~ interval(RESTRICTION_DATE,p1_end + days(1)) %/% days(1)))
+
+#### for same day, recode to day 1 ###
+mlist_dt$RESTRICTION_TIME[mlist_dt$RESTRICTION_TIME == 0] <- 1
+### abs because the interval produces negative time ###
+mlist_dt$RESTRICTION_TIME<-abs(mlist_dt$RESTRICTION_TIME)
+
+
 notice <- data.table(notice)
 notice$YMD <- notice$RESTRICTION_DATE
 setkey(notice,'PWS_ID','YMD','PERIOD')
