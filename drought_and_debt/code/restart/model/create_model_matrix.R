@@ -32,12 +32,79 @@ notice <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
 notice <- notice |> 
   rename(YMD = NOTIFIED_YMD,PWS_ID = `PWS ID`)
 notice <- notice[!duplicated(paste(PWS_ID,YMD)),]
+head(pws_drought_weekly)
 
 
 
 
+# For each row in pws_drought_weekly
+# Convert to data.table
+setDT(pws_drought_weekly)
+setDT(notice)
+
+# Sort both tables by PWS_ID and YMD
+setkey(notice, PWS_ID, YMD)
+setkey(pws_drought_weekly, PWS_ID, YMD)
+
+# Order by PWS_ID and YMD
+notice <- notice[order(PWS_ID,YMD),]
+
+pws_drought_weekly <- pws_drought_weekly[order(PWS_ID,YMD),]
+
+# Rolling join to find most recent notice for each weekly observation
+pws_drought_weekly[, RESTRICTION := 0]
 
 
+pws_drought_weekly[, prior_YMD := shift(YMD, type="lag"), by=PWS_ID]
+
+
+pws_drought_weekly_notice <- pws_drought_weekly[notice,  RESTRICTION := 1L,
+                  on = .(PWS_ID, YMD > YMD, prior_YMD<=YMD)]
+
+pws_drought_weekly_notice[is.na(RESTRICTION), RESTRICTION := 0]
+
+
+library(survival)
+library(lubridate)
+first_date <- min(min(pws_drought_weekly_notice$YMD,na.rm = T),min(pws_drought_weekly_notice$prior_YMD,na.rm = T))
+# Calculate the decimal date for each PWS_ID
+#pws_drought_weekly_notice[, decimal_date := as.numeric(difftime(YMD, min(YMD), units = "days")) / 365.25, by = PWS_ID]
+pws_drought_weekly_notice[, decimal_date.t1 := decimal_date(YMD) - decimal_date(first_date), by = PWS_ID]
+pws_drought_weekly_notice[, decimal_date.t0 := decimal_date(prior_YMD) - decimal_date(first_date), by = PWS_ID]
+# Create a Surv object for the Cox model using RESTRICTION as the event indicator
+
+surv_obj <-  with(pws_drought_weekly_notice,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
+
+
+
+
+# Fit the repeated events Cox proportional hazards model-*-*/
+cox_model <- coxph(surv_obj ~ log(DSCI+1) + frailty(PWS_ID), data = pws_drought_weekly_notice)
+
+summary(cox_model)
+
+
+# Display the summary of the Cox model
+summary(cox_model)
+
+
+
+
+test2 <- test[PWS_ID == 'TX0000001',.(PWS_ID,YMD)]
+test2
+
+notice[PWS_ID == 'TX0000001',.(PWS_ID,YMD)]
+
+dim(test)
+dim(pws_drought_weekly)
+
+head(test)
+
+# Handle cases where there is no next notice (set to 1 for all dates after last notice)
+pws_drought_weekly[notice[is.na(next_YMD)], 
+                  RESTRICTION := 1L,
+                  on = .(PWS_ID, YMD >= YMD),
+                  roll = TRUE]
 
 #mlist_dt$PERIOD <- rep(c('P1','P2','P3'),each = nrow(mlist))
 
