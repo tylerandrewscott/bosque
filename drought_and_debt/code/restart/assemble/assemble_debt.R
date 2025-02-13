@@ -24,6 +24,7 @@ setnames(debt,c('V1','V2'),c('TotalDebtServiceOutstanding','TotalPrincipalOutsta
 
 debt <- dcast(data = debt,GovernmentName + FiscalYear ~ PledgeType,value.var = c('TotalDebtServiceOutstanding','TotalPrincipalOutstanding'))
     
+
 ### local issuance data are not as nice, API is limited to 1k at a time
 ### so instead just use local file downloaded from: https://data.texas.gov/Government-and-Taxes/Local-Issuance/fnjb-etpr/data_preview
 iss = fread('input/tbrb/Local_Issuance_20240924.csv')
@@ -39,7 +40,6 @@ setkey(iss,GovernmentName,FiscalYear)
 setkey(debt,GovernmentName,FiscalYear)
 
 fin <- merge(debt,iss,all = T)
-
 
 #fin$GovernmentName = toupper(fin$GovernmentName)
 fin$District_Name = fin$GovernmentName
@@ -151,10 +151,13 @@ indx <- grepl('\\sOF\\s[A-Z]{1,}\\sCOUNTY$',fin$District_Name)
 
 fin$District_Name[indx] <- gsub('\\sOF\\s[A-Z]{1,}\\sCOUNTY$',"",fin$District_Name[indx],perl = T)
 
+
+
 fin$NewMoney_GO = replace_na(fin$NewMoney_GO,0)
 fin$NewMoney_REV = replace_na(fin$NewMoney_REV,0)
 fin$District_ID <- dinfo_dt$District_ID[match(fin$District_Name,dinfo_dt$District_Name)]
 fin = fin[!is.na(fin$District_ID),]
+
 saveRDS(fin,'drought_and_debt/input/district_debt_issuances.RDS')
 
 

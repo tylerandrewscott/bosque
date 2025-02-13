@@ -8,9 +8,12 @@ library(tidyverse)
 
 mlist <- fread('input/texas_dww/district_master_list.csv')
 mlist_dt <- mlist[Type=='C']
+mlist_dt$Purchaser = grepl('P',mlist_dt$Primary_Source_Type) + 0
+mlist_dt$Groundwater = grepl('G',mlist_dt$Primary_Source_Type) + 0
+mlist_dt[,Primary_Source_Type:=NULL]
+
 setnames(mlist_dt,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
 mlist_dt$PWS_NAME <- stringr::str_remove(stringr::str_extract(mlist_dt$PWS_NAME,"^[A-Z0-9\\s]+"),'\\sF$')
-
 
 pws_drought_weekly <- readRDS('drought_and_debt/input/pws_drought_weekly.RDS')
 dsci_month_means <- pws_drought_weekly |> 
@@ -32,10 +35,6 @@ notice <- readRDS('drought_and_debt/input/combined_restriction_records.RDS')
 notice <- notice |> 
   rename(YMD = NOTIFIED_YMD,PWS_ID = `PWS ID`)
 notice <- notice[!duplicated(paste(PWS_ID,YMD)),]
-head(pws_drought_weekly)
-
-
-
 
 # For each row in pws_drought_weekly
 # Convert to data.table
@@ -73,16 +72,82 @@ pws_drought_weekly_notice[, decimal_date.t1 := decimal_date(YMD) - decimal_date(
 pws_drought_weekly_notice[, decimal_date.t0 := decimal_date(prior_YMD) - decimal_date(first_date), by = PWS_ID]
 # Create a Surv object for the Cox model using RESTRICTION as the event indicator
 
+id_id <- readRDS('drought_and_debt/input/id_crosswalk.rds')
+pws_drought_weekly_notice$District_ID <- id_id$District_ID[match(pws_drought_weekly_notice$PWS_ID,id_id$PWS_ID)]
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX2490016'] <- '8492000'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX0430053'] <- '5952250'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX0420034'] <- '2312250'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX1900009'] <- '7585150'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX2040033'] <- '7492500'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX2290037'] <- '8070000'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX2360010'] <- '7634575'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX1290010'] <- '995951'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX0940015'] <- '2412188'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX1650133'] <- '5846750'
+pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX0200706'] <- '1636654' 
+
+
+pws_district_weekly <- pws_drought_weekly_notice[!is.na(District_ID),]
+
+fin <- readRDS('drought_and_debt/input/combined_and_laged_finances.RDS')
+fin <- fin[!is.na(DISTRICT_NAME),]
+
+
+replaceNA <-  function(x,y){
+  x[is.na(x)] <- y
+  return(x)
+} 
+
+
+# Quick ratio: This ratio is calculated as 
+# cash and investments plus net receivables divided by current liabilities.
+fin$Quick_Ratio <- (replaceNA(fin$`GENERAL FUND - ASSETS`, 0) + replaceNA(fin$`ENTERPRISE FUND - ASSETS`, 0)) / (replaceNA(fin$`GENERAL FUND - LIABILITIES`, 0) + replaceNA(fin$`ENTERPRISE FUND - LIABILITIES`, 0)) 
+
+# Operating Margins ratio, which is a measure of profitability. This is a medium-term solvency measure that is a ratio of operating revenue to operating expenses.
+fin$Operating_Ratio <- (replaceNA(fin$`GENERAL FUND - TOTAL REVENUES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING REVENUES`, 0)) / (replaceNA(fin$`GENERAL FUND - TOTAL EXPENDITURES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING EXPENSES`, 0)) 
+
+fin$TotalDebtServiceOutstanding <- replaceNA(fin$TotalDebtServiceOutstanding_GO,0) + replaceNA(fin$TotalDebtServiceOutstanding_REV,0) 
+fin$LTD_over_Revenue <- replaceNA(fin$TotalDebtServiceOutstanding,0) / replaceNA(fin$Total_Revenue,0) 
+
+fin_sub <- fin[,.(District_ID,`FISCAL YEAR ENDED`,LTD_over_Revenue,Quick_Ratio,Operating_Ratio)]
+fin_sub$decimal_date.FYE <- decimal_date(ymd(fin_sub$`FISCAL YEAR ENDED`))
+
+
+test <- pws_district_weekly[fin_sub,on = .(District_ID, decimal_date.t0 > decimal_date.FYE)]
+
+head(test)
+
+infrastructure <- NULL
+demos <- readRDS('drought_and_debt/input/pws_tract_overlaps.RDS')
+
+demos
+
+
+
+id_id[,.N,by=.(District_ID)][order(-N)]
+
+
+
+
+dim(fin)
+head(fin)
+
+
+
+
+
+
+
 surv_obj <-  with(pws_drought_weekly_notice,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
 
 
 
 
 # Fit the repeated events Cox proportional hazards model-*-*/
-cox_model <- coxph(surv_obj ~ log(DSCI+1) + frailty(PWS_ID), data = pws_drought_weekly_notice)
+cox_model <- coxph(surv_obj ~ log(DSCI+1),cluster = PWS_ID, data = pws_drought_weekly_notice)
 
 summary(cox_model)
-
+print(citation('survival'),bibtex = T)
 
 # Display the summary of the Cox model
 summary(cox_model)
@@ -463,17 +528,7 @@ id_crosswalk <- readRDS('drought_and_debt/input/id_crosswalk.RDS')
 tx_systems$District_ID <- id_crosswalk$District_ID[match(tx_systems$PWS_ID,id_crosswalk$PWS_ID)]
 #### these are hand-coded, fixing errors in the database on the TWDD side
 #tx_systems$District_ID[is.na(tx_systems$District_ID)] <- not_district
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2490016'] <- '8492000'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0430053'] <- '5952250'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0420034'] <- '2312250'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX1900009'] <- '7585150'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2040033'] <- '7492500'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2290037'] <- '8070000'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX2360010'] <- '7634575'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX1290010'] <- '995951'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0940015'] <- '2412188'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX1650133'] <- '5846750'
-tx_systems$District_ID[tx_systems$PWS_ID=='TX0200706'] <- '1636654'
+
 tx_systems <- tx_systems[!is.na(District_ID),]
 
 

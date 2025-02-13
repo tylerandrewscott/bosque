@@ -8,6 +8,7 @@ audits$District_ID <- as.character(audits$District_ID)
 debt$District_ID <- as.character(debt$District_ID)
 setnames(debt,'FiscalYear','FISCAL_YEAR')
 fin_dt <- merge(audits,debt,all = T)
+
 # 
 # finance_dt$DISTRICT_NAME = gsub('(\\s)0(?=[0-9])','\\1\\2',finance_dt$DISTRICT_NAME,perl = T)
 # finance_dt$DISTRICT_NAME = gsub('DIST$|DISTR$','DISTRICT',finance_dt$DISTRICT_NAME,perl = T)
