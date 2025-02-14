@@ -162,6 +162,6 @@ newnames = paste0(fvars,'_P1')
 fin_dt = fin_dt[order(District_ID,FISCAL_YEAR),]
 fin_dt[,(newnames):=lapply(.SD,lag),by = .(District_ID),.SDcols = fvars]
 
-saveRDS(fin_dt,'drought_and_debt/input/combined_and_laged_finances.RDS')
+saveRDS(fin_dt,'drought_and_debt/input/combined_and_lagged_finances.RDS')
 
 

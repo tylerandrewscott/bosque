@@ -8,8 +8,8 @@ library(tidyverse)
 
 mlist <- fread('input/texas_dww/district_master_list.csv')
 mlist_dt <- mlist[Type=='C']
-mlist_dt$Purchaser = grepl('P',mlist_dt$Primary_Source_Type) + 0
-mlist_dt$Groundwater = grepl('G',mlist_dt$Primary_Source_Type) + 0
+mlist_dt$Purchaser = grepl('P',mlist_dt$`Pri. Src. Water Type`) + 0
+mlist_dt$Groundwater = grepl('G',mlist_dt$`Pri. Src. Water Type`) + 0
 mlist_dt[,Primary_Source_Type:=NULL]
 
 setnames(mlist_dt,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
@@ -68,8 +68,8 @@ library(lubridate)
 first_date <- min(min(pws_drought_weekly_notice$YMD,na.rm = T),min(pws_drought_weekly_notice$prior_YMD,na.rm = T))
 # Calculate the decimal date for each PWS_ID
 #pws_drought_weekly_notice[, decimal_date := as.numeric(difftime(YMD, min(YMD), units = "days")) / 365.25, by = PWS_ID]
-pws_drought_weekly_notice[, decimal_date.t1 := decimal_date(YMD) - decimal_date(first_date), by = PWS_ID]
-pws_drought_weekly_notice[, decimal_date.t0 := decimal_date(prior_YMD) - decimal_date(first_date), by = PWS_ID]
+pws_drought_weekly_notice[, decimal_date.t1 := decimal_date(YMD), by = PWS_ID]
+pws_drought_weekly_notice[, decimal_date.t0 := decimal_date(prior_YMD), by = PWS_ID]
 # Create a Surv object for the Cox model using RESTRICTION as the event indicator
 
 id_id <- readRDS('drought_and_debt/input/id_crosswalk.rds')
@@ -88,35 +88,98 @@ pws_drought_weekly_notice$District_ID[pws_drought_weekly_notice$PWS_ID=='TX02007
 
 
 pws_district_weekly <- pws_drought_weekly_notice[!is.na(District_ID),]
-
-fin <- readRDS('drought_and_debt/input/combined_and_laged_finances.RDS')
+pws_district_weekly <- pws_district_weekly[!is.na(decimal_date.t0),]
+fin <- readRDS('drought_and_debt/input/combined_and_lagged_finances.RDS')
 fin <- fin[!is.na(DISTRICT_NAME),]
+
+money_cols = grep('GENERAL|ENTERPRISE|Total|Balance|BONDS',colnames(fin),value = T)
+fin[,(money_cols):=lapply(.SD,function(x){x/1e3}),.SDcols = money_cols]
 
 
 replaceNA <-  function(x,y){
   x[is.na(x)] <- y
   return(x)
 } 
+# Quick ratio
+fin$Total_Assets <- (replaceNA(fin$`GENERAL FUND - ASSETS`, 0) + replaceNA(fin$`ENTERPRISE FUND - ASSETS`, 0))
+fin$Total_Fund_Balance <- (replaceNA(fin$`GENERAL FUND - FUND BALANCE`, 0) + replaceNA(fin$`ENTERPRISE FUND - NET ASSETS`, 0))
+fin$Total_Liabilities <- (replaceNA(fin$`GENERAL FUND - LIABILITIES`, 0) + replaceNA(fin$`ENTERPRISE FUND - LIABILITIES`, 0)) 
+fin$Quick_Ratio <-  ifelse(fin$Total_Assets==0 & fin$Total_Liabilities ==0,1,
+                           ifelse(fin$Total_Assets > 0 & fin$Total_Liabilities==0,
+                                  fin$Total_Assets / {fin$Total_Liabilities+1},fin$Total_Assets / fin$Total_Liabilities))
 
+# Operating Margins ratio
+fin$Total_Revenue <- (replaceNA(fin$`GENERAL FUND - TOTAL REVENUES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING REVENUES`, 0))
+fin$Total_Expenditure <- (replaceNA(fin$`GENERAL FUND - TOTAL EXPENDITURES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING EXPENSES`, 0)) 
+fin$Operating_Ratio <-  fin$Total_Revenue/fin$Total_Expenditure 
+## one-to-one ratio but boht are zero
+fin$Operating_Ratio[fin$Total_Revenue==0&fin$Total_Expenditure==0]<-1
+fin$Balance_over_Revenues <- fin$Total_Fund_Balance / fin$Total_Revenue
 
-# Quick ratio: This ratio is calculated as 
-# cash and investments plus net receivables divided by current liabilities.
-fin$Quick_Ratio <- (replaceNA(fin$`GENERAL FUND - ASSETS`, 0) + replaceNA(fin$`ENTERPRISE FUND - ASSETS`, 0)) / (replaceNA(fin$`GENERAL FUND - LIABILITIES`, 0) + replaceNA(fin$`ENTERPRISE FUND - LIABILITIES`, 0)) 
-
-# Operating Margins ratio, which is a measure of profitability. This is a medium-term solvency measure that is a ratio of operating revenue to operating expenses.
-fin$Operating_Ratio <- (replaceNA(fin$`GENERAL FUND - TOTAL REVENUES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING REVENUES`, 0)) / (replaceNA(fin$`GENERAL FUND - TOTAL EXPENDITURES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING EXPENSES`, 0)) 
-
+# long term obligations over yearly revenue
 fin$TotalDebtServiceOutstanding <- replaceNA(fin$TotalDebtServiceOutstanding_GO,0) + replaceNA(fin$TotalDebtServiceOutstanding_REV,0) 
+fin$TotalDebtServiceOutstanding[fin$TotalDebtServiceOutstanding==0 & fin$`BONDS OUTSTANDING`>0] <- fin$`BONDS OUTSTANDING`[fin$TotalDebtServiceOutstanding==0 & fin$`BONDS OUTSTANDING`>0] 
+
 fin$LTD_over_Revenue <- replaceNA(fin$TotalDebtServiceOutstanding,0) / replaceNA(fin$Total_Revenue,0) 
 
-fin_sub <- fin[,.(District_ID,`FISCAL YEAR ENDED`,LTD_over_Revenue,Quick_Ratio,Operating_Ratio)]
+ggplot(fin[Quick_Ratio<Inf & fin$Total_Assets>0 & fin$Fund_Balance!=0,]) + 
+  geom_point(aes(x = log(Quick_Ratio),y=log(Balance_over_Revenues)))
+
+fin_sub <- fin[,.(District_ID,`FISCAL YEAR ENDED`,LTD_over_Revenue,Quick_Ratio,Operating_Ratio,Balance_over_Revenues,Total_Revenue,Total_Expenditure,`BONDS OUTSTANDING`,TotalDebtServiceOutstanding)]
 fin_sub$decimal_date.FYE <- decimal_date(ymd(fin_sub$`FISCAL YEAR ENDED`))
 
+fin_sub$join_time <- fin_sub$decimal_date.FYE
+pws_district_weekly$join_time <- pws_district_weekly$decimal_date.t0
 
-test <- pws_district_weekly[fin_sub,on = .(District_ID, decimal_date.t0 > decimal_date.FYE)]
+setkey(fin_sub,District_ID,join_time)
+setkey(pws_district_weekly,District_ID,join_time)
 
+pws_district_weekly <- fin_sub[pws_district_weekly,roll = T]
+pws_district_weekly <- pws_district_weekly |>
+  mutate(Quick_Ratio_Category = case_when(
+    Quick_Ratio < 1 ~ "<1",
+    Quick_Ratio >= 1 & Quick_Ratio < 2.5 ~ "1-2.5",
+    Quick_Ratio >= 2.5 & Quick_Ratio < 5 ~ "2.5-5",
+    Quick_Ratio >= 5 & Quick_Ratio < 10 ~ "5-10",
+    Quick_Ratio >= 10 ~ "10+"
+  ))
+
+pws_district_weekly <- pws_district_weekly |>
+  mutate(Operating_Ratio_Category = case_when(
+    Operating_Ratio < .75 ~ "<.75",
+    Operating_Ratio >= 0.75 & Operating_Ratio < 1 ~ "0.75-1",
+    Operating_Ratio >= 1 & Operating_Ratio < 1.2 ~ "1-1.2",
+    Operating_Ratio >= 1.2 & Operating_Ratio < 1.5 ~ "1.2-1.5",
+    Operating_Ratio >= 1.5 ~ "1.5+"
+  ))
+
+
+pws_district_weekly <- pws_district_weekly |>
+  mutate(LTD_over_Revenue_Category = case_when(
+    LTD_over_Revenue == 0 ~ "0",
+    LTD_over_Revenue > 0 & LTD_over_Revenue < 1 ~ '0-1',
+    LTD_over_Revenue >= 1 & LTD_over_Revenue < 2.5 ~ "1-2.5",
+    LTD_over_Revenue >= 2.5 & LTD_over_Revenue < 5 ~ "2.5-5",
+    LTD_over_Revenue >= 5 & LTD_over_Revenue < 10 ~ "5-10",
+    LTD_over_Revenue >= 10 ~ "10+"
+  ))
+
+
+surv_obj <-  with(pws_district_weekly,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
+
+# Fit the repeated events Cox proportional hazards model-*-*/
+cox_model1 <- coxph(surv_obj ~ log(DSCI+1) + Quick_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
+cox_model2 <- coxph(surv_obj ~ log(DSCI+1) + Operating_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
+cox_model3 <- coxph(surv_obj ~ log(DSCI+1) + LTD_over_Revenue_Category,cluster = PWS_ID, data = pws_district_weekly)
+
+summary(cox_model3)
+
+dim(fin_sub)
+
+dim(pws_district_weekly)
+dim()
 head(test)
-
+decimal_date(ymd('2005-09-30'))
 infrastructure <- NULL
 demos <- readRDS('drought_and_debt/input/pws_tract_overlaps.RDS')
 
@@ -137,14 +200,6 @@ head(fin)
 
 
 
-
-surv_obj <-  with(pws_drought_weekly_notice,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
-
-
-
-
-# Fit the repeated events Cox proportional hazards model-*-*/
-cox_model <- coxph(surv_obj ~ log(DSCI+1),cluster = PWS_ID, data = pws_drought_weekly_notice)
 
 summary(cox_model)
 print(citation('survival'),bibtex = T)
