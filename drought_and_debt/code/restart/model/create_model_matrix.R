@@ -136,45 +136,70 @@ setkey(pws_district_weekly,District_ID,join_time)
 
 pws_district_weekly <- fin_sub[pws_district_weekly,roll = T]
 pws_district_weekly <- pws_district_weekly |>
-  mutate(Quick_Ratio_Category = case_when(
+  mutate(Quick_Ratio_Category = factor(case_when(
     Quick_Ratio < 1 ~ "<1",
     Quick_Ratio >= 1 & Quick_Ratio < 2.5 ~ "1-2.5",
     Quick_Ratio >= 2.5 & Quick_Ratio < 5 ~ "2.5-5",
     Quick_Ratio >= 5 & Quick_Ratio < 10 ~ "5-10",
     Quick_Ratio >= 10 ~ "10+"
-  ))
+  ), levels = c("<1", "1-2.5", "2.5-5", "5-10", "10+"), ordered = F))
 
 pws_district_weekly <- pws_district_weekly |>
-  mutate(Operating_Ratio_Category = case_when(
+  mutate(Operating_Ratio_Category = factor(case_when(
     Operating_Ratio < .75 ~ "<.75",
     Operating_Ratio >= 0.75 & Operating_Ratio < 1 ~ "0.75-1",
     Operating_Ratio >= 1 & Operating_Ratio < 1.2 ~ "1-1.2",
     Operating_Ratio >= 1.2 & Operating_Ratio < 1.5 ~ "1.2-1.5",
     Operating_Ratio >= 1.5 ~ "1.5+"
-  ))
-
+  ), levels = c("<.75", "0.75-1", "1-1.2", "1.2-1.5", "1.5+"), ordered = F))
 
 pws_district_weekly <- pws_district_weekly |>
-  mutate(LTD_over_Revenue_Category = case_when(
+  mutate(LTD_over_Revenue_Category = factor(case_when(
     LTD_over_Revenue == 0 ~ "0",
     LTD_over_Revenue > 0 & LTD_over_Revenue < 1 ~ '0-1',
     LTD_over_Revenue >= 1 & LTD_over_Revenue < 2.5 ~ "1-2.5",
     LTD_over_Revenue >= 2.5 & LTD_over_Revenue < 5 ~ "2.5-5",
     LTD_over_Revenue >= 5 & LTD_over_Revenue < 10 ~ "5-10",
     LTD_over_Revenue >= 10 ~ "10+"
-  ))
-
+  ),levels = c("0",'0-1','1-2.5','2.5-5','5-10','10+'),ordered = F))
+pws_district_weekly$Wholesaler <- (epa$`Is Wholesaler`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)] =='Y')+0
+pws_district_weekly$Pop_Served <- epa$`Population<br> Served Count`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]
+pws_district_weekly$Pop_Served <- as.numeric(str_remove_all(pws_district_weekly$Pop_Served,'\\,'))
+pws_district_weekly$Pop_Served_Cat5 <- epa$`Pop Cat 5`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]
+pws_district_weekly$Groundwater <- grepl("ground",tolower(epa$`Primary Source`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)])) + 0
 
 surv_obj <-  with(pws_district_weekly,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
 
 # Fit the repeated events Cox proportional hazards model-*-*/
-cox_model1 <- coxph(surv_obj ~ log(DSCI+1) + Quick_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
-cox_model2 <- coxph(surv_obj ~ log(DSCI+1) + Operating_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
-cox_model3 <- coxph(surv_obj ~ log(DSCI+1) + LTD_over_Revenue_Category,cluster = PWS_ID, data = pws_district_weekly)
+cox_model1 <- coxph(surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Wholesaler + Groundwater + Quick_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
+cox_model2 <- coxph(surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Wholesaler + Groundwater + Operating_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
+cox_model3 <- coxph(surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Wholesaler + Groundwater + LTD_over_Revenue_Category,cluster = PWS_ID, data = pws_district_weekly)
 
-summary(cox_model3)
+library(texreg)
+
+screenreg(list(cox_model1,cox_model2,cox_model3))
+
+table(pws_district_weekly$LTD_over_Revenue_Category)
+summary(cox_model2)
+
+epa <- fread('input/epa_sdwis/Water System Summary_20250214.csv')
+
+
+table(is.na(epa$`Is Wholesaler`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]))
+table(unique(pws_district_weekly$PWS_ID) %in% unique(dets$`PWS ID`))
+table(is.na(dets$Wholesaler[match(pws_district_weekly$PWS_ID,dets$`PWS ID`)]))
+
+
+table(dets$`DBPR Schedule Category Code`,dets$`Is Wholesaler`)
+head(dets)
+
+table(dets$`DBPR Schedule Category`)
+table(dets$`DBPR Schedule Category Code`)
+
+
 
 dim(fin_sub)
+
 
 dim(pws_district_weekly)
 dim()
