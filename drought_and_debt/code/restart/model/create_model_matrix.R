@@ -168,6 +168,9 @@ pws_district_weekly$Pop_Served <- as.numeric(str_remove_all(pws_district_weekly$
 pws_district_weekly$Pop_Served_Cat5 <- epa$`Pop Cat 5`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]
 pws_district_weekly$Groundwater <- grepl("ground",tolower(epa$`Primary Source`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)])) + 0
 
+
+
+
 surv_obj <-  with(pws_district_weekly,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
 
 # Fit the repeated events Cox proportional hazards model-*-*/
@@ -183,7 +186,7 @@ table(pws_district_weekly$LTD_over_Revenue_Category)
 summary(cox_model2)
 
 epa <- fread('input/epa_sdwis/Water System Summary_20250214.csv')
-
+colnames(epa)
 
 table(is.na(epa$`Is Wholesaler`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]))
 table(unique(pws_district_weekly$PWS_ID) %in% unique(dets$`PWS ID`))
