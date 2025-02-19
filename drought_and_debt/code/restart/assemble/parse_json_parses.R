@@ -1,4 +1,7 @@
 library(data.table)
+library(stringr)
+library(pbapply)
+library(jsonlite)
 mlist <- fread('input/texas_dww/district_master_list.csv')
 mlist <- mlist[Type=='C']
 dir <- 'input/texas_dww/html_responses/'
@@ -11,7 +14,7 @@ rlist <- pblapply(resp,function(r) {
   js_return <- tryCatch(fromJSON(js,flatten = T),error = function(e) NULL)
   return(js_return)
 },cl = 5)
-
+names(rlist) <- str_remove(resp,'\\.json$')
 rlist <- rlist[!sapply(rlist,is.null)]
 
 delist <- function(x) {
@@ -27,19 +30,84 @@ spreadList <- function(x) {
   y.dt <- data.table(t(data.table(y)))
   colnames(y.dt) <- tolower(y.names)
   colnames(y.dt) <- str_replace_all(colnames(y.dt),'\\s','_')
+  colnames(y.dt) <- str_extract(colnames(y.dt),'[^\\.]+$')
   return(y.dt)
 }
 
 dt.list <- lapply(rlist2,spreadList)
+dt.list <- dt.list[sapply(dt.list,nrow)>0]
 system.dt <- rbindlist(dt.list,use.names = T,fill = T)
+if(nrow(system.dt)==length(dt.list)){
+  system.dt$PWS_ID <- names(dt.list)
+}else{
+  stop(print('rows do not match up, something went wrong here'))
+}
 
+storage.dt <- system.dt[,intersect(grep('storage',colnames(system.dt),value = F),grep('elev',colnames(system.dt),invert = T)),with = F]
+storage.dt$PWS_ID <- system.dt$PWS_ID
+storage.melt <- melt(storage.dt,id.vars = 'PWS_ID')
+
+
+storage.melt[grepl('GAL',toupper(storage.melt$value)),]
+
+storage.melt[PWS_ID=='TX0030010',]
+str_extract(storage.melt$value,'')
+
+storage.melt$variable
+
+[,sum(value,na.rm = T),by=.(PWS_ID,variable)][PWS_ID=='TX0010001'&V1>0,]
+
+
+
+test <- storage.dt[, lapply(.SD, str_remove_all, '\\,'), .SDcols = names(storage.dt)]
+
+storage.dt[which(system.dt$PWS_ID=='TX0030010'),]
+
+
+storage.dt <- storage.dt[, lapply(.SD, function(x) as.numeric(str_remove_all(x, '[^0-9\\.]'))), .SDcols = names(storage.dt)]
+gal_cols <- grep('gal',colnames(storage.dt),value=T)
+storage.dt[, (gal_cols):=lapply(.SD, function(x) x / 1e6), .SDcols = gal_cols]
+setnames(storage.dt, old = grep("gal", colnames(storage.dt), value = TRUE), new = gsub("gal", "mgd", grep("gal", colnames(storage.dt), value = TRUE)))
+colnames(storage.dt) <- str_remove_all(colnames(storage.dt),"[^a-z]")
+
+
+
+
+test <- storage.dt[, lapply(.SD, sum, na.rm = TRUE), by = PWS_ID, .SDcols = names(storage.dt)]
+
+
+
+testdim(storage.dt)
+
+
+library(tidyverse)
+storage.dt <- tibble(storage.dt)
+
+mill <- function(x) {x / 1e6}
+storage.dt |> mutate(across(contains("gal"),~ mill(.x)))
+?mutate_if
+1000000 == 1e6
+class(storage.dt)
+grepl('\\,',storage.dt)
+
+storage.dt
+
+length(dt.list)
+dim(system.dt)
 length(rlist)
 length(rlist2)
 length(resp)
 
 
-grep('storage',colnames(system.dt),value = F)
 
+summary(as.numeric(storage.dt$`total_storage_(gal)`))
+summary(as.numeric(storage.dt$`total_storage_gal`))
+
+storage.dt$PWS_ID[!is.na(storage.dt$`total_storage_(gal)`)]
+grep('total',colnames(storage.dt),value = T)
+colMeans(is.na(storage.dt))[1:10]
+
+dim(storage.dt)
 dim(system.dt)
 
 filter = c('codes','options','phone','fax','contacts','gps','depth','drill_date','treatment_sequence','treatment_plant','source_information\\.active_sources','entry_point','survey','source\\.sources','source_location','sources\\.sourcenumber','sources\\.active','active_sources\\.',
