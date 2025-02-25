@@ -108,6 +108,8 @@ fin$Quick_Ratio <-  ifelse(fin$Total_Assets==0 & fin$Total_Liabilities ==0,1,
                            ifelse(fin$Total_Assets > 0 & fin$Total_Liabilities==0,
                                   fin$Total_Assets / {fin$Total_Liabilities+1},fin$Total_Assets / fin$Total_Liabilities))
 
+summary(fin$Total_Assets[fin$Total_Liabilities==0])
+fin[fin$Total_Assets==0 & fin$Total_Liabilities==0,]
 # Operating Margins ratio
 fin$Total_Revenue <- (replaceNA(fin$`GENERAL FUND - TOTAL REVENUES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING REVENUES`, 0))
 fin$Total_Expenditure <- (replaceNA(fin$`GENERAL FUND - TOTAL EXPENDITURES`, 0) + replaceNA(fin$`ENTERPRISE FUND - OPERATING EXPENSES`, 0)) 
@@ -122,6 +124,9 @@ fin$TotalDebtServiceOutstanding[fin$TotalDebtServiceOutstanding==0 & fin$`BONDS 
 
 fin$LTD_over_Revenue <- replaceNA(fin$TotalDebtServiceOutstanding,0) / replaceNA(fin$Total_Revenue,0) 
 
+min(fin$Total_Revenue)
+summary(fin$TotalDebtServiceOutstanding)
+
 ggplot(fin[Quick_Ratio<Inf & fin$Total_Assets>0 & fin$Fund_Balance!=0,]) + 
   geom_point(aes(x = log(Quick_Ratio),y=log(Balance_over_Revenues)))
 
@@ -135,14 +140,18 @@ setkey(fin_sub,District_ID,join_time)
 setkey(pws_district_weekly,District_ID,join_time)
 
 pws_district_weekly <- fin_sub[pws_district_weekly,roll = T]
+
+quantile(pws_district_weekly$Quick_Ratio,seq(0.0,0.9,0.1),na.rm = T)
+
 pws_district_weekly <- pws_district_weekly |>
   mutate(Quick_Ratio_Category = factor(case_when(
-    Quick_Ratio < 1 ~ "<1",
-    Quick_Ratio >= 1 & Quick_Ratio < 2.5 ~ "1-2.5",
-    Quick_Ratio >= 2.5 & Quick_Ratio < 5 ~ "2.5-5",
-    Quick_Ratio >= 5 & Quick_Ratio < 10 ~ "5-10",
-    Quick_Ratio >= 10 ~ "10+"
-  ), levels = c("<1", "1-2.5", "2.5-5", "5-10", "10+"), ordered = F))
+    Quick_Ratio < .9 ~ "< 0.9",
+    Quick_Ratio >= 0.9 & Quick_Ratio < 1.1 ~ "0.9-1.1",
+    Quick_Ratio >= 1.1 & Quick_Ratio < 2.5 ~ "1.1-2.5",
+    Quick_Ratio >= 2.5 ~ "> 2.5" # & Quick_Ratio < 5 ~ "2.5-5",
+    #Quick_Ratio >= 5 & Quick_Ratio < 10 ~ "5-10",
+    #Quick_Ratio >= 5 ~ "> 5"
+  ), levels = c("< 0.9", "0.9-1.1","1.1-2.5", "> 2.5"), ordered = F))
 
 pws_district_weekly <- pws_district_weekly |>
   mutate(Operating_Ratio_Category = factor(case_when(
@@ -162,12 +171,13 @@ pws_district_weekly <- pws_district_weekly |>
     LTD_over_Revenue >= 5 & LTD_over_Revenue < 10 ~ "5-10",
     LTD_over_Revenue >= 10 ~ "10+"
   ),levels = c("0",'0-1','1-2.5','2.5-5','5-10','10+'),ordered = F))
+
+epa <- fread('input/epa_sdwis/Water System Summary_20250214.csv')
 pws_district_weekly$Wholesaler <- (epa$`Is Wholesaler`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)] =='Y')+0
 pws_district_weekly$Pop_Served <- epa$`Population<br> Served Count`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]
 pws_district_weekly$Pop_Served <- as.numeric(str_remove_all(pws_district_weekly$Pop_Served,'\\,'))
 pws_district_weekly$Pop_Served_Cat5 <- epa$`Pop Cat 5`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]
 pws_district_weekly$Groundwater <- grepl("ground",tolower(epa$`Primary Source`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)])) + 0
-
 
 stor <- 'drought_and_debt/input/storage_connections_data.txt'
 stor_dt <- fread(stor)
@@ -175,24 +185,32 @@ stor_dt$Value <- as.numeric(stor_dt$Value)
 stor_dt$Value[stor_dt$Unit=='GAL'] <- stor_dt$Value[stor_dt$Unit=='GAL']/1e6
 stor_dt$Unit <- 'MG'
 
-match(pws_district_weekly$PWS_ID,stor_dt$PWS_ID)
+pws_district_weekly$Total_Storage_MG <- stor_dt$Value[match(pws_district_weekly$PWS_ID,stor_dt$PWS_ID)]
+pws_district_weekly$Interconnects <- stor_dt$Num_Interconnections[match(pws_district_weekly$PWS_ID,stor_dt$PWS_ID)]
 
+median_storage_vals <- pws_district_weekly[!duplicated(PWS_ID),median(Total_Storage_MG,na.rm = T),by=.(Pop_Served_Cat5)]
+
+pws_district_weekly$MEDIAN_STORAGE <- is.na(pws_district_weekly$Total_Storage_MG) + 0
+pws_district_weekly$Total_Storage_MG[is.na(pws_district_weekly$Total_Storage_MG)] <- median_storage_vals$V1[match(pws_district_weekly$Pop_Served_Cat5[is.na(pws_district_weekly$Total_Storage_MG)],median_storage_vals$Pop_Served_Cat5)]
 
 surv_obj <-  with(pws_district_weekly,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
+summary(pws_district_weekly$Total_Storage_MG + 0.01)
 
+summary(cox_model1)
+base_form <- surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Groundwater + log(Total_Storage_MG) + Interconnects
 # Fit the repeated events Cox proportional hazards model-*-*/
-cox_model1 <- coxph(surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Wholesaler + Groundwater + Quick_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
-cox_model2 <- coxph(surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Wholesaler + Groundwater + Operating_Ratio_Category,cluster = PWS_ID, data = pws_district_weekly)
-cox_model3 <- coxph(surv_obj ~ log(DSCI+1) + log(Pop_Served+1) + Wholesaler + Groundwater + LTD_over_Revenue_Category,cluster = PWS_ID, data = pws_district_weekly)
-
+cox_model1 <- coxph(update.formula(base_form,~ . + Quick_Ratio_Category),cluster = PWS_ID, data = pws_district_weekly)
+cox_model2 <- coxph(update.formula(base_form,~ . + Operating_Ratio_Category),cluster = PWS_ID, data = pws_district_weekly)
+cox_model3 <- coxph(update.formula(base_form,~ . + LTD_over_Revenue_Category),cluster = PWS_ID, data = pws_district_weekly)
+table(pws_district_weekly$Quick_Ratio_Category)
 library(texreg)
-
 screenreg(list(cox_model1,cox_model2,cox_model3))
-
+table(pws_district_weekly$Interconnects,pws_district_weekly$Wholesaler)
 table(pws_district_weekly$LTD_over_Revenue_Category)
 summary(cox_model2)
 
-epa <- fread('input/epa_sdwis/Water System Summary_20250214.csv')
+pws_district_weekly[order(-Pop_Served),][Interconnects == 0 & Wholesaler == 1,]
+
 colnames(epa)
 
 table(is.na(epa$`Is Wholesaler`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)]))

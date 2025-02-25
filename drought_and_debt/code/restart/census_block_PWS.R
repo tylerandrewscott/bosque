@@ -22,45 +22,98 @@ library(tidyverse)
 library(tigris)
 
 albersNA = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
-twd_boundaries <- st_read('spatial_inputs/Service_Area_Boundaries/PWS_shapefile/PWS_Export.shp')
+#https://tceq.maps.arcgis.com/apps/webappviewer/index.html?id=04bbf8b322b34d8abaea7b06996d3775
+twd_boundaries <- st_read('input/Water_Districts/Water_Districts.shp')
+twd_boundaries <- st_make_valid(twd_boundaries)
+
+tx_blocks_2010 <- tigris::block_groups(state = 'TX', cb = T, year = 2010)
+tx_blocks_2020 <- tigris::block_groups(state = 'TX', cb = T, year = 2020)
+
+
+
+
+tx_tracts <- tigris::tracts(state = 'TX',cb = T,year = 2010)
+tx_blocks$GEOID <- str_remove(tx_blocks$GEO_ID,'^1500000US')
+tx_tracts$GEOID <- str_remove(tx_tracts$GEO_ID,'^1400000US')
+
+
+# Function to calculate percentages for a given year
+calculate_percentages <- function(year) {
+  # % hispanic
+  hispanic <- tidycensus::get_decennial(geography = 'block group',
+                                        state = 'TX', year = year, variables = c('P004001', 'P004003'))
+  hispanic <- data.table(hispanic)
+  hispanic <- dcast(hispanic, GEOID ~ variable, value.var = 'value')
+  hispanic$Perc_Hispanic <- 100 * (hispanic$P004003 / hispanic$P004001)
+  
+  # % black
+  black <- tidycensus::get_decennial(geography = 'block group',
+                                     state = 'TX', year = year,
+                                     variables = c('P010001', 'P010004', 'P010011', 'P010016',
+                                                   'P010017', 'P010018', 'P010019'))
+  black <- data.table(black)
+  black$is_total <- ifelse((black$variable == 'P010001'), 'total', 'sub')
+  black <- dcast(black[, sum(value, na.rm = T), by = .(GEOID, is_total)], GEOID ~ is_total, value.var = 'V1')
+  black$Perc_Black <- 100 * (black$sub / black$total)
+  
+  # % rural
+  rural <- tidycensus::get_decennial(geography = 'block group',
+                                     state = 'TX', year = year,
+                                     variables = c('H002001', 'H002005'))
+  rural <- data.table(rural)
+  rural <- dcast(rural, GEOID ~ variable, value.var = 'value')
+  rural$Perc_Rural <- 100 * (rural$H002005 / rural$H002001)
+  
+  # Median household income
+  income <- tidycensus::get_acs(geography = 'block group',
+                                state = 'TX', year = year,
+                                variables = c('B19013_001'))
+  income <- data.table(income)
+  income <- dcast(income, GEOID ~ variable, value.var = 'estimate')
+  setnames(income, 'B19013_001', 'Med_Household_Income')
+  
+  # % pop with bachelor's degree or greater
+  education <- tidycensus::get_decennial(geography = 'block group',
+                                   state = 'TX', year = year,
+                                   variables = c('B15003_022', 'B15003_023', 'B15003_024', 'B15003_025', 'B15003_001'))
+  education <- data.table(education)
+  education <- dcast(education, GEOID ~ variable, value.var = 'estimate')
+  education$Perc_Bachelors_Or_Higher <- 100 * (rowSums(education[, .(B15003_022, B15003_023, B15003_024, B15003_025)], na.rm = TRUE) / education$B15003_001)
+  
+  # Median year structure built
+  median_year_built <- tidycensus::get_decennial(geography = 'block group',
+                                                 state = 'TX', year = year,
+                                                 variables = c('B25035_001'))
+  median_year_built <- data.table(median_year_built)
+  median_year_built <- dcast(median_year_built, GEOID ~ variable, value.var = 'estimate')
+  setnames(median_year_built, 'B25035_001', 'Median_Year_Structure_Built')
+  
+  # Combine results
+  result <- merge(hispanic[, .(GEOID, Perc_Hispanic)], black[, .(GEOID, Perc_Black)], by = "GEOID", all = TRUE)
+  result <- merge(result, rural[, .(GEOID, Perc_Rural)], by = "GEOID", all = TRUE)
+  result <- merge(result, income[, .(GEOID, Med_Household_Income)], by = "GEOID", all = TRUE)
+  result <- merge(result, education[, .(GEOID, Perc_Bachelors_Or_Higher)], by = "GEOID", all = TRUE)
+  result <- merge(result, median_year_built[, .(GEOID, Median_Year_Structure_Built)], by = "GEOID", all = TRUE)
+  result$Year <- year
+  return(result)
+}
+
+# Calculate for 2010 and 2020
+data_2010 <- calculate_percentages(2010)
+data_2020 <- calculate_percentages(2020)
+
+# Combine data for both years
+tx_blocks <- rbindlist(list(data_2010, data_2020), use.names = TRUE, fill = TRUE)
+
+
+
+
+twd_boundaries
 twd_boundaries <- twd_boundaries %>% rename(PWS_ID = PWSId,PWS_NAME = pwsName)
 twd_boundaries <- st_transform(twd_boundaries,st_crs(albersNA))
 twd_boundaries <- st_make_valid(twd_boundaries)
 twd_boundaries <- twd_boundaries %>% group_by(PWS_ID) %>% summarise()
 
-tx_blocks <- tigris::block_groups(state = 'TX',cb = T,year = 2010)
-tx_tracts <- tigris::tracts(state = 'TX',cb = T,year = 2010)
-tx_blocks$GEOID <- str_remove(tx_blocks$GEO_ID,'^1500000US')
-tx_tracts$GEOID <- str_remove(tx_tracts$GEO_ID,'^1400000US')
-### % hispanic ####
-hispanic <- tidycensus::get_decennial(geography = 'block group',
-                                  state = 'TX',year = 2010,variables = c('P011001','P011002'))
-hispanic  <- data.table(hispanic )
-hispanic <- dcast(hispanic,GEOID ~ variable,value.var = 'value')
-hispanic$Perc_Hispanic <- 100 * (hispanic$P011002 / hispanic$P011001)
-tx_blocks <- left_join(tx_blocks,hispanic[,.(GEOID,Perc_Hispanic)])
-
-### % black ####
-black <- tidycensus::get_decennial(geography = 'block group',
-                                      state = 'TX',year = 2010,
-                                   variables = c('P010001','P010004','P010011','P010016',
-                                                 'P010017',
-                                                 'P010018',
-                                                 'P010019'))
-black  <- data.table(black)
-black$is_total <- ifelse((black$variable=='P010001'),'total','sub')
-black <- dcast(black[,sum(value,na.rm = T),by=.(GEOID,is_total)],GEOID ~ is_total,value.var = 'V1') 
-black$Perc_Black <- 100 * (black$sub / black$total)
-tx_blocks <- left_join(tx_blocks,black[,.(GEOID,Perc_Black)])
-
-# % rural
-rural <- tidycensus::get_decennial(geography = 'block group',
-                                   state = 'TX',year = 2010,
-                                   variables = c('H002001','H002005'))
-rural  <- data.table(rural )
-rural <- dcast(rural,GEOID ~ variable,value.var = 'value')
-rural$Perc_Rural <- 100 * (rural$H002005 / rural$H002001)
-tx_blocks <- left_join(tx_blocks,rural[,.(GEOID,Perc_Rural)])
 
 bach <- tidycensus::get_acs(geography = 'tract',survey = 'acs5',
                             state = 'TX',year = 2010,
