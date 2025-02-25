@@ -10,7 +10,7 @@ mlist <- fread('input/texas_dww/district_master_list.csv')
 mlist_dt <- mlist[Type=='C']
 mlist_dt$Purchaser = grepl('P',mlist_dt$`Pri. Src. Water Type`) + 0
 mlist_dt$Groundwater = grepl('G',mlist_dt$`Pri. Src. Water Type`) + 0
-mlist_dt[,Primary_Source_Type:=NULL]
+mlist_dt[,`Pri. Src. Water Type`:=NULL]
 
 setnames(mlist_dt,c('Water System No.','Water System Name'),c('PWS_ID','PWS_NAME'))
 mlist_dt$PWS_NAME <- stringr::str_remove(stringr::str_extract(mlist_dt$PWS_NAME,"^[A-Z0-9\\s]+"),'\\sF$')
@@ -169,6 +169,13 @@ pws_district_weekly$Pop_Served_Cat5 <- epa$`Pop Cat 5`[match(pws_district_weekly
 pws_district_weekly$Groundwater <- grepl("ground",tolower(epa$`Primary Source`[match(pws_district_weekly$PWS_ID,epa$`PWS ID`)])) + 0
 
 
+stor <- 'drought_and_debt/input/storage_connections_data.txt'
+stor_dt <- fread(stor)
+stor_dt$Value <- as.numeric(stor_dt$Value)
+stor_dt$Value[stor_dt$Unit=='GAL'] <- stor_dt$Value[stor_dt$Unit=='GAL']/1e6
+stor_dt$Unit <- 'MG'
+
+match(pws_district_weekly$PWS_ID,stor_dt$PWS_ID)
 
 
 surv_obj <-  with(pws_district_weekly,Surv(time = decimal_date.t0, time2 = decimal_date.t1, event = RESTRICTION))
