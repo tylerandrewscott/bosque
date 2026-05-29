@@ -1,0 +1,5 @@
+scratch_loc = 'scratch/'
+
+starts = list( 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=C&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems',
+'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=NC&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems',
+ 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=NTNC&SourceWaterType=All&SampleType=null&begin_date=2%2F9%2F2017&end_date=2%2F9%2F2019&action=Search+For+Water+Systems')

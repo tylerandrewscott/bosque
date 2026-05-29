@@ -16,13 +16,20 @@ This subdirectory contains all of the data and code materials necessary to repli
 
 ### Subdirectory items
 
+### Workflow
+
+*code/collection
+
+*code/assembly
+**/0X_assemble_drought_data.R: accesses the UNL drought monitor data and creates a file for TX urban areas
+**/0X_combine_drought_restrictions: reads in all snapshots from waybackmachine, aggregates and de-duplicates to build dataframe of all observed changes
 
 ## Authors
 
 Contributors names and contact info
 
-Tyler A. Scott, tascott@ucdavis.edu, @tylerscottphd  
-Robert A. Greer
+Tyler A. Scott, tascott at ucdavis dot edu, @atylerscott 
+Robert A. Greer, rgreer at tamu dot edu
 Emily Bell
 
 

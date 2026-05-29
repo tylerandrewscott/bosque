@@ -12,18 +12,14 @@ library(lubridate)
 
 if(any(list.files('input/tceq_audits/') == 'district_audit_reference_sheet.csv')){
 doc_df = read_csv('input/tceq_audits/district_audit_reference_sheet.csv') %>% mutate(DOC_ID = as.character(DOC_ID),
-                                                                                      DISTRICT_ID = as.character(DISTRICT_ID))}
-if(!any(list.files('input/tceq_audits/') == 'district_audit_reference_sheet.csv')){
-doc_df = data.frame()}
-
+                                                                                      DISTRICT_ID = as.character(DISTRICT_ID))}else{doc_df = data.frame()}
+doc_df |> arrange(desc(mdy(DATE_SUBMITTED)))
 audit_links = 'https://www14.tceq.texas.gov/iwud/document/index.cfm?fuseaction=ListDocumentsByType&COMMAND=LIST&DocType=Audit-District'
 audit_session = rvest::html_session(audit_links)
-audit_session
 go_on = TRUE
-while(go_on)
-{
+css = 'form+ table .iwud'
+while(go_on){
 go_on = FALSE
-css = 'form+ table .iwud'
 td = audit_session %>% read_html() %>% html_nodes(css = css)
 links = matrix(paste0('https://www14.tceq.texas.gov',td %>% html_nodes("a") %>% html_attr('href')),ncol=2,byrow=T)
 text = td %>% html_text(trim=T) %>% matrix(.,ncol=6,byrow=T)
@@ -34,37 +30,40 @@ if(all(temp_df$DOC_ID %in% doc_df$DOC_ID)){break}
 temp_df = temp_df %>% filter(!DOC_ID %in% doc_df$DOC_ID)
 if(nrow(doc_df)==0){doc_df = temp_df}
 if(nrow(doc_df)!=0){doc_df = full_join(doc_df,temp_df)}
-if(any((audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt')) == 'Next page'))
-{
-audit_session <- audit_session %>% session_follow_link(i = 
-                    intersect(which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt') == 'Next page'),
-                      which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('name') == 'next')))
-go_on = TRUE}}
-
-
-
-audit_links = 'https://www14.tceq.texas.gov/iwud/document/index.cfm?fuseaction=ListDocumentsByType&COMMAND=LIST&DocType=Audit'
-audit_session = rvest::html_session(audit_links)
+elems <-
+    audit_session$url  %>% read_html() %>%
+    html_elements("a")
+next_link_integers <- grep("NEXT", html_attr(elems, "href"))
+if(length(next_link_integers) > 0) {
+  audit_session <- audit_session |> session_follow_link(i = min(next_link_integers))
+}else{print('No more pages, stopping')}
 go_on = TRUE
-while(go_on)
-{go_on = FALSE
-css = 'form+ table .iwud'
-td = audit_session %>% read_html() %>% html_nodes(css = css)
-links = matrix(paste0('https://www14.tceq.texas.gov',td %>% html_nodes("a") %>% html_attr('href')),ncol=2,byrow=T)
-text = td %>% html_text(trim=T) %>% matrix(.,ncol=6,byrow=T)
-temp_df = data.frame(text,links) %>% rename(DISTRICT_NAME = X1,DISTRICT_ID = X2,DOC_ID = X4,DATE_SUBMITTED = X5,
-                                            DISTRICT_URL = X1.1,DOC_URL = X2.1) %>% 
-  dplyr::select(-X6,-X3) %>% mutate(DISTRICT_ID = gsub('[A-Za-z]| ','',DISTRICT_ID))
-if(all(temp_df$DOC_ID %in% doc_df$DOC_ID)){break}
-temp_df = temp_df %>% filter(!DOC_ID %in% doc_df$DOC_ID)
-if(nrow(doc_df)==0){doc_df = temp_df}
-if(nrow(doc_df)!=0){doc_df = full_join(doc_df,temp_df)}
-if(any((audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt')) == 'Next page'))
-{
-  audit_session <- audit_session %>% follow_link(i = 
-                                                   intersect(which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt') == 'Next page'),
-                                                             which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('name') == 'next')))
-  go_on = TRUE}}
+}
+
+
+# THIS CODE WAS FOR AN OLDER TYPE OF AUDIT IN TCEQ PAGE CALLED AN 'AUDIT REPORT', LAST RECEIVED DATE IS 08/05/2009
+# audit_links = 'https://www14.tceq.texas.gov/iwud/document/index.cfm?fuseaction=ListDocumentsByType&COMMAND=LIST&DocType=Audit'
+# audit_session = rvest::html_session(audit_links)
+# go_on = TRUE
+# while(go_on)
+# {go_on = FALSE
+# css = 'form+ table .iwud'
+# td = audit_session %>% read_html() %>% html_nodes(css = css)
+# links = matrix(paste0('https://www14.tceq.texas.gov',td %>% html_nodes("a") %>% html_attr('href')),ncol=2,byrow=T)
+# text = td %>% html_text(trim=T) %>% matrix(.,ncol=6,byrow=T)
+# temp_df = data.frame(text,links) %>% rename(DISTRICT_NAME = X1,DISTRICT_ID = X2,DOC_ID = X4,DATE_SUBMITTED = X5,
+#                                             DISTRICT_URL = X1.1,DOC_URL = X2.1) %>% 
+#   dplyr::select(-X6,-X3) %>% mutate(DISTRICT_ID = gsub('[A-Za-z]| ','',DISTRICT_ID))
+# if(all(temp_df$DOC_ID %in% doc_df$DOC_ID)){break}
+# temp_df = temp_df %>% filter(!DOC_ID %in% doc_df$DOC_ID)
+# if(nrow(doc_df)==0){doc_df = temp_df}
+# if(nrow(doc_df)!=0){doc_df = full_join(doc_df,temp_df)}
+# if(any((audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt')) == 'Next page'))
+# {
+#   audit_session <- audit_session %>% follow_link(i = 
+#                                                    intersect(which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('alt') == 'Next page'),
+#                                                              which(audit_session  %>% read_html() %>% html_nodes('img') %>% html_attr('name') == 'next')))
+#   go_on = TRUE}}
 
 write_csv(doc_df,'input/tceq_audits/district_audit_reference_sheet.csv')
 

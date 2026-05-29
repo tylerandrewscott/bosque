@@ -6,42 +6,43 @@ library(pbapply)
 library(httr)
 
 # 
-# base_sess = html_session(iwdd_base)
-# page_html = base_sess %>% read_html()
-# dtable = page_html %>% html_nodes('table') %>% html_table(trim=T,fill=T)  
-# temp_table = dtable[[5]][-c(1,2),-1]
-# temp_table = temp_table[rowSums(temp_table=='') < ncol(temp_table),]
-# temp_table$URL = NA
+base_sess = session(iwdd_base)
+page_html = base_sess %>% read_html()
+dtable = page_html %>% html_nodes('table') %>% html_table(trim=T,fill=T)  
+temp_table = dtable[[5]][-c(1,2),-1]
+temp_table = temp_table[rowSums(temp_table=='') < ncol(temp_table),]
+temp_table$URL = NA
 # 
 # 
-# url_list = lapply(seq_along(temp_table$X2),function(x) {
-#   if(temp_table$X2[x] %in% (page_html %>% html_nodes('table+ table .iwud a') %>% html_text(trim=T)))
-#     (page_html %>% html_nodes('table+ table .iwud a') %>% html_attr('href'))[which((page_html %>% html_nodes('table+ table .iwud a') %>% html_text(trim=T)) == temp_table$X2[x])]
-#   else{NA}
-# })
+url_list = lapply(seq_along(temp_table$X2),function(x) {
+   if(temp_table$X2[x] %in% (page_html %>% html_nodes('table+ table .iwud a') %>% html_text(trim=T)))
+     (page_html %>% html_nodes('table+ table .iwud a') %>% html_attr('href'))[which((page_html %>% html_nodes('table+ table .iwud a') %>% html_text(trim=T)) == temp_table$X2[x])]
+   else{NA}
+ })
 # 
-# temp_table$URL = unlist(url_list)[!duplicated(unlist(url_list))]
+temp_table$URL = unlist(url_list)[!duplicated(unlist(url_list))]
 # 
 # 
-# img_nodes = base_sess %>% read_html() %>% html_nodes('img')
-# district_links = list()
-# i = 1
-# district_links[[i]] = unlist(base_sess %>% read_html() %>% html_nodes('table+ table .iwud a') %>% html_attr('href'))
+img_nodes = base_sess %>% read_html() %>% html_nodes('img')
+district_links = list()
+i = 1
+district_links[[i]] = unlist(base_sess %>% read_html() %>% html_nodes('table+ table .iwud a') %>% html_attr('href'))
 # 
-# continue_sess = base_sess
-# while(any(img_nodes %>% html_attr('name') == 'next') & all(img_nodes %>% html_attr('alt') != 'No next page')){
-# i = i + 1
-# next_page_link = which(img_nodes %>% html_attr('name') == 'next')
-# continue_sess = follow_link(x = continue_sess,i = next_page_link)
-# district_links[[i]] <- unlist(continue_sess %>% read_html() %>% html_nodes('table+ table .iwud a') %>% html_attr('href'))
-# img_nodes = continue_sess %>% read_html() %>% html_nodes('img')
-# }
+continue_sess = base_sess
+while(any(img_nodes %>% html_attr('name') == 'next') & all(img_nodes %>% html_attr('alt') != 'No next page')){
+i = i + 1
+next_page_link = which(img_nodes %>% html_attr('name') == 'next')
+continue_sess = follow_link(x = continue_sess,i = next_page_link)
+district_links[[i]] <- unlist(continue_sess %>% read_html() %>% html_nodes('table+ table .iwud a') %>% html_attr('href'))
+img_nodes = continue_sess %>% read_html() %>% html_nodes('img')
+}
 
-# id = page_html %>% html_nodes('.iwud+ .iwud:nth-child(3)') %>% html_text(trim=T)
-# status = base_sess %>% read_html() %>% html_nodes('.iwud~ .iwud+ .iwud') %>% html_text(trim=T)
-# name = page_html %>% html_nodes('.iwud+ .iwud:nth-child(3)') %>% html_text(trim=T)
-# district_links = unlist(district_links)
-#saveRDS(unlist(district_links),'input/texas_water_district_pages.RDS')
+id = page_html %>% html_nodes('.iwud+ .iwud:nth-child(3)') %>% html_text(trim=T)
+status = base_sess %>% read_html() %>% html_nodes('.iwud~ .iwud+ .iwud') %>% html_text(trim=T)
+name = page_html %>% html_nodes('.iwud+ .iwud:nth-child(3)') %>% html_text(trim=T)
+district_links = unlist(district_links)
+
+saveRDS(unlist(district_links),'input/texas_water_district_pages.RDS')
 
 
 district_links = readRDS('input/texas_water_district_pages.RDS')
@@ -63,42 +64,40 @@ library(data.table)
 empty_dt <- data.table()
 #which(district_links == "index.cfm?fuseaction=DetailDistrict&ID=12694&command=list&name=RED%20RIVER%20AUTHORITY%20OF%20TEXAS")
 dist_grab <- data.table(links = district_links,grabbed = 0)
-while(any(dist_grab$grabbed==0) & mean(dist_grab$grabbed < 0.3)){
+while(any(dist_grab$grabbed==0)){
   sm <- min(200,sum(dist_grab$grabbed==0))
   lks <- sample(dist_grab$links[dist_grab$grabbed==0],sm)
-info_list = pblapply(seq_along(lks),function(x){
-  x = 100
-#print(x)
-url = paste0('https://www14.tceq.texas.gov/iwud/dist/',lks[x])
-district_session = html_session(url)
-link_urls = district_session  %>% read_html() %>% html_nodes('a') %>% html_attr('href')
+  info_list = pblapply(seq_along(lks),function(x){
+  #print(x)
+    url = paste0('https://www14.tceq.texas.gov/iwud/dist/',lks[x])
+    district_session = session(url)
+    link_urls = district_session  %>% read_html() %>% html_nodes('a') %>% html_attr('href')
+    i_link = which({district_session %>% read_html() %>% html_nodes('a') %>% html_text(trim=T)} == "Run District Information Report")       
+    district_info_session = follow_link(x = district_session,i = i_link)
+    district_info_html = district_info_session %>% read_html()
+    tdf = data.frame(PWS_ID = paste(str_extract(if(any(grepl('DWW',link_urls))){grep('DWW',link_urls,value=T)}else{NA},'TX[0-9]{1,}'),collapse = '|'),
+      Info_Link = i_link,
+    District_ID = district_info_html %>% html_node(css_district_id) %>% html_text(trim=T),
+    District_Name = district_info_html %>% html_node(css_name) %>% html_text(trim=T),
+    Status = district_info_html %>% html_node(css_status) %>% html_text(trim=T),
+    Created = district_info_html %>% html_node(css_created) %>% html_text(trim=T),
+    Ended = district_info_html %>% html_node(css_ended) %>% html_text(trim=T),
+    Type = district_info_html %>% html_node(css_type) %>% html_text(trim=T),
+    CCN = district_info_html %>% html_node(css_ccn) %>% html_text(trim=T),
+    Primary_County = district_info_html %>% html_node(css_primary_county) %>% html_text(trim=T),
+    BOARD_NUMBER = district_info_html %>% html_node(css_num_directors) %>% html_text(trim=T),
+    BOARD_SELECTION = district_info_html %>% html_node(css_board) %>% html_text(trim=T),
+    ACRES = district_info_html %>% html_node(css_acres) %>% html_text(trim=T),stringsAsFactors = F)
+    if(nrow(tdf)>0){tdf$link = lks[x]}else{tdf <- data.frame(link = lks[x])}
+    return(tdf)
+    Sys.sleep(0.15)
+    })
+    new_dt <- rbindlist(info_list,use.names=T,fill = T)
+    dist_grab$grabbed[dist_grab$links %in% new_dt$link] <- 1
+    empty_dt <- rbind(new_dt,empty_dt,fill = T,use.names = T)
+  }
 
-i_link = which({district_session %>% read_html() %>% html_nodes('a') %>% html_text(trim=T)} == "Run District Information Report")       
-district_info_session = follow_link(x = district_session,i = i_link)
-district_info_html = district_info_session %>% read_html()
-
-tdf = data.frame(PWS_ID = paste(str_extract(if(any(grepl('DWW',link_urls))){grep('DWW',link_urls,value=T)}else{NA},'TX[0-9]{1,}'),collapse = '|'),
-Info_Link = i_link,
-District_ID = district_info_html %>% html_node(css_district_id) %>% html_text(trim=T),
-District_Name = district_info_html %>% html_node(css_name) %>% html_text(trim=T),
-Status = district_info_html %>% html_node(css_status) %>% html_text(trim=T),
-Created = district_info_html %>% html_node(css_created) %>% html_text(trim=T),
-Ended = district_info_html %>% html_node(css_ended) %>% html_text(trim=T),
-Type = district_info_html %>% html_node(css_type) %>% html_text(trim=T),
-CCN = district_info_html %>% html_node(css_ccn) %>% html_text(trim=T),
-Primary_County = district_info_html %>% html_node(css_primary_county) %>% html_text(trim=T),
-BOARD_NUMBER = district_info_html %>% html_node(css_num_directors) %>% html_text(trim=T),
-BOARD_SELECTION = district_info_html %>% html_node(css_board) %>% html_text(trim=T),
-ACRES = district_info_html %>% html_node(css_acres) %>% html_text(trim=T),stringsAsFactors = F)
-tdf$link = lks[x]
-tdf
-Sys.sleep(0.15)
-})
-new_dt <- rbindlist(tdf,use.names=T,fill = T)
-dist_grab$grabbed[dist_grab$links %in% new_dt$link]
-empty_dt <- rbind(new_dt,empty_dt,fill = T,use.names = T)
-}
-full_df = do.call(rbind,info_list)
+full_df = empty_dt
 #full_df$PWS_Page = full_df$PWS_ID
 #full_df$PWS_ID = str_extract(full_df$PWS_ID,'TX[0-9]{1,}')
 full_df$District_Link = district_links
