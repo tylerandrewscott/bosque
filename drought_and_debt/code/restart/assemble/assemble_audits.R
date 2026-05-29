@@ -1,6 +1,6 @@
 ### 
 
-packs = c('rgeos','rgdal','sp','maptools','readxl','hhi','spdep','lubridate','stringr','neatRanges',
+packs = c('sp','readxl','hhi','spdep','lubridate','stringr','neatRanges',
           'rvest','R.utils','pbapply','jsonlite','tidyverse','data.table','sf','tigris','lwgeom','tidyquant','readr')
 need = packs[!packs %in% installed.packages()[,'Package']]
 if(!identical(need,character(0))){sapply(need,install.packages)}
@@ -8,6 +8,21 @@ sapply(packs,require,character.only = T)
 #if(!require(lucr)){remotes::install_github('Ironholds/lucr');require(lucr)}
 
 audits = fread('input/tceq_audits/district_audits.csv')
+
+# Schema-drift check: warn if expected columns (used by derived fields below) are missing
+expected_cols <- c(
+  'DISTRICT_ID','FISCAL YEAR ENDED','TOTAL TAX RATE',
+  'GENERAL FUND - FUND BALANCE','GENERAL FUND - TOTAL REVENUES','GENERAL FUND - TOTAL EXPENDITURES',
+  'ENTERPRISE FUND - OPERATING REVENUES','ENTERPRISE FUND - OPERATING EXPENSES',
+  'WATER CUSTOMERS - EQ SINGLE FAMILY UNITS',
+  'WASTEWATER CUST - EQ SINGLE FAMILY UNITS','WASTEWATER CUST - EQ SINGLE FAMILY UNIT'
+)
+missing_cols <- setdiff(expected_cols, names(audits))
+if (length(missing_cols) > 0) {
+  warning(sprintf("assemble_audits.R: %d expected column(s) missing from district_audits.csv — derived fields will be NA:\n  %s",
+                  length(missing_cols), paste(missing_cols, collapse = "\n  ")))
+}
+
 district_files <- list.files('input/twdd_records/',pattern = 'district_list',full.names = T)
 dinfo_dt <- fread(district_files[which.max(file.info(district_files)$mtime)])
 

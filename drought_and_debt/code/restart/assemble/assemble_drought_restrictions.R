@@ -19,6 +19,16 @@ tceq_file <- 'input/TCEQ_FOIA/PIR 98118_Copy_Drought_Database_Reported_MASTER.xl
 ntc <- read_excel(tceq_file,sheet = 'Master')
 warnings()
 ntc <- data.table(ntc)
+
+# Schema-drift check: warn if expected columns from the FOIA Master sheet are missing
+expected_master_cols <- c('PWS ID','Notified','YEAR','STAGE',
+                          'IMPLEMENTING/CHANGING/RESCINDING','DROUGHT/MECHANICAL/BOTH')
+missing_master <- setdiff(expected_master_cols, names(ntc))
+if (length(missing_master) > 0) {
+  warning(sprintf("assemble_drought_restrictions.R: FOIA 'Master' sheet missing expected columns: %s",
+                  paste(missing_master, collapse = ', ')))
+}
+
 ntc$`PWS ID` <- paste0('TX',formatC(ntc$`PWS ID`,width = 7,flag = "0",format = 'd'))
 ntc$Notified <- str_remove(ntc$Notified,'\\s.*')
 ntc$Notified_ymd <- ymd(ntc$Notified)
@@ -146,12 +156,63 @@ rest_df <- rest_df |> filter(STAGE %in% c('Mild','Moderate','Severe')) |>
   )) |>
   mutate(`PWS ID` = paste0('TX',`PWS ID`))
 
+# --- ingest live-scraped CSV snapshots from input/texas_dww/ ---------------
+# scrape_water_restrictions.R writes dated CSVs here; we treat each as another
+# source of records and dedupe later on (PWS ID, NOTIFIED_YMD, STAGE).
+csv_dir <- 'input/texas_dww'
+csv_files <- if (dir.exists(csv_dir)) {
+  list.files(csv_dir, pattern = '^system_water_restrictions.*\\.csv$', full.names = TRUE)
+} else character(0)
+if (length(csv_files) > 0) {
+  message(sprintf("Ingesting %d live-CSV snapshots from %s", length(csv_files), csv_dir))
+  csv_list <- pblapply(csv_files, function(p) {
+    tryCatch({
+      d <- fread(p, colClasses = 'character')
+      # Some legacy CSVs have duplicate column names; disambiguate before merging
+      if (any(duplicated(names(d)))) {
+        setnames(d, make.unique(names(d)))
+      }
+      d$file <- p
+      d
+    }, error = function(e) { message(sprintf("Failed %s: %s", p, conditionMessage(e))); NULL })
+  })
+  csv_list <- csv_list[!sapply(csv_list, is.null)]
+  csv_df <- rbindlist(csv_list, fill = TRUE, use.names = TRUE)
+  # Positional setnames (no `old=`) so duplicate column names don't error
+  setnames(csv_df, toupper(names(csv_df)))
+  # Defensive: collapse any duplicates that still remain after toupper()
+  if (any(duplicated(names(csv_df)))) {
+    setnames(csv_df, make.unique(names(csv_df)))
+  }
+  # The live page now labels columns: PWS ID | PWS NAME | COUNTY | DATE NOTIFIED |
+  # TCEQ STAGE | PRIORITY | POPULATION. Normalize to match rest_df.
+  if ('DATE NOTIFIED' %in% names(csv_df)) setnames(csv_df, 'DATE NOTIFIED', 'NOTIFIED')
+  if ('TCEQ STAGE'    %in% names(csv_df)) setnames(csv_df, 'TCEQ STAGE',    'STAGE')
+  csv_df[, NOTIFIED_YMD := mdy(NOTIFIED)]
+  csv_df <- csv_df[!is.na(NOTIFIED_YMD)]
+  # Map TCEQ stage codes (V/M1/M2/M3) to the same scheme used by rest_df (M1/M2/M3 only)
+  csv_df <- csv_df[STAGE %in% c('M1','M2','M3')]
+  # Ensure PWS ID has the 'TX' prefix
+  csv_df[, `PWS ID` := ifelse(grepl('^TX', `PWS ID`), `PWS ID`,
+                              paste0('TX', formatC(as.numeric(`PWS ID`), width = 7, flag = '0', format = 'd')))]
+  message(sprintf("  -> %d rows from live CSVs after filter", nrow(csv_df)))
+  # Append to rest_df; column shape compatible enough for rbindlist fill=TRUE
+  rest_df <- rbindlist(list(rest_df, csv_df), fill = TRUE, use.names = TRUE)
+  rest_df <- rest_df[!duplicated(rest_df[, .(`PWS ID`, NOTIFIED_YMD, STAGE)])]
+}
 
 scraped_not_in_tceq_file <- rest_df[!paste(rest_df$`PWS ID`,rest_df$NOTIFIED_YMD) %in% paste(ntcM$`PWS ID`,ntcM$NOTIFIED_YMD),]
 scraped_not_in_tceq_file$scraped = T
 ntcM$scraped = F
 
 ntcBoth <- merge(ntcM,scraped_not_in_tceq_file,all = T)
+
+# Final dedup on the canonical key
+ntcBoth <- as.data.table(ntcBoth)
+ntcBoth <- ntcBoth[!duplicated(ntcBoth[, .(`PWS ID`, NOTIFIED_YMD, STAGE)])]
+
+message(sprintf("Final: %d combined restriction records, max NOTIFIED_YMD = %s",
+                nrow(ntcBoth), format(max(ntcBoth$NOTIFIED_YMD, na.rm = TRUE))))
 
 saveRDS(ntcBoth,file = 'drought_and_debt/input/combined_restriction_records.RDS')
 
