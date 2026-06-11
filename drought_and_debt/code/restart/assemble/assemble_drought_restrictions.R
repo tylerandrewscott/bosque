@@ -97,23 +97,57 @@ flsize <- file.size(fls)
 fls <- fls[flsize>0]
 # 
 # 
-old_restrictions = pblapply(fls,function(p) {
-   print(p)
-  temp = read_html(p) %>% html_nodes('table') %>% html_table(trim=T,fill=T)
-   if(length(temp)==1){tdf = temp[[1]]}
-   if(length(temp)>1){tdf = temp[[4]]}
-   if(!any(grepl('PWS ID',names(tdf)))){
-   colnames(tdf) <- tdf[1,]
-   tdf = tdf[-1,]}
-   if(any(colnames(tdf)=='TCEQ Stage')){tdf = tdf %>% rename(Stage = `TCEQ Stage`)}
-   if(any(colnames(tdf)=='Date Notified')){tdf = tdf %>% rename(Notified = `Date Notified`)}
-   if(any(colnames(tdf)=='Last Updated')){tdf = tdf %>% rename(Notified = `Last Updated`)}
-   tdf$file <- p
-   tdf},cl = 8)
-# 
-rest_df <- rbindlist(old_restrictions,fill = T,use.names = T)
-rest_df <- rest_df[order(-file),]
-rest_df <- rest_df[!{rest_df %>% dplyr::select(-file) %>% duplicated(.)},]
+parse_wayback_html <- function(p) {
+  tryCatch({
+    temp <- read_html(p) %>% html_nodes('table') %>% html_table(trim = TRUE, fill = TRUE)
+    if (length(temp) == 0) return(NULL)
+    tdf <- if (length(temp) == 1) temp[[1]] else temp[[4]]
+    if (is.null(tdf) || nrow(tdf) == 0) return(NULL)
+    if (!any(grepl('PWS ID', names(tdf)))) {
+      colnames(tdf) <- as.character(unlist(tdf[1, ]))
+      tdf <- tdf[-1, , drop = FALSE]
+    }
+    if (any(colnames(tdf) == 'TCEQ Stage'))    tdf <- tdf %>% rename(Stage    = `TCEQ Stage`)
+    if (any(colnames(tdf) == 'Date Notified')) tdf <- tdf %>% rename(Notified = `Date Notified`)
+    if (any(colnames(tdf) == 'Last Updated'))  tdf <- tdf %>% rename(Notified = `Last Updated`)
+    # Some wayback snapshots have duplicate column headers (e.g. "Greater than
+    # 180-day supply" repeated); disambiguate so downstream select()/dedup works.
+    if (any(duplicated(colnames(tdf)))) {
+      colnames(tdf) <- make.unique(colnames(tdf))
+    }
+    tdf$file <- p
+    tdf
+  }, error = function(e) {
+    message(sprintf("parse_wayback_html failed for %s: %s", p, conditionMessage(e)))
+    NULL
+  })
+}
+
+# Serial pblapply: avoids parallel-worker library-loading issues that silently
+# returned NULLs and produced an empty rest_df. ~295 files is fast enough serially.
+old_restrictions <- pblapply(fls, parse_wayback_html)
+old_restrictions <- old_restrictions[!sapply(old_restrictions, is.null)]
+message(sprintf("Wayback: parsed %d/%d HTML files successfully",
+                length(old_restrictions), length(fls)))
+
+rest_df <- rbindlist(old_restrictions, fill = TRUE, use.names = TRUE)
+
+# Guard against an empty parse result so downstream `-file` doesn't resolve
+# to base::file and trip data.table's order().
+if (nrow(rest_df) == 0 || !'file' %in% names(rest_df)) {
+  warning("rest_df from wayback parse is empty; initializing with required columns.")
+  rest_df <- data.table(`PWS ID` = character(), Notified = character(),
+                        Stage = character(), Priority = character(),
+                        file = character())
+} else {
+  # Final defensive dedup of column names across the combined data.table
+  if (any(duplicated(names(rest_df)))) {
+    setnames(rest_df, make.unique(names(rest_df)))
+  }
+  rest_df <- rest_df[order(-file),]
+  # Use base-R column drop (works with duplicated names) for the dedup
+  rest_df <- rest_df[!duplicated(rest_df[, !(names(rest_df) %in% 'file'), with = FALSE]), ]
+}
 # library(lubridate)
 rest_df$Notified <- mdy(rest_df$Notified)
 rest_df <- rest_df[!is.na(Notified),]
