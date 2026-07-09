@@ -1,45 +1,62 @@
-library(rvest)
-library(parallel)
-library(tidyverse)
-library(stringr)
-library(stringi)
-all_systems_page = 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=A&county=All&WaterSystemType=C&SourceWaterType=All&SampleType=null&begin_date=5%2F13%2F2015&end_date=5%2F13%2F2017&action=Search+For+Water+Systems'
-all_links = all_systems_page %>% read_html() %>% html_nodes('a') 
-system_summary_links = all_links[grepl('^TX[0-9]',all_links %>% html_text(trim=T))] %>% html_attr('href')
+# =============================================================================
+# scrape_water_connections.R
+# -----------------------------------------------------------------------------
+# Wholesale water connections between public water systems: who buys from whom
+# and who sells to whom.
+#
+# SOURCE CHANGE (2026): the old TCEQ "Drinking Water Watch" JSP app
+# (dww2.tceq.texas.gov/DWW/JSP) was decommissioned and replaced by the
+# "Drinking Water Viewer" JSON/OData service (dwv.tceq.texas.gov). The old
+# script scraped a free-text "buys from / sells to" datasheet block and
+# regex-parsed the PWS ids out of it. The new API exposes these as structured
+# tables, so the brittle regex parsing is gone:
+#   "buys from"  -> DashPurchases  (SELLERWSNUMBER = system we buy from)
+#   "sells to"   -> DashBuyers     (BUYERWSNUMBER  = system we sell to)
+#
+# Outputs (unchanged roles):
+#   input/texas_dww/purchasing_connections_<date>.csv  (Buyer, Seller)
+#   input/texas_dww/sales_connections_<date>.csv       (Seller, Buyer)
+# =============================================================================
 
+library(data.table)
 
-system_summary_links = system_summary_links
-prefix = 'https://dww2.tceq.texas.gov/DWW/JSP/'
+.dwv_helper <- Sys.glob(c("dwv_api_helpers.R",
+                          "util_code/scraping/dwv_api_helpers.R",
+                          "../util_code/scraping/dwv_api_helpers.R"))
+if (!length(.dwv_helper)) stop("dwv_api_helpers.R not found next to this script.")
+source(.dwv_helper[1])
 
+ses <- dwv_session()
 
-temp_results = do.call(rbind,mclapply(system_summary_links,function(x) {
-  temp_nodes = URLencode(paste0(prefix,x)) %>% read_html() %>% html_nodes('td')
-  cbind(temp_nodes[which({temp_nodes %>% html_attr('width')} == '100%' & !is.na(temp_nodes %>% html_attr('bgcolor')))] %>% html_text(trim=T),str_extract(x,'TX[0-9]{7}'))
-},mc.cores = 5,mc.cleanup = T))
+# Active community water systems (matches the old WaterSystemType=C query).
+systems <- dwv_search(ses, type = "C", active_only = TRUE,
+                      select = c("TINWSYS_IS_NUMBER", "NUMBER0", "NAME"))
+message("Active community systems: ", nrow(systems))
 
+# --- Purchases: for each system, the systems it BUYS water from ---------------
+purch_of <- function(dt, sysrow) {
+  if (!nrow(dt) || !"SELLERWSNUMBER" %in% names(dt)) return(data.table())
+  data.table(Buyer  = trimws(sysrow$NUMBER0),
+             Seller = trimws(dt$SELLERWSNUMBER),
+             Seller_Name = if ("SELLERWS" %in% names(dt)) dt$SELLERWS else NA_character_)
+}
+purchase_df <- dwv_widget_over(ses, "DashPurchases", systems, transform = purch_of)
+purchase_df <- unique(purchase_df[!is.na(Seller) & nzchar(Seller)])
 
-temp_df = as_tibble(temp_results)  %>% 
-  rename(Transfer = V1, Head = V2) %>% filter(Transfer != 'No Buyers') %>%
-  mutate(Transfer = stri_replace_all_regex(Transfer,"\n|\t|\r|&nbsp",""))
+# --- Sales: for each system, the systems it SELLS water to --------------------
+sale_of <- function(dt, sysrow) {
+  if (!nrow(dt) || !"BUYERWSNUMBER" %in% names(dt)) return(data.table())
+  data.table(Seller = trimws(sysrow$NUMBER0),
+             Buyer  = trimws(dt$BUYERWSNUMBER),
+             Buyer_Name = if ("BUYERWS" %in% names(dt)) dt$BUYERWS else NA_character_)
+}
+sale_df <- dwv_widget_over(ses, "DashBuyers", systems, transform = sale_of)
+sale_df <- unique(sale_df[!is.na(Buyer) & nzchar(Buyer)])
 
-purchasing = temp_df %>% filter(grepl('buys from',Transfer))
-selling = temp_df %>% filter(grepl('sells to',Transfer))
-transfer_lists = lapply(selling$Transfer,function(x) str_extract_all(x,'(?:TX[0-9]{7}.*?)(TX[0-9]{7})[^TX]+'))
-transfers = unlist(lapply(transfer_lists,unlist))
-sale_df = tibble(Seller = str_extract(transfers,'^TX[0-9]{7}'),
-           Buyer = str_extract(transfers, '(?!^TX[0-9]{7}.*)(TX[0-9]{7})'),
-           Sale_Type = str_extract(gsub(' {1,}$','',transfers),'[A-Z]$'),
-           Buyer_Service_Pop = str_extract(str_extract(transfers,'(?:\\/).*(?:\\/)'),'[0-9]{1,}'))
-sale_df = sale_df[!duplicated(sale_df),]
-
-
-purchase_lists = lapply(purchasing$Transfer,function(x) str_extract_all(x,'(TX[0-9]{7}.*?)(TX[0-9]{7})*Water'))
-purchases = unlist(lapply(purchase_lists,unlist))
-
-purchase_df = tibble(Buyer = str_extract(purchases,'^TX[0-9]{7}'),
-       Seller = str_extract(purchases,'(?!^TX[0-9]{7}.*)(TX[0-9]{7})'),
-       Water_Type = gsub('providing ','',str_extract(purchases,'providing.*')))
-purchase_df = purchase_df[!duplicated(purchase_df)&!is.na(purchase_df$Seller),]
-
-write_csv(purchase_df,file = paste('input/texas_dww/purchasing_connections',paste0(Sys.Date(),'.csv'),sep='_'))
-write_csv(sale_df, file = paste('input/texas_dww/sales_connections',paste0(Sys.Date(),'.csv'),sep='_'))
+dir.create("input/texas_dww", showWarnings = FALSE, recursive = TRUE)
+p_out <- file.path("input/texas_dww", paste0("purchasing_connections_", Sys.Date(), ".csv"))
+s_out <- file.path("input/texas_dww", paste0("sales_connections_", Sys.Date(), ".csv"))
+fwrite(purchase_df, p_out)
+fwrite(sale_df, s_out)
+message("Wrote ", p_out, " (", nrow(purchase_df), " rows) and ",
+        s_out, " (", nrow(sale_df), " rows).")

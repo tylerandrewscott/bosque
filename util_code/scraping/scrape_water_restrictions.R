@@ -46,6 +46,37 @@ if (length(match_idx) == 0) {
 }
 dtable <- all_tables[[match_idx[1]]]
 
+# --- guarantee a real header row ---------------------------------------------
+# html_table(header = TRUE) uses the table's first row as column names. When the
+# page ships its records without a <th> header row, row 1 is actually a PWS
+# record, so the "names" come out as data (e.g. "TX2050011") and write_csv()
+# then emits a HEADERLESS csv. The assemble step (02_assemble_drought_
+# restrictions.R) silently drops those files, which is why the 2025-2026 scrapes
+# never made it into the panel. Detect that case, recover the mis-used record as
+# a data row, and relabel columns by content so the CSV always has a header.
+label_restriction_columns <- function(d) {          # mirrors drought_and_debt/code/ingest_helpers.R
+  majority <- function(ok) mean(ok, na.rm = TRUE) > 0.5
+  cols     <- as.list(d)
+  nm       <- names(d)
+  stage_vocab <- c('V', 'M1', 'M2', 'M3', 'RESCINDING', 'IMPLEMENTING', 'CHANGING')
+  is_pws   <- vapply(cols, function(x) majority(grepl('^TX[0-9]{7}$', trimws(x), ignore.case = TRUE)),   logical(1))
+  is_date  <- vapply(cols, function(x) majority(grepl('^[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}$', trimws(x))), logical(1))
+  is_stage <- vapply(cols, function(x) majority(toupper(trimws(x)) %in% stage_vocab),                     logical(1))
+  if (any(is_pws))   nm[which(is_pws)[1]]   <- 'PWS ID'
+  if (any(is_date))  nm[which(is_date)[1]]  <- 'Date Notified'
+  if (any(is_stage)) nm[which(is_stage)[1]] <- 'TCEQ Stage'
+  names(d) <- nm
+  d
+}
+if (any(grepl('^TX[0-9]{7}$', names(dtable)))) {
+  message("No <th> header on page: recovering first record as data and relabeling columns by content.")
+  lost <- as.data.frame(as.list(names(dtable)), stringsAsFactors = FALSE, check.names = FALSE)
+  names(lost)   <- paste0('V', seq_len(ncol(dtable)))
+  names(dtable) <- paste0('V', seq_len(ncol(dtable)))
+  dtable <- rbind(lost, as.data.frame(dtable, stringsAsFactors = FALSE, check.names = FALSE))
+  dtable <- label_restriction_columns(dtable)
+}
+
 dir.create('input/texas_dww', recursive = TRUE, showWarnings = FALSE)
 out_csv <- paste('input/texas_dww/system_water_restrictions',
                  paste0(Sys.Date(), '.csv'), sep = '_')

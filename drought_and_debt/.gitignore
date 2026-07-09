@@ -1,0 +1,19 @@
+# Box data symlink — recreated locally per machine via setup_symlinks.sh
+# (never commit the absolute Box path)
+bosquebox
+
+# Local, machine-specific scratch for pipeline intermediates
+scratch/
+
+# INLA adjacency artifact written by the county-adjacency step
+tx.adj
+
+# R / RStudio cruft
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+
+# FUSE shadow files (created when an open file is replaced on a mounted drive)
+.fuse_hidden*

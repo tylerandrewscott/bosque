@@ -3,7 +3,6 @@
 inputs/
 scratch/
 deliverables/
-output/
 .Rproj.user
 .Rhistory
 .DS_Store

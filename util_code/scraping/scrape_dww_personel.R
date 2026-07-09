@@ -1,79 +1,52 @@
-#$ sudo docker run -d -p 4445:4444 selenium/standalone-firefox:2.53.0
-#$ sudo docker ps
-library(parallel)
-library(rvest)
-library(tidyverse)
-library(stringr)
-library(stringi)
-#empty_df = read_csv('test.csv')
+# =============================================================================
+# scrape_dww_personel.R
+# -----------------------------------------------------------------------------
+# Personnel / points of contact for each public water system.
+#
+# SOURCE CHANGE (2026): the old TCEQ "Drinking Water Watch" JSP app
+# (dww2.tceq.texas.gov/DWW/JSP) was decommissioned and replaced by the
+# "Drinking Water Viewer" JSON/OData service (dwv.tceq.texas.gov). This script
+# no longer scrapes HTML tables; it calls the DWV API.
+#
+# Old datasheet section  -> new DWV endpoint
+#   points of contact    -> DashContacts   (name, address, phones, Role(s))
+#
+# NOTE: the old script also produced a separate "licensed_operators" file from
+# a datasheet operator table. In SDWIS/DWV, operator licensing lives in a
+# different system (TCEQ Licensing) and is no longer part of the water-system
+# viewer, so that table is not reproduced here. Contact roles (operator, owner,
+# administrative, etc.) are captured in the Roles column below.
+#
+# Output: input/texas_dww/personnel_records_<date>.csv
+# =============================================================================
 
-library(lubridate)
-#slackr_setup(config_file = '../proj3/.slackr')
+library(data.table)
 
-base_site = 'https://dww2.tceq.texas.gov/DWW/JSP/SearchDispatch?number=&name=&ActivityStatusCD=All&county=All&WaterSystemType=C&SourceWaterType=All&SampleType=null&begin_date=4%2F19%2F2015&end_date=4%2F19%2F2017&action=Search+For+Water+Systems'
-#length(system_summary_urls)
-prefix = 'https://dww2.tceq.texas.gov/DWW/JSP/'
-page_links = base_site %>% read_html() %>% html_nodes('a') 
-data_sheet_urls = page_links[grepl('Summary',page_links %>% html_text(trim=T))] %>% html_attr('href')
+.dwv_helper <- Sys.glob(c("dwv_api_helpers.R",
+                          "util_code/scraping/dwv_api_helpers.R",
+                          "../util_code/scraping/dwv_api_helpers.R"))
+if (!length(.dwv_helper)) stop("dwv_api_helpers.R not found next to this script.")
+source(.dwv_helper[1])
 
+ses <- dwv_session()
 
-temp = mclapply(data_sheet_urls,function(x) 
-{temp_tds =  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% html_nodes('td');
-data.frame(System = str_extract(x,'TX[0-9]{7}'),
-           Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
-           NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))},
-mc.cores=6,mc.cleanup=T)
+# Community water systems (matches the old WaterSystemType=C query).
+systems <- dwv_search(ses, type = "C", active_only = TRUE,
+                      select = c("TINWSYS_IS_NUMBER", "NUMBER0", "NAME"))
+message("Active community systems: ", nrow(systems))
 
-
-while('try-error' %in% sapply(temp,class)){
-  index = which(sapply(temp,class)=='try-error')
-  for(i in index){
-    print(i)
-    temp_tds =  gsub(' ','',paste0(prefix,data_sheet_urls[i])) %>% read_html() %>% html_nodes('td');
-    replacement = data.frame(System = str_extract(data_sheet_urls[i],'TX[0-9]{7}'),
-               Position = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '25%'] %>% html_text(trim=T)),
-               NAME = as.character(temp_tds[!is.na(temp_tds %>% html_attr('width')) & (temp_tds %>% html_attr('width')) == '35%'] %>% html_text(trim=T)))
-    temp[[i]]<-replacement
-  }
+contact_of <- function(dt, sysrow) {
+  if (!nrow(dt)) return(data.table())
+  dt[, Roles := vapply(Roles, function(r) paste(trimws(unlist(r)), collapse = "; "), character(1))]
+  dt[, System := trimws(sysrow$NUMBER0)]
+  dt[, .(System, NAME, Roles,
+         ADDRESS = trimws(paste(ADDR_LINE_ONE_TXT, ADDR_LINE_TWO_TXT)),
+         CITY = ADDRESS_CITY_NAME, STATE = ADDRESS_STATE_CODE, ZIP = ADDRESS_ZIP_CODE,
+         BUS_PHONE, MOB_PHONE, EMERG_PHONE)]
 }
+poc <- dwv_widget_over(ses, "DashContacts", systems, transform = contact_of)
 
-
-
-mutate_temp  = pblapply(temp,function(x){x%>% mutate(
-                Position = stri_replace_all_regex(Position,"\n|\t|\r|&nbsp",""),
-                NAME = stri_replace_all_regex(NAME,"\n|\t|\r|&nbsp","")) %>%
-  filter(!is.na(NAME))})
-
-poc = rbindlist(mutate_temp)
-
-write_csv(poc,paste('input/texas_dww/personnel_records',paste0(Sys.Date(),'.csv'),sep='_'))
-
-#slackr(print('dww scrape done'))
-
-
-# 
-# 
-# head(temp)
-
-
-operator_css_selector = 'table:nth-child(18)'
-system_number_css = "#AutoNumber7 td:nth-child(1) a"
-library(magrittr)
-
-
-system_operators_table_list = pblapply(data_sheet_urls,function(x) {#print(x);
-  Sys.sleep(0.05)
-  gsub(' ','',paste0(prefix,x)) %>% read_html() %>% rvest::html_node(operator_css_selector) %>% 
-    html_table() %>% mutate(System = str_extract(x,'TX[0-9]{7}'))},cl = 4)
-  
-system_operators_table_list <- system_operators_table_list[!sapply(system_operators_table_list,is.null)]
-system_operators_df = do.call(rbind,system_operators_table_list[!sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
- 
- nosystem_operators_df = do.call(rbind,system_operators_table_list[sapply(system_operators_table_list,function(x) x$X1[1]=='No Licensing Data for this PWS')])
- 
- system_operators_df = cbind(system_operators_df[grepl('License',system_operators_df$X1),] %>% select(-X3,-X1) %>% rename(LICENSE_HOLDER = X2),
-              system_operators_df[!grepl('License',system_operators_df$X1),] %>% select(-System) %>% rename(CLASSIFICATION = X2,LICENSE_NUM = X3))
- 
-system_operators_df = full_join(system_operators_df ,nosystem_operators_df %>% rename(LICENSE_HOLDER = X1))
-
-write.csv(system_operators_df,paste('input/texas_dww/licensed_operators',paste0(Sys.Date(),'.csv'),sep='_'))
+dir.create("input/texas_dww", showWarnings = FALSE, recursive = TRUE)
+out <- file.path("input/texas_dww", paste0("personnel_records_", Sys.Date(), ".csv"))
+fwrite(poc, out)
+message("Wrote ", out, " (", nrow(poc), " contact records).")
