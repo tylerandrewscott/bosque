@@ -20,6 +20,11 @@ suppressPackageStartupMessages({
   library(rvest)
   library(pbapply)
 })
+.out <- committed('combined_restriction_records.RDS')
+if (reuse_prior(.out)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping FOIA re-processing).")
+} else {
+
 tceq_file <- raw_input("TCEQ_FOIA", "PIR 98118_Copy_Drought_Database_Reported_MASTER.xlsx")
 ntc <- read_excel(tceq_file,sheet = 'Master')
 warnings()
@@ -264,8 +269,8 @@ message(sprintf("Final: %d combined restriction records, max NOTIFIED_YMD = %s",
 
 saveRDS(ntcBoth,file = committed('combined_restriction_records.RDS'))
 
-
+}   # end RESCRAPE guard
 
 # saveRDS(rest_df,'input/combined_restriction_records.RDS')
-# 
+#
 # table(year(test$Notified))

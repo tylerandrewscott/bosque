@@ -1,5 +1,5 @@
 # =============================================================================
-# 03_model/build_recurrent_panel.R
+# 02_model/build_recurrent_panel.R
 # -----------------------------------------------------------------------------
 # Shared builder for the recurring-events counting-process panel. Sourced by
 # both the frequentist (`scratch_models/05_fit_recurrent_cox.R`) and Bayesian/INLA
@@ -35,11 +35,11 @@ suppressPackageStartupMessages({
 })
 
 # --- Analysis window ----------------------------------------------------------
-# Weekly, 2010 through 2025; committed data currently run through end-2024, so
-# the effective window is capped at the last available week. Widen as newer
-# scrapes land.
-analysis_start <- as.Date("2010-01-01")
-analysis_end   <- as.Date("2024-12-31")
+# Taken from config.R (start_date / end_date) so the window is defined in ONE
+# place. Weekly; the effective end is capped at the last committed data week,
+# so widening the config window automatically widens the panel as scrapes land.
+analysis_start <- start_date
+analysis_end   <- end_date
 
 num <- function(x) as.numeric(gsub("[^0-9eE.+-]", "", as.character(x)))
 
@@ -126,6 +126,11 @@ controls[, `:=`(
   storage_per_conn_g = asinh((Storage_MG * 1e6) / pmax(Connections, 1)),
   has_interconnect   = as.integer(Interconnects > 0),
   ln_income          = log(pmax(Med_Household_Income, 1)),
+  ln_home_value      = log(pmax(Median_Home_Value, 1)),
+  # Time-invariant per-PWS control (median structure built is a single value per
+  # system); age is taken at the analysis start and floored at 0 for the rare
+  # tract median built after the window opens.
+  median_structure_age = pmax(year(analysis_start) - Median_Year_Structure_Built, 0),
   perc_rural         = Perc_Rural,
   perc_hispanic      = Perc_Hispanic,
   perc_black         = Perc_Black,
@@ -133,7 +138,8 @@ controls[, `:=`(
 )]
 
 ctrl_vars   <- c("ln_connections", "storage_per_conn_g", "has_interconnect",
-                 "ln_income", "perc_rural", "perc_hispanic", "perc_black",
+                 "ln_income", "ln_home_value", "median_structure_age",
+                 "perc_rural", "perc_hispanic", "perc_black",
                  "perc_dem_vote")
 shared_vars <- c("DSCI_100", ctrl_vars)
 

@@ -1,0 +1,189 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>body{font-family:sans-serif;margin:2em}
+table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}
+th{background:#f2f2f2;text-align:left}td{text-align:right}td:first-child{text-align:left}
+</style></head><body>
+<table>
+<caption>Bayesian recurring-events Cox model: posterior means and 95% credible intervals</caption>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Term </th>
+   <th style="text-align:right;"> Model </th>
+   <th style="text-align:right;"> Post. mean (coef.) </th>
+   <th style="text-align:right;"> 95% CrI (coef.) </th>
+   <th style="text-align:right;"> Hazard ratio </th>
+   <th style="text-align:right;"> 95% CrI (HR) </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Drought severity (DSCI/100) </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.351 </td>
+   <td style="text-align:right;"> [0.323, 0.379] </td>
+   <td style="text-align:right;"> 1.420 </td>
+   <td style="text-align:right;"> [1.381, 1.461] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log connections </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.325 </td>
+   <td style="text-align:right;"> [0.278, 0.371] </td>
+   <td style="text-align:right;"> 1.383 </td>
+   <td style="text-align:right;"> [1.321, 1.449] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Storage per connection (asinh gal) </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.068 </td>
+   <td style="text-align:right;"> [0.016, 0.121] </td>
+   <td style="text-align:right;"> 1.071 </td>
+   <td style="text-align:right;"> [1.016, 1.128] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Has interconnect </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.465 </td>
+   <td style="text-align:right;"> [0.304, 0.626] </td>
+   <td style="text-align:right;"> 1.592 </td>
+   <td style="text-align:right;"> [1.355, 1.871] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log median income </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> -0.996 </td>
+   <td style="text-align:right;"> [-1.380, -0.612] </td>
+   <td style="text-align:right;"> 0.369 </td>
+   <td style="text-align:right;"> [0.252, 0.542] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log median home value </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 1.728 </td>
+   <td style="text-align:right;"> [1.444, 2.013] </td>
+   <td style="text-align:right;"> 5.631 </td>
+   <td style="text-align:right;"> [4.237, 7.483] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Median structure age (yrs) </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.011 </td>
+   <td style="text-align:right;"> [0.002, 0.020] </td>
+   <td style="text-align:right;"> 1.011 </td>
+   <td style="text-align:right;"> [1.002, 1.020] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> % rural </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.004 </td>
+   <td style="text-align:right;"> [0.002, 0.006] </td>
+   <td style="text-align:right;"> 1.004 </td>
+   <td style="text-align:right;"> [1.002, 1.006] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> % Hispanic </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> 0.005 </td>
+   <td style="text-align:right;"> [-0.000, 0.010] </td>
+   <td style="text-align:right;"> 1.005 </td>
+   <td style="text-align:right;"> [1.000, 1.010] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> % Black </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> -0.056 </td>
+   <td style="text-align:right;"> [-0.067, -0.044] </td>
+   <td style="text-align:right;"> 0.946 </td>
+   <td style="text-align:right;"> [0.935, 0.957] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> % Dem. vote share </td>
+   <td style="text-align:right;"> Model 1 (full sample) </td>
+   <td style="text-align:right;"> -0.002 </td>
+   <td style="text-align:right;"> [-0.011, 0.007] </td>
+   <td style="text-align:right;"> 0.998 </td>
+   <td style="text-align:right;"> [0.989, 1.007] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Debt per connection (asinh) </td>
+   <td style="text-align:right;"> Model 2 (fiscal) </td>
+   <td style="text-align:right;"> -0.055 </td>
+   <td style="text-align:right;"> [-0.109, -0.002] </td>
+   <td style="text-align:right;"> 0.946 </td>
+   <td style="text-align:right;"> [0.897, 0.998] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Fund balance per connection (asinh) </td>
+   <td style="text-align:right;"> Model 2 (fiscal) </td>
+   <td style="text-align:right;"> -0.082 </td>
+   <td style="text-align:right;"> [-0.116, -0.049] </td>
+   <td style="text-align:right;"> 0.921 </td>
+   <td style="text-align:right;"> [0.891, 0.952] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Revenue per connection (asinh) </td>
+   <td style="text-align:right;"> Model 2 (fiscal) </td>
+   <td style="text-align:right;"> -0.169 </td>
+   <td style="text-align:right;"> [-0.203, -0.136] </td>
+   <td style="text-align:right;"> 0.844 </td>
+   <td style="text-align:right;"> [0.816, 0.873] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Operating ratio (asinh) </td>
+   <td style="text-align:right;"> Model 2 (fiscal) </td>
+   <td style="text-align:right;"> -0.334 </td>
+   <td style="text-align:right;"> [-0.945, 0.278] </td>
+   <td style="text-align:right;"> 0.716 </td>
+   <td style="text-align:right;"> [0.389, 1.321] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Debt-service tax (0/1) </td>
+   <td style="text-align:right;"> Model 2 (fiscal) </td>
+   <td style="text-align:right;"> 0.229 </td>
+   <td style="text-align:right;"> [-0.164, 0.622] </td>
+   <td style="text-align:right;"> 1.258 </td>
+   <td style="text-align:right;"> [0.849, 1.863] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Debt per connection (asinh) </td>
+   <td style="text-align:right;"> Model 2 (all fiscal) </td>
+   <td style="text-align:right;"> -0.056 </td>
+   <td style="text-align:right;"> [-0.109, -0.002] </td>
+   <td style="text-align:right;"> 0.946 </td>
+   <td style="text-align:right;"> [0.897, 0.998] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Fund balance per connection (asinh) </td>
+   <td style="text-align:right;"> Model 2 (all fiscal) </td>
+   <td style="text-align:right;"> -0.082 </td>
+   <td style="text-align:right;"> [-0.145, -0.020] </td>
+   <td style="text-align:right;"> 0.921 </td>
+   <td style="text-align:right;"> [0.865, 0.981] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Revenue per connection (asinh) </td>
+   <td style="text-align:right;"> Model 2 (all fiscal) </td>
+   <td style="text-align:right;"> -0.213 </td>
+   <td style="text-align:right;"> [-0.301, -0.125] </td>
+   <td style="text-align:right;"> 0.808 </td>
+   <td style="text-align:right;"> [0.740, 0.883] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Operating ratio (asinh) </td>
+   <td style="text-align:right;"> Model 2 (all fiscal) </td>
+   <td style="text-align:right;"> -0.256 </td>
+   <td style="text-align:right;"> [-0.891, 0.379] </td>
+   <td style="text-align:right;"> 0.774 </td>
+   <td style="text-align:right;"> [0.410, 1.460] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Debt-service tax (0/1) </td>
+   <td style="text-align:right;"> Model 2 (all fiscal) </td>
+   <td style="text-align:right;"> 0.203 </td>
+   <td style="text-align:right;"> [-0.244, 0.651] </td>
+   <td style="text-align:right;"> 1.226 </td>
+   <td style="text-align:right;"> [0.784, 1.917] </td>
+  </tr>
+</tbody>
+</table>
+</body></html>

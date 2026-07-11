@@ -14,7 +14,8 @@ The infrastructure from §5–§6 is now in place:
   symlink into the Box `bosque` folder, auto-detecting Box-Box / Box / ~/Box,
   mirroring the tijuana/salinas pattern. Run once: `bash setup_symlinks.sh`.
   Box data is then reachable as `bosquebox/input/…` and `bosquebox/spatial_inputs/…`.
-- **`.gitignore`** — ignores `bosquebox`, `scratch/`, `output/`, `tx.adj`, R cruft.
+- **`.gitignore`** — ignores `bosquebox`, `scratch/`, `tx.adj`, R cruft. (`output/`
+  is tracked: it holds the figures/tables and the slim shareable model objects.)
 - **`code/restart/config.R`** — single source of paths (`BOX_ROOT`, `RAW_INPUT`,
   `SPATIAL_DIR`, `COMMITTED_DIR`, `SCRATCH_DIR`, `OUTPUT_DIR`), the analysis window
   (`start_date`/`end_date`), the `albersNA` projection, and guarded INLA/PARDISO
@@ -295,6 +296,6 @@ Once the pipeline runs end-to-end:
 - [ ] Delete `parse_json_parses.R` (exact duplicate of `htmlscrape_storage_interconnects.R`)
 - [ ] Delete or repurpose `wrangling.R` (abandoned, 28 lines)
 - [ ] Implement or delete `combine_storage_interconnects.R` (empty stub)
-- [ ] Resolve the 3-way panel-builder overlap (§5a); pick one canonical
-- [ ] Fill in README (title, abstract, dependencies, workflow)
-- [ ] Adopt the numbered-stage folder layout (00_assemble/…/03_model)
+- [x] Resolve the 3-way panel-builder overlap (§5a) — `02_model/build_recurrent_panel.R` is canonical; the others live in `explore/`
+- [x] Fill in README (title/abstract still placeholders; dependencies + workflow done 2026-07-10)
+- [x] Adopt the numbered-stage folder layout (00_assemble/01_combine/02_model; done 2026-07-10)

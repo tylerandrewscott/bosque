@@ -13,7 +13,7 @@
 # Prerequisites (one-time):
 #   1. bash setup_symlinks.sh                     # creates bosquebox -> Box
 #   2. Install INLA + a modern spatial stack (terra, sf, spdep, tigris).
-#   3. A Census API key for tidycensus (Stage C).
+#   3. A Census API key for tidycensus (Stage B, 05_census_block_PWS.R).
 #
 # Stages are grouped so you can run only what you need. Raw ingestion (Stage A)
 # hits live APIs / web scrapes and is slow; its de-duplicated outputs are already
@@ -31,10 +31,13 @@
 source(.find_file("code/config.R"))   # paths, window, projection, spatial helpers; sets wd = PROJ_ROOT
 CODE <- "code"                          # wd is now PROJ_ROOT, so "code" resolves for run_step()
 
-run_assemble <- TRUE   # Stage A: re-scrape raw sources (slow; needs bosquebox + network)
-run_combine  <- T   # Stage B: merges + spatial overlaps (needs bosquebox shapefiles)
-run_prep     <- T    # Stage C: KBDI + analysis-panel construction
-run_model    <- T    # Stage D: fit models
+# RESCRAPE (defined in config.R; override via env var, e.g. RESCRAPE=FALSE Rscript ...)
+# governs Stage A: TRUE re-fetches from live sources; FALSE reuses the committed
+# prior scrape and only tops up systems missing from the per-system DWV outputs.
+run_assemble <- FALSE  # Stage A: raw ingestion (slow; needs bosquebox + network).
+                       # Outputs are committed under input/, so OFF by default.
+run_combine  <- TRUE   # Stage B: merges + spatial overlaps + demographics (needs bosquebox shapefiles + Census API key)
+run_model    <- TRUE   # Stage C: fit models
 
 run_step <- function(path) {
   message("\n==== ", path, " ====")
@@ -51,31 +54,27 @@ if (run_assemble) {
   run_step("00_assemble/06_htmlscrape_storage_interconnects.R") # -> input/storage_connections_data.txt
 }
 
-# --- Stage B: combine --------------------------------------------------------
+# --- Stage B: combine + demographics -----------------------------------------
+# Order matters: 02 (pws<->county overlap) MUST precede 03 (drought->PWS), which
+# reads pws_county_overlaps.RDS. 05 (census demographics) is a PWS spatial
+# overlay too (moved here from the former 02_prep stage).
 if (run_combine) {
-  run_step("01_combine/01_combine_district_and_pws_ids.R")      # -> input/id_crosswalk.RDS
-  run_step("01_combine/02_combine_district_and_drought.R")      # -> input/pws_drought_weekly.RDS
-  run_step("01_combine/03_combine_district_fiscal_data.R")      # -> input/combined_and_lagged_finances.RDS
-  run_step("01_combine/04_combine_pws_with_tracts_counties.R")  # -> input/pws_{tract,county}_overlaps.RDS
-  run_step("01_combine/05_combine_districts_tracts_counties.R") # -> input/district_{tract,county}_overlaps.RDS
-  # explore/combine_storage_interconnects.R is an empty stub — implement or drop.
+  run_step("01_combine/01_combine_district_and_pws_ids.R")   # -> input/id_crosswalk.RDS
+  run_step("01_combine/02_combine_pws_with_counties.R")      # -> input/pws_county_overlaps.RDS
+  run_step("01_combine/03_combine_district_and_drought.R")   # -> input/pws_drought_weekly.RDS (needs 02)
+  run_step("01_combine/04_combine_district_fiscal_data.R")   # -> input/combined_and_lagged_finances.RDS
+  run_step("01_combine/05_census_block_PWS.R")               # -> input/pws_demos_MR.RDS (needs Census API key)
+  # Retired / off-path (in explore/): combine_districts_tracts_counties.R (district
+  # overlaps, unused), assemble_kbdi.R (KBDI unused — model uses DSCI), make_eh_data.R.
 }
 
-# --- Stage C: prep (panel construction) --------------------------------------
-if (run_prep) {
-  run_step("02_prep/01_assemble_kbdi.R")     # -> scratch/kbdi_county.RDS  (canonical KBDI builder)
-  run_step("02_prep/02_census_block_PWS.R")  # -> input/pws_demos_MR.RDS   (needs Census API key)
-  run_step("02_prep/03_make_eh_data.R")      # -> scratch/data_for_coxph_model.RDS, full_panel_data.RDS, base_inlacoxph_object.RDS
-  # explore/make_coxph_data.R is the district-focused variant of make_eh_data.R;
-  # pick one as canonical (see REBOOT_PLAN.md §5a). Not run by default.
-}
-
-# --- Stage D: model ----------------------------------------------------------
+# --- Stage C: model ----------------------------------------------------------
 if (run_model) {
-  run_step("03_model/01_fit_recurrent_cox_inla.R")  # Bayesian recurring-events Cox (INLA) -> scratch/recurrent_coxinla_*.RDS
-  run_step("03_model/02_make_figure1.R")            # -> output/figure1.png
-  run_step("03_model/03_model_results_table.R")     # -> output/model_estimates.{html,csv}, model_credible_intervals.png
-  # Shared panel builder: 03_model/build_recurrent_panel.R (sourced by the fit script).
+  run_step("02_model/01_fit_recurrent_cox_inla.R")  # Bayesian recurring-events Cox (INLA) -> scratch/recurrent_coxinla_*.RDS
+  run_step("02_model/02_make_figure1.R")            # -> output/figure1.png, figure2.png
+  run_step("02_model/03_model_results_table.R")     # -> output/model_estimates.{html,csv}, model_credible_intervals.png
+  run_step("02_model/04_descriptive_stats_table.R") # -> output/descriptive_stats.{csv,html}
+  # Shared panel builder: 02_model/build_recurrent_panel.R (sourced by the fit script).
   # A frequentist `survival` version of the model is kept at
   # scratch_models/05_fit_recurrent_cox.R (reference, not on the default path),
   # alongside the prior INLA/joint specs (01_fit_baseline_models.R, 02_fit_glm_models.R,

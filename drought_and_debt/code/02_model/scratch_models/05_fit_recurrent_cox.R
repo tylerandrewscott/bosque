@@ -1,5 +1,5 @@
 # =============================================================================
-# 03_model/scratch_models/05_fit_recurrent_cox.R
+# 02_model/scratch_models/05_fit_recurrent_cox.R
 # -----------------------------------------------------------------------------
 # Recurring-events Cox proportional hazards model of MANDATORY drought
 # restriction adoption by Texas water systems (frequentist; `survival` package).
@@ -25,10 +25,10 @@
 # The counting-process panel (0/1 event by system-week) is built by the shared
 # `build_recurrent_panel.R`, so this and the Bayesian `01_*_inla.R` fit the same
 # data. Run from the drought_and_debt project root:
-#     source("code/03_model/scratch_models/05_fit_recurrent_cox.R")
+#     source("code/02_model/scratch_models/05_fit_recurrent_cox.R")
 # =============================================================================
 
-source("code/03_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
+source("code/02_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
 suppressPackageStartupMessages(library(survival))
 
 # =============================================================================

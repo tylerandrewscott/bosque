@@ -14,6 +14,13 @@
 # GitHub-only helpers) are mapped to their real sources in .special below.
 # =============================================================================
 
+# --- CRAN mirror: non-interactive Rscript sessions often have none set --------
+# (install.packages() would die with "trying to use CRAN without setting a
+# mirror"), so default to the cloud mirror when repos is unset.
+if (!nzchar(getOption("repos")["CRAN"]) || getOption("repos")["CRAN"] == "@CRAN@") {
+  options(repos = c(CRAN = "https://cloud.r-project.org"))
+}
+
 # --- Locate the code/ tree (works from repo root or project root) ------------
 .find_code_dir <- function() {
   cands <- c("drought_and_debt/code", "code", ".")

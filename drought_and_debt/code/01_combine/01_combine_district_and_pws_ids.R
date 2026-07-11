@@ -32,13 +32,27 @@ dinfo_dt <- dinfo_dt[!grepl('MWA',dinfo_dt$District_Name),]
 dinfo_dt <- dinfo_dt[District_Type!='Other',]
 
 id_crosswalk<-rbindlist(mapply(function(x,y) data.table(District_ID = x,PWS_ID = y),x = dinfo_dt$District_ID,y = dinfo_dt$PWS_ID,SIMPLIFY = F))
+id_crosswalk$PWS_ID <- format_pws_id(id_crosswalk$PWS_ID)
 
 # Manual PWS -> District_ID corrections for systems the roster maps incorrectly.
 # Kept in a data file (crosswalks/pws_district_id_overrides.csv) rather than as a
 # wall of assignments, so the mapping is diffable and editable without code.
+# Both sides go through format_pws_id() so the match never hinges on how the
+# roster happened to format its ids.
 overrides <- fread(file.path(CODE_DIR, "crosswalks", "pws_district_id_overrides.csv"),
                    colClasses = "character")
+overrides$PWS_ID <- format_pws_id(overrides$PWS_ID)
 ix <- match(id_crosswalk$PWS_ID, overrides$PWS_ID)
 id_crosswalk$District_ID[!is.na(ix)] <- overrides$District_ID[ix[!is.na(ix)]]
+# Overrides whose PWS_ID the roster no longer links to any district (roster lists
+# PWS_ID = NA for these) are appended as new rows: each was verified against the
+# TCEQ service-area boundaries (pwsName == District_Name), so the manual link is
+# trusted over the roster's missing one.
+add <- overrides[!overrides$PWS_ID %in% id_crosswalk$PWS_ID]
+if (nrow(add)) {
+  message("Appending ", nrow(add), " override link(s) absent from the roster: ",
+          paste(add$PWS_ID, collapse = ", "))
+  id_crosswalk <- rbind(id_crosswalk, add[, .(District_ID, PWS_ID)])
+}
 
 saveRDS(id_crosswalk, committed('id_crosswalk.RDS'))

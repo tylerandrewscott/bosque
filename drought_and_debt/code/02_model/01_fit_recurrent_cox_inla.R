@@ -1,5 +1,5 @@
 # =============================================================================
-# 03_model/01_fit_recurrent_cox_inla.R
+# 02_model/01_fit_recurrent_cox_inla.R
 # -----------------------------------------------------------------------------
 # Bayesian recurring-events Cox model (the primary Stage-D model), fit with INLA
 # on the shared counting-process panel from build_recurrent_panel.R. A
@@ -36,7 +36,7 @@
 # hazard grid (n.intervals). Set FULL_SAMPLE_BAYES <- FALSE to skip Model 1.
 #
 # Run from the drought_and_debt project root:
-#     source("code/03_model/01_fit_recurrent_cox_inla.R")
+#     source("code/02_model/01_fit_recurrent_cox_inla.R")
 # =============================================================================
 
 # Load config first (it setwd()s to the project root) so the relative source()
@@ -46,7 +46,7 @@ if (!exists("PROJ_ROOT")) {
   .find_file <- function(f) { p <- Find(file.exists, file.path(c(".", "drought_and_debt", "..", "../.."), f)); if (is.null(p)) f else p }
   source(.find_file("code/config.R"))
 }
-source("code/03_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
+source("code/02_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
 
 if (!requireNamespace("INLA", quietly = TRUE)) {
   stop("INLA is not installed. See the install command in this script's header.")
@@ -101,6 +101,28 @@ slim_inla <- function(fit) {
   fit$misc$configs               <- NULL
   fit$model.matrix               <- NULL
   fit$graph                      <- NULL
+  # Per-observation vectors (one entry per expanded panel row — the real bulk):
+  # residuals, pointwise po/cpo, the latent-field mode, per-row link/family
+  # tags, and the LOCAL dic/waic contributions. The scalar DIC/WAIC/p.eff that
+  # summary() prints are kept.
+  fit$residuals               <- NULL
+  fit$po                      <- NULL
+  fit$cpo                     <- NULL
+  fit$offset.linear.predictor <- NULL
+  fit$mode$x                  <- NULL
+  fit$misc$linkfunctions      <- NULL
+  fit$misc$family             <- NULL
+  # $all.hyper's prior-spec functions close over an environment that holds the
+  # entire expanded Cox data (~6 GB serialized for Model 1). Nothing in the
+  # reporting path reads it, so drop it wholesale.
+  fit$all.hyper               <- NULL
+  drop_local <- function(comp) {
+    if (is.null(comp)) return(NULL)
+    comp[grepl("^local\\.|^family$", names(comp))] <- NULL
+    comp
+  }
+  fit$dic  <- drop_local(fit$dic)
+  fit$waic <- drop_local(fit$waic)
   if (!is.null(fit$.args)) {
     fit$.args[c("data", "E", "Ntrials", "weights", "offset", "scale",
                 "lincomb", "y", "response")] <- NULL

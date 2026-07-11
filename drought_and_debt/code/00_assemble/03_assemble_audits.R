@@ -11,6 +11,11 @@ suppressPackageStartupMessages({
   library(tidyr)      # replace_na
 })
 
+.out <- committed('district_audits.RDS')
+if (reuse_prior(.out)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping audit re-processing).")
+} else {
+
 audits = fread(raw_input('tceq_audits', 'district_audits.csv'))
 
 # Schema-drift check: warn if expected columns (used by derived fields below) are missing
@@ -57,18 +62,16 @@ audits$Water_SFU <- audits$`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`
 audits$Wastewater_SFU <- replace_na(audits$`WASTEWATER CUST - EQ SINGLE FAMILY UNIT`,0) + 
   replace_na(audits$`WASTEWATER CUST - EQ SINGLE FAMILY UNITS`,0)
 
-audits$DISTRICT_NAME = gsub('(\\s)0(?=[0-9])','\\1\\2',audits$DISTRICT_NAME,perl = T)
+# Roster-specific abbreviations first, then the shared canonicalization
+# (normalize_district_name + strip_county_suffix from ingest_helpers.R).
 audits$DISTRICT_NAME = gsub('DIST$|DISTR$','DISTRICT',audits$DISTRICT_NAME,perl = T)
 audits$DISTRICT_NAME = gsub(' MUNICIPAL UTILITY DISTRICT$',' MUD',audits$DISTRICT_NAME,perl = T)
 audits$DISTRICT_NAME = gsub(' MUNICIPAL UTILITY DISTRICT ',' MUD ',audits$DISTRICT_NAME,perl = T)
-audits$DISTRICT_NAME = gsub(' UD',' UTILITY DISTRICT',audits$DISTRICT_NAME,perl = T)
 audits$DISTRICT_NAME = gsub(' MUNICIPAL DISTRICT$',' MUD',audits$DISTRICT_NAME,perl = T)
-audits$DISTRICT_NAME = gsub('SPECIAL UTILITY DISTRICT','SUD',audits$DISTRICT_NAME,perl = T)
 audits$DISTRICT_NAME = gsub('WATER CONTROL DISTRICT','WCID',audits$DISTRICT_NAME,perl = T)
-#audits$DISTRICT_NAME = gsub('NAVIGATION DISTRICT','ND',audits$DISTRICT_NAME,perl = T)
-#audits$DISTRICT_NAME = gsub('IRRIGATION DISTRICT','ID',audits$DISTRICT_NAME,perl = T)
-#audits$DISTRICT_NAME = gsub('DRAINAGE DISTRICT','DD',audits$DISTRICT_NAME,perl = T)
-#audits$DISTRICT_NAME = gsub('RIVER AUTHORITY','RA',audits$DISTRICT_NAME,perl = T)
-audits$DISTRICT_NAME = gsub(" OF [A-Z]{1,} COUNTY$","",audits$DISTRICT_NAME,perl=T)
+audits$DISTRICT_NAME = normalize_district_name(audits$DISTRICT_NAME)
+audits$DISTRICT_NAME = strip_county_suffix(audits$DISTRICT_NAME)
 
 saveRDS(audits, committed('district_audits.RDS'))
+
+}   # end RESCRAPE guard

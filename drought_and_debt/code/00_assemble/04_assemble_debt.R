@@ -10,9 +10,14 @@ suppressPackageStartupMessages({
   library(tidyr)    # replace_na
 })
 
+.out <- committed('district_debt_issuances.RDS')
+if (reuse_prior(.out)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping TX open-data pull).")
+} else {
+
 dinfo_dt <- load_latest_district_list()
 #OLD
-#debt = fread('bosquebox/input/tbrb/Debt_Outstanding_By_Local_Government_UPDATE.csv') 
+#debt = fread('bosquebox/input/tbrb/Debt_Outstanding_By_Local_Government_UPDATE.csv')
 #NEW: just read in from TX opendata website
 #https://data.texas.gov/Government-and-Taxes/Debt-Outstanding-by-Local-Government-Searchable-by/6d42-4z7a/data
 debt <- fread('https://data.texas.gov/api/views/6d42-4z7a/rows.csv?')
@@ -42,16 +47,11 @@ setkey(debt,GovernmentName,FiscalYear)
 
 fin <- merge(debt,iss,all = T)
 
-#fin$GovernmentName = toupper(fin$GovernmentName)
 fin$District_Name = fin$GovernmentName
-fin$District_Name = gsub('(\\s)0(?=[0-9])','\\1\\2',fin$District_Name,perl = T)
-
-fin$District_Name = gsub('(\\s)0(?=[0-9])','\\1\\2',fin$District_Name,perl = T)
+# Shared canonicalization (ingest_helpers.R), then the TBRB-specific
+# abbreviation expansions and one-off aliases below.
 fin$District_Name = gsub('\\sNO(\\s[0-9]{1,})','\\1',fin$District_Name,perl = T)
-
-
-fin$District_Name = gsub(' UD',' UTILITY DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub('SPECIAL UTILITY DISTRICT','SUD',fin$District_Name,perl = T)
+fin$District_Name = normalize_district_name(fin$District_Name)
 fin$District_Name = gsub(' ID$',' IRRIGATION DISTRICT',fin$District_Name,perl = T)
 fin$District_Name = gsub(' ID ',' IRRIGATION DISTRICT ',fin$District_Name,perl = T)
 fin$District_Name = gsub('IRRIG DISTRICT','IRRIGATION DISTRICT',fin$District_Name,perl = T)
@@ -96,7 +96,6 @@ fin$District_Name = gsub("FORT HANCOCK WCID 1","FORT HANCOCK WCID",fin$District_
 fin$District_Name = gsub("GRAND PRAIRIE METROPOLITAN U&RD","GRAND PRAIRIE METROPOLITAN UTILITY & RECLAMATION DISTRICT",fin$District_Name,perl = T)
 fin$District_Name = gsub("GREATER TEXOMA UA","GREATER TEXOMA UTILITY AUTHORITY",fin$District_Name,perl = T)
 fin$District_Name = gsub("GREEN VALLEY SUD","GREEN VALLEY SPECIAL UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("HARRIS-FORT BEND","HARRIS FORT BEND",fin$District_Name,perl = T)
 fin$District_Name = gsub("HUDSPETH COUNTY C&RD 1","HUDSPETH COUNTY CONSERVATION & RECLAMATION DISTRICT 1",fin$District_Name,perl = T)
 fin$District_Name = gsub("IRVING FCD SECTION 1","IRVING FLOOD CONTROL DISTRICT SECTION 1",fin$District_Name,perl = T)
 fin$District_Name = gsub("IRVING FCD SECTION 3","IRVING FLOOD CONTROL DISTRICT SECTION 3",fin$District_Name,perl = T)
@@ -108,7 +107,6 @@ fin$District_Name = gsub("LAKE CITIES MUA","LAKE CITIES MUNICIPAL UTILITY AUTHOR
 fin$District_Name = gsub("LAKE VIEW MANAGEMENT & DEVELOPMENT DISTRICT","LAKE VIEW MANAGEMENT AND DEVELOPMENT DISTRICT",fin$District_Name,perl = T)
 fin$District_Name = gsub("LIVE OAK CREEK MUD","LIVE OAK CREEK MUD 1 OF TARRANT COUNTY",fin$District_Name,perl = T)
 fin$District_Name = gsub("LONE STAR REGIONAL WATER AUTHORITY","LONE STAR RWA",fin$District_Name,perl = T)
-fin$District_Name = gsub("LONE STAR REGIONAL WATER AUTHORITY","LONE STAR RWA",fin$District_Name,perl = T)
 fin$District_Name = gsub("MACKENZIE MWA","MACKENZIE MUNICIPAL WATER AUTHORITY",fin$District_Name,perl = T)
 fin$District_Name = gsub("MATAGORDA COUNTY ND 1","MATAGORDA COUNTY NAVIGATION DISTRICT 1",fin$District_Name,perl = T)
 fin$District_Name = gsub("MEEKER MWD","MEEKER MUNICIPAL WATER DISTRICT",fin$District_Name,perl = T)
@@ -117,7 +115,6 @@ fin$District_Name = gsub("NORTHAMPTON MUD","NORTHAMPTON MUNICIPAL UTILITY DISTRI
 fin$District_Name = gsub("NORTHEAST TEXAS MWD","NORTHEAST TEXAS MUNICIPAL WATER DISTRICT",fin$District_Name,perl = T)
 fin$District_Name = gsub("OAKMONT PUD","OAKMONT PUBLIC UTILITY DISTRICT",fin$District_Name,perl = T)
 fin$District_Name = gsub("PALO PINTO COUNTY MWD 1","PALO PINTO COUNTY MUNICIPAL WATER DISTRICT 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("POLK COUNTY FWSD 2","POLK COUNTY FRESH WATER SUPPLY DISTRICT 2",fin$District_Name,perl = T)
 fin$District_Name = gsub("PROVIDENCE VILLAGE WCID","PROVIDENCE VILLAGE WCID OF DENTON COUNTY",fin$District_Name,perl = T)
 fin$District_Name = gsub("RED RIVER AUTHORITY","RED RIVER AUTHORITY OF TEXAS",fin$District_Name,perl = T)
 fin$District_Name = gsub("SEDONA LAKES MUD","SEDONA LAKES MUD 1 OF BRAZORIA COUNTY",fin$District_Name,perl = T)
@@ -145,12 +142,9 @@ fin$District_Name = gsub("SPORTSMAN'S WORLD MUD","SPORTSMANS WORLD MUD",fin$Dist
 fin$District_Name = gsub("PORT O'CONNOR IRRIGATION DISTRICT","PORT OCONNOR IMPROVEMENT DISTRICT",fin$District_Name,perl = T)
 fin$District_Name = gsub('FLYING "L" RANCH PUD','FLYING L PUD',fin$District_Name,perl = T)
 fin$District_Name = gsub('TATTOR ROAD MUD','TATTOR ROAD MUNICIPAL DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub('POLK COUNTY FRESH WATER SUPPLY DISTRICT 2',"POLK COUNTY FWSD 2",fin$District_Name,perl = T)
 fin$District_Name = gsub('(LAKESIDE WCID 2)([A-D])','\\1-\\2',fin$District_Name,perl = T)
 
-indx <- grepl('\\sOF\\s[A-Z]{1,}\\sCOUNTY$',fin$District_Name)
-
-fin$District_Name[indx] <- gsub('\\sOF\\s[A-Z]{1,}\\sCOUNTY$',"",fin$District_Name[indx],perl = T)
+fin$District_Name <- strip_county_suffix(fin$District_Name)
 
 
 
@@ -160,5 +154,7 @@ fin$District_ID <- dinfo_dt$District_ID[match(fin$District_Name,dinfo_dt$Distric
 fin = fin[!is.na(fin$District_ID),]
 
 saveRDS(fin, committed('district_debt_issuances.RDS'))
+
+}   # end RESCRAPE guard
 
 

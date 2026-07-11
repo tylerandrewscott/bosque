@@ -16,7 +16,7 @@
 #   "Max Daily Demand" / storage -> DashWaterSystemFlowRates
 #
 # Outputs (paths unchanged; SCHEMA changed for the DWV source — downstream code
-# in 03_model/build_recurrent_panel.R and explore/simple_cox.R was rewired to
+# in 02_model/build_recurrent_panel.R and explore/simple_cox.R was rewired to
 # match). Both are now ONE ROW PER SYSTEM:
 #   input/pws_population.RDS  — PWS_ID, TINWSYS_IS_NUMBER, Population_Served
 #                               (master total), Connections (master total),
@@ -67,6 +67,26 @@ if (file.exists(.shp) && requireNamespace("sf", quietly = TRUE)) {
   message("Restricted to ", nrow(systems), " systems with boundary polygons.")
 }
 
+# --- Incremental top-up when RESCRAPE = FALSE ---------------------------------
+# Reuse the committed prior scrape and fetch ONLY systems missing from it. A
+# system is treated as done when it already appears in BOTH prior outputs;
+# partially-scraped systems are re-fetched. The new rows are merged back in
+# before saving (see the rbind before saveRDS). RESCRAPE = TRUE ignores the
+# prior files and re-fetches every system.
+.pop_out  <- committed("pws_population.RDS")
+.stor_out <- committed("pws_storage.RDS")
+prev_pop  <- if (!RESCRAPE && file.exists(.pop_out))  as.data.table(readRDS(.pop_out))  else NULL
+prev_stor <- if (!RESCRAPE && file.exists(.stor_out)) as.data.table(readRDS(.stor_out)) else NULL
+if (!RESCRAPE && (!is.null(prev_pop) || !is.null(prev_stor))) {
+  done_ids <- intersect(
+    if (!is.null(prev_pop))  as.character(prev_pop$PWS_ID)  else character(0),
+    if (!is.null(prev_stor)) as.character(prev_stor$PWS_ID) else character(0))
+  n0 <- nrow(systems)
+  systems <- systems[!(trimws(NUMBER0) %in% done_ids)]
+  message("RESCRAPE=FALSE: ", length(done_ids), " systems already scraped; fetching ",
+          nrow(systems), " new (of ", n0, ").")
+}
+
 # --- Population served, by type (replaces the old "PopulationType" table) ------
 # DashAnnualOperatingPeriod returns one row per annual operating period, each
 # carrying a nested PopulationServed list of {TYPE_CODE, AVG_DAILY_CNT}. We take
@@ -81,8 +101,10 @@ pop_pull <- function(dt, sysrow) {
              TINWSYS_IS_NUMBER = sysrow$TINWSYS_IS_NUMBER)]
   out[]
 }
-population_long <- dwv_widget_over(ses, "DashAnnualOperatingPeriod", systems,
-                             transform = pop_pull, orderby = "EFF_BEGIN_DT desc", top = 1)
+population_long <- if (nrow(systems)) {
+  dwv_widget_over(ses, "DashAnnualOperatingPeriod", systems,
+                  transform = pop_pull, orderby = "EFF_BEGIN_DT desc", top = 1)
+} else data.table()
 
 # Pivot population-by-type to one row per system. TYPE_CODE R = residential
 # (retail), W = wholesale; keep any other code as Pop_<code>.
@@ -110,7 +132,9 @@ population <- merge(master_tot, pop_by_type, by = "PWS_ID", all.x = TRUE)
 # carrying its own FLOW_RATE_UOM_CODE. We can't assume a uniform unit, so we
 # pivot BOTH the quantity and the unit to one row per system, keyed on the
 # leading code token: each measure gets a value column and a <name>_Unit column.
-storage_long <- dwv_widget_over(ses, "DashWaterSystemFlowRates", systems)
+storage_long <- if (nrow(systems)) {
+  dwv_widget_over(ses, "DashWaterSystemFlowRates", systems)
+} else data.table()
 storage <- if (nrow(storage_long)) {
   storage_long[, code := trimws(sub("-.*$", "", FLOW_RATE_NAME))]
   if (!("FLOW_RATE_UOM_CODE" %in% names(storage_long)))
@@ -131,6 +155,13 @@ storage <- if (nrow(storage_long)) {
   for (cd in setdiff(names(uom), keys)) setnames(uom, cd, paste0(friendly(cd), "_Unit"))
   merge(val, uom, by = keys)
 } else data.table(PWS_ID = character(0), TINWSYS_IS_NUMBER = integer(0))
+
+# Merge newly-fetched rows back onto the reused prior scrape (RESCRAPE = FALSE).
+# unique(by = "PWS_ID") keeps the prior row for any system that got re-fetched.
+if (!RESCRAPE && !is.null(prev_pop))
+  population <- unique(rbindlist(list(prev_pop, population), use.names = TRUE, fill = TRUE), by = "PWS_ID")
+if (!RESCRAPE && !is.null(prev_stor))
+  storage <- unique(rbindlist(list(prev_stor, storage), use.names = TRUE, fill = TRUE), by = "PWS_ID")
 
 saveRDS(storage,    committed("pws_storage.RDS"))
 saveRDS(population, committed("pws_population.RDS"))

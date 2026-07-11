@@ -1,13 +1,16 @@
 # =============================================================================
-# 04_combine_pws_with_tracts_counties.R
+# 02_combine_pws_with_counties.R
 # -----------------------------------------------------------------------------
-# Spatial overlays of PWS service-area boundaries against census tracts (2010 &
-# 2020 vintages) and counties. Outputs, per PWS:
-#   input/pws_tract_overlaps.RDS   list(tracts_2010, tracts_2020); each has
-#                                  PWS_ID, GEOID10, Prop_Of_Tract
+# Spatial overlay of PWS service-area boundaries against counties. Output, per PWS:
 #   input/pws_county_overlaps.RDS  PWS_ID, CFIPS, Prop_Over_County
-# Boundary/tract/county loading and the area-proportion overlay are shared with
-# 05_combine via spatial_helpers.R (load_tx_tracts/load_tx_counties/area_overlay).
+# This must run BEFORE 03_combine_district_and_drought.R, which reads
+# pws_county_overlaps.RDS to map weekly county DSCI onto each PWS.
+# Boundary/county loading and the area-proportion overlay come from
+# spatial_helpers.R (load_tx_counties/area_overlay).
+#
+# NOTE: the PWS<->census-tract overlay (pws_tract_overlaps.RDS) that used to live
+# here was dropped — nothing consumed it. PWS demographics are area-weighted
+# directly in 05_census_block_PWS.R.
 # =============================================================================
 
 # --- Shared config: paths, projection, window, helpers (idempotent) -----------
@@ -23,19 +26,7 @@ pws_boundaries = st_read(spatial("Service_Area_Boundaries/PWS_shapefile_9-24/PWS
 pws_boundaries = pws_boundaries %>% rename(PWS_ID = PWSId, PWS_NAME = pwsName)
 pws_boundaries = st_make_valid(st_transform(pws_boundaries, st_crs(albersNA)))
 
-tx_tracts2010 = load_tx_tracts(2010)
-tx_tracts2020 = load_tx_tracts(2020)
 tx_county     = load_tx_counties()
-
-# --- Tract overlaps (proportion of each tract covered by the PWS) -------------
-# 2010 tracts carry GEOID10; 2020 tracts carry GEOID — both emitted as GEOID10
-# to keep a single downstream schema.
-tract_overs <- list(
-  tracts_2010 = area_overlay(pws_boundaries, tx_tracts2010, "PWS_ID", "GEOID10",
-                             prop_out = "Prop_Of_Tract"),
-  tracts_2020 = area_overlay(pws_boundaries, tx_tracts2020, "PWS_ID", "GEOID",
-                             y_out = "GEOID10", prop_out = "Prop_Of_Tract"))
-saveRDS(tract_overs, committed("pws_tract_overlaps.RDS"))
 
 # --- County overlaps (proportion of each PWS that falls in the county) ---------
 county_overs = area_overlay(pws_boundaries, tx_county, "PWS_ID", "GEOID",

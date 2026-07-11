@@ -1,5 +1,5 @@
 # =============================================================================
-# 03_model/04_descriptive_stats_table.R
+# 02_model/04_descriptive_stats_table.R
 # -----------------------------------------------------------------------------
 # Descriptive-statistics table for every variable that enters the recurring-
 # events Cox models fit in 01_fit_recurrent_cox_inla.R. It sources the SAME
@@ -21,7 +21,7 @@
 #   output/descriptive_stats.csv    the tidy table behind it
 #
 # Run from the drought_and_debt project root, standalone (it fits nothing):
-#     source("code/03_model/04_descriptive_stats_table.R")
+#     source("code/02_model/04_descriptive_stats_table.R")
 # =============================================================================
 
 # Load config (sets wd = project root) if a caller hasn't already. Works from
@@ -30,7 +30,7 @@ if (!exists("PROJ_ROOT")) {
   .find_file <- function(f) { p <- Find(file.exists, file.path(c(".", "drought_and_debt", "..", "../.."), f)); if (is.null(p)) f else p }
   source(.find_file("code/config.R"))
 }
-source("code/03_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
+source("code/02_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
 
 suppressPackageStartupMessages({
   library(data.table)
@@ -46,6 +46,8 @@ term_labels <- c(
   storage_per_conn_g = "Storage per connection (asinh gal)",
   has_interconnect   = "Has interconnect (0/1)",
   ln_income          = "Log median income",
+  ln_home_value      = "Log median home value",
+  median_structure_age = "Median structure age (yrs)",
   perc_rural         = "% rural",
   perc_hispanic      = "% Hispanic",
   perc_black         = "% Black",

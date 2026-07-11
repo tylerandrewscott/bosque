@@ -45,6 +45,33 @@ label_restriction_columns <- function(d) {
   d
 }
 
+# --- normalize_district_name() -------------------------------------------------
+# The district-name canonicalization rules shared by 03_assemble_audits.R and
+# 04_assemble_debt.R (both ultimately match names against the TWDD roster):
+# strip zero-padded numbers ("MUD 07" -> "MUD 7"), expand " UD" to
+# " UTILITY DISTRICT", and abbreviate "SPECIAL UTILITY DISTRICT" to "SUD"
+# (in that order — " SPECIAL UD" must end up as "SUD"). Source-specific rules
+# (TBRB abbreviation expansions, one-off aliases) stay in the assemble scripts.
+normalize_district_name <- function(x) {
+  # One gsub pass strips a single leading zero (the match consumes the space),
+  # so iterate to a fixed point: "MUD 001" -> "MUD 01" -> "MUD 1".
+  repeat {
+    y <- gsub('(\\s)0(?=[0-9])', '\\1', x, perl = TRUE)
+    if (identical(y, x)) break
+    x <- y
+  }
+  x <- gsub(' UD', ' UTILITY DISTRICT', x, perl = TRUE)
+  gsub('SPECIAL UTILITY DISTRICT', 'SUD', x, perl = TRUE)
+}
+
+# --- strip_county_suffix() ------------------------------------------------------
+# Drop a trailing " OF <X> COUNTY" qualifier ("... MUD 1 OF HARRIS COUNTY" ->
+# "... MUD 1"). Both assemble scripts apply this as the LAST normalization step,
+# after any name-specific aliases.
+strip_county_suffix <- function(x) {
+  gsub('\\sOF\\s[A-Z]+\\sCOUNTY$', '', x, perl = TRUE)
+}
+
 # --- load_latest_district_list() ---------------------------------------------
 # Read the most recently modified twdd_records/district_list_*.csv (the TWDD
 # district roster). Returns a data.table. Replaces the three-line

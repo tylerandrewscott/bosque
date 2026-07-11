@@ -86,8 +86,35 @@ spatial   <- function(...) file.path(SPATIAL_DIR, ...)
 output    <- function(...) file.path(OUTPUT_DIR, ...)
 util      <- function(...) file.path(UTIL_DIR, ...)
 
+# --- Rescrape policy (Stage A raw ingestion, 00_assemble/*) --------------------
+# One switch governs whether the raw-ingestion scripts re-hit their live sources:
+#   RESCRAPE = TRUE   -> re-fetch everything from the source (full scrape).
+#   RESCRAPE = FALSE  -> reuse the committed prior scrape. The per-system DWV
+#                        scrapers (05_scrape_storage_and_pops.R,
+#                        06_htmlscrape_storage_interconnects.R) still top up ONLY
+#                        systems missing from the existing output (incremental);
+#                        the bulk scrapers (01-04) keep their existing output as-is.
+# Precedence: an explicit RESCRAPE set before sourcing config wins; otherwise the
+# environment variable RESCRAPE (TRUE/FALSE/1/0/yes/no) is read; default TRUE.
+#   e.g.  RESCRAPE=FALSE Rscript drought_and_debt/code/run_all.R
+if (!exists("RESCRAPE")) {
+  .rs <- toupper(trimws(Sys.getenv("RESCRAPE", "TRUE")))
+  RESCRAPE <- !(.rs %in% c("FALSE", "F", "0", "NO", "N", "OFF"))
+}
+
+# reuse_prior(paths): TRUE when a bulk scraper should skip re-fetching, i.e.
+# RESCRAPE is FALSE and every named committed output already exists. Used by the
+# 01-04 assemble scripts to guard their body.
+reuse_prior <- function(...) {
+  paths <- c(...)
+  !isTRUE(RESCRAPE) && length(paths) > 0 && all(file.exists(paths))
+}
+
 # --- Analysis window ----------------------------------------------------------
-# Weekly panel; the drought episode of interest is May 2010 – Jul 2015.
+# Weekly panel, May 2010 through 2025. (The window opens with the May 2010
+# drought episode; it originally closed Jul 2015 and was extended for the 2026
+# reboot.) build_recurrent_panel.R reads these, so this is the ONE place to
+# change the window.
 start_date <- as.Date("2010-05-04")
 end_date   <- as.Date("2025-12-31")
 start_year <- as.integer(format(start_date, "%Y"))

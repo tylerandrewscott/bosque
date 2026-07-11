@@ -35,7 +35,9 @@ library(data.table)
 source(util("scraping", "dwv_api_helpers.R"))   # dwv_session/search/widget clients
 
 output_file <- committed("storage_connections_data.txt")
-CLOBBER <- FALSE   # TRUE = re-fetch every system; FALSE = only fetch new ones
+# Rescrape policy from config.R: RESCRAPE = TRUE re-fetches every system;
+# FALSE fetches only systems missing from the existing (DWV-sourced) file.
+CLOBBER <- isTRUE(RESCRAPE)
 
 ses <- dwv_session()
 
@@ -47,7 +49,10 @@ message("Active community systems: ", nrow(systems))
 # --- Resume support: skip systems already in the output file ------------------
 # Only resume from a file this (DWV) script wrote. A pre-DWV baseline (no Source
 # column, or Source != "DWV") is discarded so old- and new-source rows never mix.
-if (file.exists(output_file)) {
+if (CLOBBER) {
+  # Full rescrape: discard any prior file so kept rows aren't re-appended below.
+  existing_data <- data.table()
+} else if (file.exists(output_file)) {
   existing_data <- fread(output_file, colClasses = list(character = "PWS_ID"))
   if (!("Source" %in% names(existing_data)) || !all(existing_data$Source == "DWV")) {
     message("Existing ", basename(output_file),

@@ -513,6 +513,11 @@ dm_dt[, DSCI_3Month_Average := round(rollapplyr(DSCI, 3, mean,fill = NA),3), by 
 dm_dt[, DSCI_6Month_Average := round(rollapplyr(DSCI, 6, mean,fill = NA),3), by = CFIPS]
 dm_dt[, DSCI_12Month_Average := round(rollapplyr(DSCI, 12, mean,fill = NA),3), by = CFIPS]
 dm_dt[,join_time:=as.Date(Date)]
+# County->PWS area overlaps (PWS_ID, CFIPS, Prop_Over_County), built by
+# 01_combine/04_combine_pws_with_tracts_counties.R from the PWS shapefile.
+# Read here rather than assumed already present in the environment (the refactor
+# that extracted the overlay build left this readRDS gap). Reused below for KBDI.
+county_overs <- as.data.table(readRDS(committed("pws_county_overlaps.RDS")))
 setkey(dm_dt,CFIPS)
 setkey(county_overs,CFIPS)
 dsci_overmerge = dm_dt[county_overs,allow.cartesian=TRUE]
@@ -527,59 +532,17 @@ setkey(cox_dt,PWS_ID,join_time)
 #dsci_pws  = dsci_pws[dsci_pws$PWS_ID %in% cox_dt$PWS_ID,]
 dsci_pws = dsci_pws[,c('PWS_ID',dsci_vars,'join_time'),with=F]
 cox_dt = dsci_pws[cox_dt,roll = T]
-dates = unique(cox_dt$Date)
-dates <- ymd(as.Date(dates))
-dates = dates[dates < Sys.Date()]
-dates = c(seq.Date(from = ymd('2009-01-01'),to = min(dates),'month'),dates)
-qpref = 'https://twc.tamu.edu/weather_images/summ/summ'
-qsuf = ifelse(year(dates)< 2016 | year(dates)==2016&month(dates)<10 ,'.txt','.csv')
-library(rvest)
-
-
-# The .txt (<=Sep 2016) and .csv (>=Oct 2016) sources do NOT share a column
-# layout, so parse each by meaning, not blind position, into a common
-# County/KBDI_Avg/Max/Min schema. .txt is fixed-width (COUNTY MEAN MAX MIN) and
-# whitespace-splitting breaks on multi-word counties (DE WITT, PALO PINTO, ...),
-# so we regex the trailing 3 ints off each line. .csv is comma-delimited with
-# header County,Min,Max,Average,Change -- order is Min,Max,Average, so mapping
-# positionally (as before) silently stored Min as KBDI_Avg. Read by header here.
-read_kbdi_txt = function(url){
-  ln = tryCatch(readr::read_lines(url),error = function(e) NULL); if(is.null(ln)) return(NULL)
-  m = stringr::str_match(ln,'^\\s*(.+?)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*$')
-  m = m[!is.na(m[,1]),,drop = FALSE]; if(nrow(m)==0) return(NULL)
-  tibble::tibble(County = stringr::str_squish(m[,2]), KBDI_Avg = as.numeric(m[,3]),
-                 KBDI_Max = as.numeric(m[,4]), KBDI_Min = as.numeric(m[,5]))
-}
-read_kbdi_csv = function(url){
-  raw = tryCatch(readr::read_csv(url,show_col_types = FALSE,name_repair = 'unique_quiet'),error = function(e) NULL)
-  if(is.null(raw) || nrow(raw)==0) return(NULL); names(raw) = tolower(names(raw))
-  if(!all(c('county','average','max','min') %in% names(raw))) return(NULL)
-  tibble::tibble(County = raw$county, KBDI_Avg = as.numeric(raw$average),
-                 KBDI_Max = as.numeric(raw$max), KBDI_Min = as.numeric(raw$min))
-}
-kbdi_list = pblapply(seq_along(dates),function(x) {
-  day = dates[x]
-  tab = NULL
-  is_txt = grepl('txt',qsuf[x])
-  guard = 0
-  while(is.null(tab) && guard < 14){
-    url = paste0(qpref,gsub('-','',day),qsuf[x])
-    tab = if(is_txt) read_kbdi_txt(url) else read_kbdi_csv(url)
-    if(is.null(tab)){day = day - days(1); guard = guard + 1}}
-  if(is.null(tab)) return(NULL)
-  tab %>% mutate(Query_Date = dates[x],KBDI_Date = day)},cl = 1)
-kbdi_df = do.call(rbind,kbdi_list)
-kbdi_df$County = toupper(kbdi_df$County)
-kbdi_df = kbdi_df[kbdi_df$County!='\032',]
-kbdi_df$Date = as.Date(kbdi_df$KBDI_Date)
-kbdi_df=as.data.table(kbdi_df)
-library(zoo)
-
-kbdi_df$CFIPS = as.character(tx_county$GEOID[match(gsub(' ','',toupper(kbdi_df$County)),gsub(' ','',toupper(tx_county$NAME)))])
-kbdi_df[order(CFIPS,Date), KBDI_3Month_Average := rollapplyr(KBDI_Avg, 3, mean,fill = NA), by = CFIPS]
-kbdi_df[order(CFIPS,Date), KBDI_6Month_Average := rollapplyr(KBDI_Avg, 6, mean,fill = NA), by = CFIPS]
-kbdi_df[order(CFIPS,Date), KBDI_12Month_Average := rollapplyr(KBDI_Avg, 12, mean,fill = NA), by = CFIPS]
-fwrite(kbdi_df,'scratch/kbdi_dt.RDS')
+# --- KBDI (assembled once, upstream) -----------------------------------------
+# KBDI is built by 02_prep/01_assemble_kbdi.R into scratch/kbdi_county.RDS:
+# county x Date with KBDI_Avg + 3/6/12-month trailing averages, keyed on CFIPS.
+# Consume that canonical file rather than re-scraping the Texas A&M summaries
+# here (the inline scrape this replaces also wrote CSV under a .RDS name to
+# scratch/kbdi_dt.RDS, which nothing read). If the file is absent, run
+# 01_assemble_kbdi.R first (run_all.R Stage C does this before this script).
+.kbdi_rds <- scratch("kbdi_county.RDS")
+if (!file.exists(.kbdi_rds))
+  stop("Missing ", .kbdi_rds, " -- run 02_prep/01_assemble_kbdi.R first.")
+kbdi_df = as.data.table(readRDS(.kbdi_rds))
 county_overs$County_Name = gsub(' County$','',fips_codes$county[match(county_overs$CFIPS,paste0(fips_codes$state_code,fips_codes$county_code))])
 kbdi_df[,County:=NULL]
 setkey(kbdi_df,'CFIPS')
@@ -611,47 +574,22 @@ cox_dt$Connections = ifelse(is.na(cox_dt$Connections),cox_dt$Fill_Connections,co
 
 
 
-acs_pull_dt = readRDS('scratch/raw_acs_tract_data.RDS')
-#acs_pull_dt = readRDS('scratch/raw_acs_tract_data.RDS')
-setnames(acs_pull_dt,'GEOID','GEOID10')
-setkey(tract_overs,'GEOID10')
-setkey(acs_pull_dt,'GEOID10','Year')
-acs_merge = tract_overs[acs_pull_dt,allow.cartesian=TRUE]
-central_vals = acs_merge[variable %in% c('Median_Year_Structure_Built','Median_Home_Value','Median_Income'),]
-count_vals = acs_merge[!variable %in% c('Median_Year_Structure_Built','Median_Home_Value','Median_Income'),]
-pws_sums = count_vals[,sum(Prop_Of_Tract * estimate),by = .(Year,PWS_ID,variable)]
-setnames(pws_sums,'V1','estimate')
-pws_sums$PWS_ID <- as.character(pws_sums$PWS_ID)
-pws_sums <- pws_sums[PWS_ID %in% cox_dt$PWS_ID,]
-pfill = cox_dt[,.(PWS_ID,PopServed,Year)]
-pfill = pfill[!duplicated(pfill),]
-setkey(pfill,PWS_ID,Year)
-setkey(pws_sums,PWS_ID,Year)
-pws_sums <- pws_sums[pfill,]
-pws_sums <- pws_sums[!is.na(variable),]
-pws_sums$Reported_District_Population = pws_sums$PopServed
-pws_sums$pop_multiple <- NA
-pws_sums$pop_multiple[pws_sums$variable=='Total_Population'] <- pws_sums$estimate[pws_sums$variable=='Total_Population']/pws_sums$Reported_District_Population[pws_sums$variable=='Total_Population']
-pws_sums[order(PWS_ID),pop_multiple:=zoo::na.locf(pop_multiple),by=.(PWS_ID)]
-pws_sums$Multiplied_Value = pws_sums$estimate*(1/pws_sums$pop_multiple)
-
-pws_census_estimates = dcast(pws_sums,Year + PWS_ID ~ variable,value.var = 'Multiplied_Value')[!is.na(PWS_ID),]
-pws_census_estimates$Prop_Bachelors_Degree = pws_census_estimates$Bachelors_Population/pws_census_estimates$Total_Population
-pws_census_estimates$Prop_White_Population = pws_census_estimates$White_Population/pws_census_estimates$Total_Population
-pws_census_estimates$Prop_Owner_Occupied = pws_census_estimates$Owner_Occupied_Homes/pws_census_estimates$Total_Homes
-cval_avgs = central_vals[,weighted.mean(x = estimate,w = Prop_Of_Tract),by=.(Year,variable,PWS_ID)]
-pws_census_avgs = dcast(cval_avgs,Year + PWS_ID ~ variable,value.var = 'V1')[!is.na(PWS_ID),]
-pws_census_data = merge(pws_census_avgs,pws_census_estimates)
-demo_df = pws_census_data
-demo_df$PWS_ID <- as.character(demo_df$PWS_ID)
-fill_vars = names(demo_df)[sapply(demo_df,is.numeric)]
-fill_vars = fill_vars[fill_vars!='Year']
-demo_df[order(PWS_ID,Year),(fill_vars):=lapply(.SD,zoo::na.locf,na.rm=F),by = .(PWS_ID),.SDcols = fill_vars]
+# --- PWS demographics (time-invariant) ---------------------------------------
+# Built by 02_prep/02_census_block_PWS.R from 2010 & 2020 Census block groups
+# and 2010 ACS tracts, area-weighted to each PWS service area: ONE ROW PER PWS
+# (no time dimension). Supplies the demographic covariates the canonical model
+# consumes in build_recurrent_panel.R (Med_Household_Income -> ln_income,
+# Perc_Rural, Perc_Hispanic, Perc_Black, Perc_Dem_Vote_Share), plus
+# Perc_Bachelors, Perc_Under_Poverty_Line and Perc_Houses_Since1980.
+#
+# Replaces the retired per-year tract-ACS overlay, which depended on
+# scratch/raw_acs_tract_data.RDS (no producer in the reboot pipeline) and a
+# tract_overs object that was never read here. Because demographics are now
+# time-invariant, the merge is on PWS_ID alone (no Year join / carry-forward).
+demo_df = as.data.table(readRDS(committed("pws_demos_MR.RDS")))
+demo_df[, PWS_ID := as.character(PWS_ID)]
 cox_dt$Year = year(cox_dt$Date)
-setkey(demo_df,PWS_ID,Year)
-setkey(cox_dt,PWS_ID,Year)
-
-cox_dt = merge(cox_dt,demo_df,on=c('PWS_ID','Year'),all.x = T)#demo_df[cox_dt,]
+cox_dt = merge(cox_dt, demo_df, by = "PWS_ID", all.x = TRUE)
 
 
 #congress_overlap_dt = readRDS('scratch/congress_overlap_file.RDS')
@@ -673,8 +611,6 @@ cox_dt = pol_vals_dt[cox_dt,]
 cox_dt$Urban_District = (cox_dt$Urban_Area_Prop>0.5) + 0
 cox_dt$intercept = 1
 
-cox_dt$Perc_Nonwhite <- {1-cox_dt$Prop_White_Population} * 100
-cox_dt$Perc_College_Grad <- cox_dt$Prop_Bachelors_Degree * 100
 cox_dt$Storage_Per_Connection_MG = cox_dt$Total_Storage_MG_Impute/cox_dt$Connections
 cox_dt$Storage_Per_Connection_G = cox_dt$Storage_Per_Connection_MG*1000000
 cox_dt$District_Age = decimal_date(cox_dt$Date) - decimal_date(mdy(dinfo$Created[match(cox_dt$District_ID,dinfo$District_ID)]))

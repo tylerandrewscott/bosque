@@ -1,5 +1,5 @@
 # =============================================================================
-# 03_model/03_model_results_table.R
+# 02_model/03_model_results_table.R
 # -----------------------------------------------------------------------------
 # Reporting for the Bayesian recurring-events Cox models fit in
 # 01_fit_recurrent_cox_inla.R. Reads the saved INLA objects and produces:
@@ -17,7 +17,7 @@
 # `0.025quant`, `0.5quant`, `0.975quant`, ...), so no refitting is needed here.
 #
 # Run from the drought_and_debt project root, after 01_fit_recurrent_cox_inla.R:
-#     source("code/03_model/03_model_results_table.R")
+#     source("code/02_model/03_model_results_table.R")
 # =============================================================================
 
 # Load config (sets wd = project root) if a caller hasn't already. Works from
@@ -35,18 +35,28 @@ suppressPackageStartupMessages({
 })
 
 # --- Load the saved Bayesian fits --------------------------------------------
-m1_path     <- scratch("recurrent_coxinla_model1_full.RDS")
-m2_path     <- scratch("recurrent_coxinla_model2_by_fiscal.RDS")
-m2_all_path <- scratch("recurrent_coxinla_model2_all_fiscal.RDS")
-
-model1_inla           <- if (file.exists(m1_path))     readRDS(m1_path)     else NULL
-model2_inla_by_fiscal <- if (file.exists(m2_path))     readRDS(m2_path)     else NULL
-model2_inla_all_fiscal <- if (file.exists(m2_all_path)) readRDS(m2_all_path) else NULL
+# Prefer the full fits in gitignored scratch/; fall back to the slim copies the
+# fit script writes to output/ (they keep $summary.fixed, which is all this
+# script needs), so tables can rebuild on a machine that never ran the heavy
+# INLA fit.
+load_fit <- function(stem) {
+  full <- scratch(paste0(stem, ".RDS"))
+  slim <- output(paste0(stem, "_slim.RDS"))
+  if (file.exists(full)) return(readRDS(full))
+  if (file.exists(slim)) {
+    message("Full fit not in scratch/; using slim copy ", basename(slim), ".")
+    return(readRDS(slim))
+  }
+  NULL
+}
+model1_inla            <- load_fit("recurrent_coxinla_model1_full")
+model2_inla_by_fiscal  <- load_fit("recurrent_coxinla_model2_by_fiscal")
+model2_inla_all_fiscal <- load_fit("recurrent_coxinla_model2_all_fiscal")
 
 if (is.null(model1_inla) && is.null(model2_inla_by_fiscal) &&
     is.null(model2_inla_all_fiscal)) {
-  stop("No fitted models found. Run code/03_model/01_fit_recurrent_cox_inla.R first.\n",
-       "  looked for:\n    ", m1_path, "\n    ", m2_path, "\n    ", m2_all_path)
+  stop("No fitted models found (scratch/ or output/*_slim.RDS). ",
+       "Run code/02_model/01_fit_recurrent_cox_inla.R first.")
 }
 
 # --- Pretty labels for the model terms ---------------------------------------
@@ -56,6 +66,8 @@ term_labels <- c(
   storage_per_conn_g = "Storage per connection (asinh gal)",
   has_interconnect   = "Has interconnect",
   ln_income          = "Log median income",
+  ln_home_value      = "Log median home value",
+  median_structure_age = "Median structure age (yrs)",
   perc_rural         = "% rural",
   perc_hispanic      = "% Hispanic",
   perc_black         = "% Black",
