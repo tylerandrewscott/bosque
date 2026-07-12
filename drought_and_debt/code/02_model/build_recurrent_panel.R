@@ -49,17 +49,11 @@ num <- function(x) as.numeric(gsub("[^0-9eE.+-]", "", as.character(x)))
 # STAGE %in% {M1, M2, M3} are the mandatory stages. An event is a mandatory
 # notice on a date; (PWS_ID, date) is collapsed so a notice seen several times
 # in the scrape counts once. A same-stage repeat on a DIFFERENT date is a
-# genuine new event (recurrent) and is kept.
+# genuine new event (recurrent) and is kept. The definition lives in
+# ingest_helpers.R (mandatory_restriction_events) and is shared with the
+# Figure 2 descriptive plot so the two cannot drift.
 # =============================================================================
-restr <- as.data.table(readRDS(committed("combined_restriction_records.RDS")))
-setnames(restr, "PWS ID", "PWS_ID")
-
-events <- restr[
-  !is.na(PWS_ID) & !is.na(NOTIFIED_YMD) & STAGE %in% c("M1", "M2", "M3") &
-    NOTIFIED_YMD >= analysis_start & NOTIFIED_YMD <= analysis_end,
-  .(PWS_ID, event_date = as.Date(NOTIFIED_YMD))
-]
-events <- unique(events, by = c("PWS_ID", "event_date"))
+events <- mandatory_restriction_events(analysis_start, analysis_end)
 events[, event_time := as.numeric(event_date - analysis_start) / 7]
 
 message(sprintf("Events: %d distinct mandatory notices across %d systems (%d with repeats).",

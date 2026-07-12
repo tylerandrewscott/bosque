@@ -76,6 +76,18 @@ load_tx_counties <- function(crs = albersNA) {
   sf::st_make_valid(sf::st_transform(cty, sf::st_crs(crs)))
 }
 
+# Load the TCEQ PWS service-area boundary shapefile (via the spatial() path
+# helper from config.R), rename to the pipeline's PWS_ID/PWS_NAME schema, and
+# reproject + make valid ONCE. Shared by 01_combine/02 (county overlay) and
+# 01_combine/05 (census demographics), which had duplicated this block.
+load_pws_boundaries <- function(crs = albersNA) {
+  b <- sf::st_read(spatial("Service_Area_Boundaries/PWS_shapefile_9-24/PWS_Export.shp"),
+                   quiet = TRUE)
+  names(b)[names(b) == "PWSId"]   <- "PWS_ID"
+  names(b)[names(b) == "pwsName"] <- "PWS_NAME"
+  sf::st_make_valid(sf::st_transform(b, sf::st_crs(crs)))
+}
+
 # --- area_overlay() -----------------------------------------------------------
 # Intersect polygon layer `x` with `y` and return a data.table of area
 # proportions. Collapses the ~15-line st_intersection()/st_area()/match() block

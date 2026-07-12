@@ -18,7 +18,7 @@
 # in the panel builder, which should readRDS() this file rather than re-scraping.
 #
 # Run from the bosque repo root (the script self-locates config.R):
-#   source("drought_and_debt/code/02_prep/01_assemble_kbdi.R")
+#   source("drought_and_debt/code/explore/assemble_kbdi.R")
 # =============================================================================
 
 suppressPackageStartupMessages({

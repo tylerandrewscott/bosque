@@ -35,17 +35,21 @@ suppressPackageStartupMessages({
 })
 
 # --- Load the saved Bayesian fits --------------------------------------------
-# Prefer the full fits in gitignored scratch/; fall back to the slim copies the
-# fit script writes to output/ (they keep $summary.fixed, which is all this
-# script needs), so tables can rebuild on a machine that never ran the heavy
-# INLA fit.
+# Prefer the SLIM copies the fit script writes to output/: they keep
+# $summary.fixed, which is all this script reads, and load in seconds where the
+# full scratch/ fits run to multiple GB. The full fit is read only when it is
+# strictly newer than the slim copy (i.e. the fit script saved it but died
+# before refreshing the slim one) or the slim copy is missing.
 load_fit <- function(stem) {
   full <- scratch(paste0(stem, ".RDS"))
   slim <- output(paste0(stem, "_slim.RDS"))
-  if (file.exists(full)) return(readRDS(full))
-  if (file.exists(slim)) {
-    message("Full fit not in scratch/; using slim copy ", basename(slim), ".")
+  if (file.exists(slim) &&
+      (!file.exists(full) || file.mtime(slim) >= file.mtime(full)))
     return(readRDS(slim))
+  if (file.exists(full)) {
+    message("Slim copy missing or older than scratch/", basename(full),
+            "; loading the full fit.")
+    return(readRDS(full))
   }
   NULL
 }

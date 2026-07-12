@@ -46,7 +46,11 @@ if (!exists("PROJ_ROOT")) {
   .find_file <- function(f) { p <- Find(file.exists, file.path(c(".", "drought_and_debt", "..", "../.."), f)); if (is.null(p)) f else p }
   source(.find_file("code/config.R"))
 }
-source("code/02_model/build_recurrent_panel.R")   # -> panel_m1, panel_m2, *_vars
+# Build the shared panel unless a caller already built it in this environment
+# (run_all.R runs this and 04_descriptive_stats_table.R in one env so the
+# ~minutes-long build happens once).
+if (!exists("panel_m1") || !exists("panel_m2"))
+  source("code/02_model/build_recurrent_panel.R") # -> panel_m1, panel_m2, *_vars
 
 if (!requireNamespace("INLA", quietly = TRUE)) {
   stop("INLA is not installed. See the install command in this script's header.")

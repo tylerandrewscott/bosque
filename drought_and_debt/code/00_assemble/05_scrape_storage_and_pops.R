@@ -69,18 +69,19 @@ if (file.exists(.shp) && requireNamespace("sf", quietly = TRUE)) {
 
 # --- Incremental top-up when RESCRAPE = FALSE ---------------------------------
 # Reuse the committed prior scrape and fetch ONLY systems missing from it. A
-# system is treated as done when it already appears in BOTH prior outputs;
-# partially-scraped systems are re-fetched. The new rows are merged back in
-# before saving (see the rbind before saveRDS). RESCRAPE = TRUE ignores the
-# prior files and re-fetches every system.
+# system is treated as done when it appears in the prior POPULATION output:
+# every fetched system gets a population row (the master totals cover all
+# systems), whereas a system with no DWV flow-rate rows legitimately never
+# appears in pws_storage.RDS — requiring both files would re-fetch those
+# systems forever. The new rows are merged back in before saving (see the
+# rbind before saveRDS). RESCRAPE = TRUE ignores the prior files and
+# re-fetches every system.
 .pop_out  <- committed("pws_population.RDS")
 .stor_out <- committed("pws_storage.RDS")
 prev_pop  <- if (!RESCRAPE && file.exists(.pop_out))  as.data.table(readRDS(.pop_out))  else NULL
 prev_stor <- if (!RESCRAPE && file.exists(.stor_out)) as.data.table(readRDS(.stor_out)) else NULL
-if (!RESCRAPE && (!is.null(prev_pop) || !is.null(prev_stor))) {
-  done_ids <- intersect(
-    if (!is.null(prev_pop))  as.character(prev_pop$PWS_ID)  else character(0),
-    if (!is.null(prev_stor)) as.character(prev_stor$PWS_ID) else character(0))
+if (!RESCRAPE && !is.null(prev_pop)) {
+  done_ids <- as.character(prev_pop$PWS_ID)
   n0 <- nrow(systems)
   systems <- systems[!(trimws(NUMBER0) %in% done_ids)]
   message("RESCRAPE=FALSE: ", length(done_ids), " systems already scraped; fetching ",
@@ -157,11 +158,12 @@ storage <- if (nrow(storage_long)) {
 } else data.table(PWS_ID = character(0), TINWSYS_IS_NUMBER = integer(0))
 
 # Merge newly-fetched rows back onto the reused prior scrape (RESCRAPE = FALSE).
-# unique(by = "PWS_ID") keeps the prior row for any system that got re-fetched.
+# Fresh rows come FIRST so unique(by = "PWS_ID") keeps the just-fetched row for
+# any system that got re-fetched, not the stale prior one.
 if (!RESCRAPE && !is.null(prev_pop))
-  population <- unique(rbindlist(list(prev_pop, population), use.names = TRUE, fill = TRUE), by = "PWS_ID")
+  population <- unique(rbindlist(list(population, prev_pop), use.names = TRUE, fill = TRUE), by = "PWS_ID")
 if (!RESCRAPE && !is.null(prev_stor))
-  storage <- unique(rbindlist(list(prev_stor, storage), use.names = TRUE, fill = TRUE), by = "PWS_ID")
+  storage <- unique(rbindlist(list(storage, prev_stor), use.names = TRUE, fill = TRUE), by = "PWS_ID")
 
 saveRDS(storage,    committed("pws_storage.RDS"))
 saveRDS(population, committed("pws_population.RDS"))

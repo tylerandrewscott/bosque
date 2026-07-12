@@ -18,13 +18,10 @@ if (!exists("committed")) source(Find(file.exists, file.path(
   c(".", "..", "../..", "drought_and_debt"), "code", "config.R")))
 suppressPackageStartupMessages({
   library(data.table)
-  library(dplyr)     # %>% / rename
 })
 
 #https://www3.twdb.texas.gov/apps/waterserviceboundaries
-pws_boundaries = st_read(spatial("Service_Area_Boundaries/PWS_shapefile_9-24/PWS_Export.shp"))
-pws_boundaries = pws_boundaries %>% rename(PWS_ID = PWSId, PWS_NAME = pwsName)
-pws_boundaries = st_make_valid(st_transform(pws_boundaries, st_crs(albersNA)))
+pws_boundaries = load_pws_boundaries()   # spatial_helpers.R; shared with 01_combine/05
 
 tx_county     = load_tx_counties()
 

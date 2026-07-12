@@ -62,15 +62,26 @@ figure1A <- ggplot(data = tx_dsci, aes(x = date)) +
   '&startdate=1/1/', year(start_date),
   '&enddate=', format(end_date, '%m/%d/%Y'),
   '&statisticsType=1')
+dcols <- c('D0', 'D1', 'D2', 'D3', 'D4')
 if (file.exists(.statewide_cache) && !isTRUE(RESCRAPE)) {
   txc <- readRDS(.statewide_cache)
 } else {
   # The UNL endpoint serves CSV by default (its JSON variant now lowercases
-  # the field names), so fread() it.
+  # the field names), so fread() it. Validate the schema BEFORE caching: a
+  # 200-status response in an unexpected format (e.g. the endpoint switching
+  # back to JSON) must not be written to the cache, where it would poison
+  # every later offline rebuild.
+  .unl_cols <- c('StatisticFormatID', 'ValidStart', dcols)
   txc <- tryCatch(fread(.unl_url), error = function(e) {
     message('UNL state-statistics fetch failed: ', conditionMessage(e))
     NULL
   })
+  if (!is.null(txc) && !all(.unl_cols %in% names(txc))) {
+    message('UNL state-statistics response is missing expected column(s) ',
+            paste(setdiff(.unl_cols, names(txc)), collapse = ', '),
+            ' — treating as a failed fetch (not cached).')
+    txc <- NULL
+  }
   if (is.null(txc)) {
     if (!file.exists(.statewide_cache))
       stop('No statewide drought series: UNL API unreachable and no cache at ',
@@ -83,7 +94,6 @@ if (file.exists(.statewide_cache) && !isTRUE(RESCRAPE)) {
 }
 
 txc <- as.data.table(txc)
-dcols <- c('D0', 'D1', 'D2', 'D3', 'D4')
 txc[, (dcols) := lapply(.SD, as.numeric), .SDcols = dcols]
 txc <- txc[StatisticFormatID == 1]
 txc[, ValidStart := ymd(ValidStart)]
@@ -114,16 +124,15 @@ ggsave(grob, filename = output('figure1.png'), width = 7, height = 6, units = 'i
 # Moved here from the retired make_eh_data.R (now in explore/) and rebuilt from committed
 # data only. One observation per system = the date of its FIRST mandatory
 # (STAGE M1/M2/M3) restriction notice; a monthly frequency polygon of those dates.
+# The event definition is the SAME one the model panel uses
+# (ingest_helpers.R::mandatory_restriction_events, shared with
+# build_recurrent_panel.R), so the figure describes the analysis sample.
 # The two series split systems by whether they are district-linked (present in
 # id_crosswalk.RDS) — i.e. the fiscal-analysis subsample — versus not. (The
 # original split on District_Type == 'MUD'; district-linkage is the current
 # pipeline's sample definition and needs no external roster.)
-restr <- data.table(readRDS(committed('combined_restriction_records.RDS')))
-setnames(restr, 'PWS ID', 'PWS_ID')
-restr[, NOTIFIED_YMD := as.Date(NOTIFIED_YMD)]
-mand <- restr[!is.na(PWS_ID) & !is.na(NOTIFIED_YMD) &
-                STAGE %in% c('M1', 'M2', 'M3') & NOTIFIED_YMD >= start_date]
-first_adopt <- mand[, .(adopt_date = min(NOTIFIED_YMD)), by = PWS_ID]
+mand <- mandatory_restriction_events(start_date, end_date)
+first_adopt <- mand[, .(adopt_date = min(event_date)), by = PWS_ID]
 
 xw <- data.table(readRDS(committed('id_crosswalk.RDS')))
 first_adopt[, In_Sample := (PWS_ID %in% xw$PWS_ID) + 0L]

@@ -60,7 +60,7 @@ normalize_district_name <- function(x) {
     if (identical(y, x)) break
     x <- y
   }
-  x <- gsub(' UD', ' UTILITY DISTRICT', x, perl = TRUE)
+  x <- gsub(' UD\\b', ' UTILITY DISTRICT', x, perl = TRUE)
   gsub('SPECIAL UTILITY DISTRICT', 'SUD', x, perl = TRUE)
 }
 
@@ -70,6 +70,24 @@ normalize_district_name <- function(x) {
 # after any name-specific aliases.
 strip_county_suffix <- function(x) {
   gsub('\\sOF\\s[A-Z]+\\sCOUNTY$', '', x, perl = TRUE)
+}
+
+# --- mandatory_restriction_events() --------------------------------------------
+# The mandatory-restriction event definition shared by the model panel
+# (02_model/build_recurrent_panel.R) and the descriptive figure
+# (02_model/02_make_figure1.R): distinct mandatory (STAGE M1/M2/M3) notices in
+# [from, to], one row per (PWS_ID, event_date). Defined ONCE so the figure and
+# the panel cannot drift apart.
+mandatory_restriction_events <- function(from = start_date, to = end_date) {
+  restr <- data.table::as.data.table(readRDS(committed("combined_restriction_records.RDS")))
+  data.table::setnames(restr, "PWS ID", "PWS_ID")
+  restr$NOTIFIED_YMD <- as.Date(restr$NOTIFIED_YMD)
+  keep <- !is.na(restr$PWS_ID) & !is.na(restr$NOTIFIED_YMD) &
+    restr$STAGE %in% c("M1", "M2", "M3") &
+    restr$NOTIFIED_YMD >= from & restr$NOTIFIED_YMD <= to
+  ev <- data.table::data.table(PWS_ID     = restr$PWS_ID[keep],
+                               event_date = restr$NOTIFIED_YMD[keep])
+  unique(ev, by = c("PWS_ID", "event_date"))
 }
 
 # --- load_latest_district_list() ---------------------------------------------

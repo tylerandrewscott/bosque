@@ -39,9 +39,9 @@ run_assemble <- FALSE  # Stage A: raw ingestion (slow; needs bosquebox + network
 run_combine  <- TRUE   # Stage B: merges + spatial overlaps + demographics (needs bosquebox shapefiles + Census API key)
 run_model    <- TRUE   # Stage C: fit models
 
-run_step <- function(path) {
+run_step <- function(path, env = new.env()) {
   message("\n==== ", path, " ====")
-  source(file.path(CODE, path), local = new.env())
+  source(file.path(CODE, path), local = env)
 }
 
 # --- Stage A: assemble (raw ingestion) ---------------------------------------
@@ -58,22 +58,44 @@ if (run_assemble) {
 # Order matters: 02 (pws<->county overlap) MUST precede 03 (drought->PWS), which
 # reads pws_county_overlaps.RDS. 05 (census demographics) is a PWS spatial
 # overlay too (moved here from the former 02_prep stage).
+# Stage B needs gitignored local resources (the bosquebox Box symlink for the
+# roster + PWS shapefile; a Census API key for 05). On a fresh clone those are
+# absent — its outputs are already committed under input/, so SKIP the stage
+# (with a message) rather than abort before Stage C ever runs.
+if (run_combine && !file.exists(BOX_ROOT)) {
+  message("Stage B SKIPPED: bosquebox symlink not found (run setup_symlinks.sh). ",
+          "Using the committed input/ intermediates instead.")
+  run_combine <- FALSE
+}
 if (run_combine) {
   run_step("01_combine/01_combine_district_and_pws_ids.R")   # -> input/id_crosswalk.RDS
   run_step("01_combine/02_combine_pws_with_counties.R")      # -> input/pws_county_overlaps.RDS
   run_step("01_combine/03_combine_district_and_drought.R")   # -> input/pws_drought_weekly.RDS (needs 02)
   run_step("01_combine/04_combine_district_fiscal_data.R")   # -> input/combined_and_lagged_finances.RDS
-  run_step("01_combine/05_census_block_PWS.R")               # -> input/pws_demos_MR.RDS (needs Census API key)
+  # 05 additionally needs a Census API key (env var or the key file one level
+  # above the repo); without one it stop()s, so check here and skip just it.
+  if (nzchar(Sys.getenv("CENSUS_API_KEY")) ||
+      file.exists(file.path(dirname(REPO_ROOT), "census_api_key"))) {
+    run_step("01_combine/05_census_block_PWS.R")             # -> input/pws_demos_MR.RDS
+  } else {
+    message("01_combine/05_census_block_PWS.R SKIPPED: no Census API key ",
+            "(set CENSUS_API_KEY or create ../census_api_key). ",
+            "Using the committed input/pws_demos_MR.RDS.")
+  }
   # Retired / off-path (in explore/): combine_districts_tracts_counties.R (district
   # overlaps, unused), assemble_kbdi.R (KBDI unused — model uses DSCI), make_eh_data.R.
 }
 
 # --- Stage C: model ----------------------------------------------------------
 if (run_model) {
-  run_step("02_model/01_fit_recurrent_cox_inla.R")  # Bayesian recurring-events Cox (INLA) -> scratch/recurrent_coxinla_*.RDS
+  # The fit script and the descriptive table both need the (expensive) shared
+  # counting-process panel. They run in ONE environment so the guarded source
+  # of build_recurrent_panel.R in each builds it once and the second reuses it.
+  panel_env <- new.env()
+  run_step("02_model/01_fit_recurrent_cox_inla.R", env = panel_env)  # Bayesian recurring-events Cox (INLA) -> scratch/recurrent_coxinla_*.RDS
   run_step("02_model/02_make_figure1.R")            # -> output/figure1.png, figure2.png
   run_step("02_model/03_model_results_table.R")     # -> output/model_estimates.{html,csv}, model_credible_intervals.png
-  run_step("02_model/04_descriptive_stats_table.R") # -> output/descriptive_stats.{csv,html}
+  run_step("02_model/04_descriptive_stats_table.R", env = panel_env) # -> output/descriptive_stats.{csv,html}
   # Shared panel builder: 02_model/build_recurrent_panel.R (sourced by the fit script).
   # A frequentist `survival` version of the model is kept at
   # scratch_models/05_fit_recurrent_cox.R (reference, not on the default path),

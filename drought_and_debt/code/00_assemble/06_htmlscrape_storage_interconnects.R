@@ -38,6 +38,10 @@ output_file <- committed("storage_connections_data.txt")
 # Rescrape policy from config.R: RESCRAPE = TRUE re-fetches every system;
 # FALSE fetches only systems missing from the existing (DWV-sourced) file.
 CLOBBER <- isTRUE(RESCRAPE)
+# Periodic checkpoints go to a gitignored scratch file, NEVER to the committed
+# output: an interrupted run must not replace the committed file with a partial
+# one. The committed file is (re)written only after the fetch loop completes.
+progress_file <- scratch("storage_connections_progress.txt")
 
 ses <- dwv_session()
 
@@ -46,25 +50,30 @@ systems <- dwv_search(ses, type = "C", active_only = TRUE,
                       select = c("TINWSYS_IS_NUMBER", "NUMBER0", "NAME"))
 message("Active community systems: ", nrow(systems))
 
-# --- Resume support: skip systems already in the output file ------------------
-# Only resume from a file this (DWV) script wrote. A pre-DWV baseline (no Source
-# column, or Source != "DWV") is discarded so old- and new-source rows never mix.
-if (CLOBBER) {
-  # Full rescrape: discard any prior file so kept rows aren't re-appended below.
-  existing_data <- data.table()
-} else if (file.exists(output_file)) {
-  existing_data <- fread(output_file, colClasses = list(character = "PWS_ID"))
-  if (!("Source" %in% names(existing_data)) || !all(existing_data$Source == "DWV")) {
-    message("Existing ", basename(output_file),
+# --- Resume support: skip systems already fetched ------------------------------
+# Two sources of already-fetched rows: the committed output (previous completed
+# runs; ignored under CLOBBER) and the scratch progress file (an interrupted
+# run's partial rows — removed on successful completion, so if it exists it is
+# always a resume). Only reuse files this (DWV) script wrote. A pre-DWV baseline
+# (no Source column, or Source != "DWV") is discarded so old- and new-source
+# rows never mix.
+read_dwv_rows <- function(f) {
+  if (!file.exists(f)) return(data.table())
+  d <- fread(f, colClasses = list(character = "PWS_ID"))
+  if (!("Source" %in% names(d)) || !all(d$Source == "DWV")) {
+    message("Existing ", basename(f),
             " is not a DWV-sourced file — ignoring it and re-fetching from scratch.")
-    existing_data <- data.table()
+    return(data.table())
   }
-} else {
-  existing_data <- data.table()
+  d
 }
-starting_n <- nrow(existing_data)
+committed_rows <- if (CLOBBER) data.table() else read_dwv_rows(output_file)
+existing_data  <- unique(
+  rbindlist(list(committed_rows, read_dwv_rows(progress_file)),
+            use.names = TRUE, fill = TRUE),
+  by = "PWS_ID")
 
-todo <- if (CLOBBER || !nrow(existing_data)) systems else
+todo <- if (!nrow(existing_data)) systems else
   systems[!(trimws(NUMBER0) %in% existing_data$PWS_ID)]
 message("Systems to fetch: ", nrow(todo))
 
@@ -94,14 +103,17 @@ for (i in seq_len(nrow(todo))) {
 
   if (i %% 100 == 0) {
     message(sprintf("  %d/%d systems", i, nrow(todo)))
-    fwrite(existing_data, output_file)          # periodic checkpoint
+    fwrite(existing_data, progress_file)        # periodic checkpoint (scratch)
   }
   Sys.sleep(0.05)
 }
 
-if (starting_n < nrow(existing_data)) {
+# The fetch loop completed: (re)write the committed output only now, and clear
+# the scratch checkpoint so the next run starts clean.
+if (nrow(existing_data) > nrow(committed_rows)) {
   fwrite(existing_data, output_file)
   message("Wrote ", output_file, " (", nrow(existing_data), " rows).")
 } else {
   message("No new data.")
 }
+if (file.exists(progress_file)) invisible(file.remove(progress_file))

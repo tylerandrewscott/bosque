@@ -533,15 +533,15 @@ setkey(cox_dt,PWS_ID,join_time)
 dsci_pws = dsci_pws[,c('PWS_ID',dsci_vars,'join_time'),with=F]
 cox_dt = dsci_pws[cox_dt,roll = T]
 # --- KBDI (assembled once, upstream) -----------------------------------------
-# KBDI is built by 02_prep/01_assemble_kbdi.R into scratch/kbdi_county.RDS:
+# KBDI is built by explore/assemble_kbdi.R into scratch/kbdi_county.RDS:
 # county x Date with KBDI_Avg + 3/6/12-month trailing averages, keyed on CFIPS.
 # Consume that canonical file rather than re-scraping the Texas A&M summaries
 # here (the inline scrape this replaces also wrote CSV under a .RDS name to
-# scratch/kbdi_dt.RDS, which nothing read). If the file is absent, run
-# 01_assemble_kbdi.R first (run_all.R Stage C does this before this script).
+# scratch/kbdi_dt.RDS, which nothing read). KBDI is off the default pipeline
+# (the model uses DSCI), so run explore/assemble_kbdi.R yourself first.
 .kbdi_rds <- scratch("kbdi_county.RDS")
 if (!file.exists(.kbdi_rds))
-  stop("Missing ", .kbdi_rds, " -- run 02_prep/01_assemble_kbdi.R first.")
+  stop("Missing ", .kbdi_rds, " -- run code/explore/assemble_kbdi.R first.")
 kbdi_df = as.data.table(readRDS(.kbdi_rds))
 county_overs$County_Name = gsub(' County$','',fips_codes$county[match(county_overs$CFIPS,paste0(fips_codes$state_code,fips_codes$county_code))])
 kbdi_df[,County:=NULL]
@@ -575,7 +575,7 @@ cox_dt$Connections = ifelse(is.na(cox_dt$Connections),cox_dt$Fill_Connections,co
 
 
 # --- PWS demographics (time-invariant) ---------------------------------------
-# Built by 02_prep/02_census_block_PWS.R from 2010 & 2020 Census block groups
+# Built by 01_combine/05_census_block_PWS.R from 2010 & 2020 Census block groups
 # and 2010 ACS tracts, area-weighted to each PWS service area: ONE ROW PER PWS
 # (no time dimension). Supplies the demographic covariates the canonical model
 # consumes in build_recurrent_panel.R (Med_Household_Income -> ln_income,

@@ -42,41 +42,28 @@ if (!nzchar(Sys.getenv("CENSUS_API_KEY"))) {
 }
 
 # --- PWS service-area boundaries (dissolved to one polygon per system) --------
-# Same TCEQ service-area shapefile the county overlay (01_combine/02) uses.
+# Same TCEQ service-area shapefile the county overlay (01_combine/02) uses,
+# via the shared loader (spatial_helpers.R: read + rename + reproject + valid).
 # https://tceq.maps.arcgis.com/apps/webappviewer/index.html?id=04bbf8b322b34d8abaea7b06996d3775
-twd_boundaries <- st_read(spatial('Service_Area_Boundaries/PWS_shapefile_9-24/PWS_Export.shp'), quiet = TRUE)
-twd_boundaries <- twd_boundaries %>% rename(PWS_ID = PWSId, PWS_NAME = pwsName)
-twd_boundaries <- st_make_valid(st_transform(st_make_valid(twd_boundaries), st_crs(albersNA)))
+twd_boundaries <- load_pws_boundaries()
 twd_boundaries <- twd_boundaries %>% group_by(PWS_ID) %>% summarise()
 
 # --- Block-group demographics: 2010 decennial SF1 ------------------------------
-# % hispanic
-hispanic <- tidycensus::get_decennial(geography = 'block group',
-                                      state = 'TX', year = 2010, variables = c('P004001', 'P004003'))
-hispanic <- dcast(data.table(hispanic), GEOID ~ variable, value.var = 'value')
-hispanic$Perc_Hispanic <- 100 * (hispanic$P004003 / hispanic$P004001)
-
-# % black
-black <- tidycensus::get_decennial(geography = 'block group',
-                                   state = 'TX', year = 2010,
-                                   variables = c('P010001', 'P010004', 'P010011', 'P010016',
-                                                 'P010017', 'P010018', 'P010019'))
-black <- data.table(black)
-black$is_total <- ifelse((black$variable == 'P010001'), 'total', 'sub')
-black <- dcast(black[, sum(value, na.rm = T), by = .(GEOID, is_total)], GEOID ~ is_total, value.var = 'V1')
-black$Perc_Black <- 100 * (black$sub / black$total)
-
-# % rural
-rural <- tidycensus::get_decennial(geography = 'block group',
-                                   state = 'TX', year = 2010,
-                                   variables = c('H002001', 'H002005'))
-rural <- dcast(data.table(rural), GEOID ~ variable, value.var = 'value')
-rural$Perc_Rural <- 100 * (rural$H002005 / rural$H002001)
-
-block_demos <- Reduce(function(a, b) merge(a, b, by = 'GEOID', all = TRUE),
-                      list(hispanic[, .(GEOID, Perc_Hispanic)],
-                           black[,    .(GEOID, Perc_Black)],
-                           rural[,    .(GEOID, Perc_Rural)]))
+# One batched pull (identical geography/year) instead of three sequential ones:
+#   P004001/P004003          -> % hispanic
+#   P010001 + P0100{04,11,16,17,18,19} -> % black (total vs. any-part-black)
+#   H002001/H002005          -> % rural
+.black_sub <- c('P010004', 'P010011', 'P010016', 'P010017', 'P010018', 'P010019')
+dec <- tidycensus::get_decennial(geography = 'block group',
+                                 state = 'TX', year = 2010,
+                                 variables = c('P004001', 'P004003',
+                                               'P010001', .black_sub,
+                                               'H002001', 'H002005'))
+dec <- dcast(data.table(dec), GEOID ~ variable, value.var = 'value')
+dec[, Perc_Hispanic := 100 * (P004003 / P004001)]
+dec[, Perc_Black    := 100 * (rowSums(.SD, na.rm = TRUE) / P010001), .SDcols = .black_sub]
+dec[, Perc_Rural    := 100 * (H002005 / H002001)]
+block_demos <- dec[, .(GEOID, Perc_Hispanic, Perc_Black, Perc_Rural)]
 
 tx_blocks <- tigris::block_groups(state = 'TX', cb = TRUE, year = 2010)
 tx_blocks$GEOID <- str_remove(tx_blocks$GEO_ID, '^1500000US')
@@ -84,59 +71,40 @@ tx_blocks <- st_make_valid(st_transform(tx_blocks, st_crs(albersNA)))
 tx_blocks <- left_join(tx_blocks, block_demos, by = 'GEOID')
 
 # --- Tract demographics: 2006-2010 ACS 5-year ----------------------------------
+# Two batched pulls (identical geography/survey/year) instead of six sequential
+# single-variable ones. Subject (S*) and detailed (B*) tables live on different
+# API endpoints, so they can't share one get_acs() call. Named variable vectors
+# make tidycensus emit the friendly name in the `variable` column directly.
 tx_tracts <- tigris::tracts(state = 'TX', cb = TRUE, year = 2010)
 tx_tracts$GEOID <- str_remove(tx_tracts$GEO_ID, '^1400000US')
 
-bach <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
-                            state = 'TX', year = 2010,
-                            variables = c('S1501_C01_015E'))
-setnames(bach, c('estimate'), c('Perc_Bachelors'))
-bach <- data.table(bach)
-tx_tracts <- left_join(tx_tracts, bach[, .(GEOID, Perc_Bachelors)])
+acs_subject <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
+                                   state = 'TX', year = 2010,
+                                   variables = c(Perc_Bachelors          = 'S1501_C01_015',
+                                                 Med_Household_Income    = 'S1903_C02_001',
+                                                 Perc_Under_Poverty_Line = 'S1702_C02_001'))
+acs_subject <- dcast(data.table(acs_subject), GEOID ~ variable, value.var = 'estimate')
 
-income <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
-                              state = 'TX', year = 2010,
-                              variables = c('S1903_C02_001E'))
-setnames(income, c('estimate'), c('Med_Household_Income'))
-income <- data.table(income)
-tx_tracts <- left_join(tx_tracts, income[, .(GEOID, Med_Household_Income)])
-
-house <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
-                             state = 'TX', year = 2010,
-                             variables = c("B25034_001",
-                                           "B25034_002",
-                                           "B25034_003",
-                                           "B25034_004",
-                                           "B25034_005"))
-house_tots <- house %>% mutate(cat = ifelse(variable == 'B25034_001', 'total', 'since 1980')) %>%
-  group_by(GEOID, cat) %>% summarise(value = sum(estimate, na.rm = T))
-house_dt <- dcast(data.table(house_tots), GEOID ~ cat, value.var = 'value') %>%
-  mutate(Perc_Houses_Since1980 = 100 * `since 1980` / total)
-tx_tracts <- left_join(tx_tracts, house_dt[, .(GEOID, Perc_Houses_Since1980)])
-
-poverty <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
-                               state = 'TX', year = 2010,
-                               variables = c("S1702_C02_001E"))
-setnames(poverty, 'estimate', 'Perc_Under_Poverty_Line')
-poverty <- data.table(poverty)
-tx_tracts <- left_join(tx_tracts, poverty[, .(GEOID, Perc_Under_Poverty_Line)])
-
-# Median home value (B25077_001) and median year structure built (B25035_001).
-# Carried through to build_recurrent_panel.R (ln_home_value, median_structure_age).
-home_value <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
+# B25034_002..005 = built 1980 or later; B25034_001 = total housing units.
+# Median home value (B25077_001) and median year structure built (B25035_001)
+# are carried through to build_recurrent_panel.R (ln_home_value,
+# median_structure_age).
+.since1980 <- c(House_2005_Later = 'B25034_002', House_2000_2004 = 'B25034_003',
+                House_1990_1999 = 'B25034_004', House_1980_1989 = 'B25034_005')
+acs_detail <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
                                   state = 'TX', year = 2010,
-                                  variables = c("B25077_001"))
-setnames(home_value, 'estimate', 'Median_Home_Value')
-home_value <- data.table(home_value)
-tx_tracts <- left_join(tx_tracts, home_value[, .(GEOID, Median_Home_Value)])
+                                  variables = c(House_Total = 'B25034_001', .since1980,
+                                                Median_Home_Value           = 'B25077_001',
+                                                Median_Year_Structure_Built = 'B25035_001'))
+acs_detail <- dcast(data.table(acs_detail), GEOID ~ variable, value.var = 'estimate')
+acs_detail[, Perc_Houses_Since1980 := 100 * rowSums(.SD, na.rm = TRUE) / House_Total,
+           .SDcols = names(.since1980)]
 
-year_built <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
-                                  state = 'TX', year = 2010,
-                                  variables = c("B25035_001"))
-setnames(year_built, 'estimate', 'Median_Year_Structure_Built')
-year_built <- data.table(year_built)
-tx_tracts <- left_join(tx_tracts, year_built[, .(GEOID, Median_Year_Structure_Built)])
-
+tract_demos <- merge(acs_subject,
+                     acs_detail[, .(GEOID, Perc_Houses_Since1980,
+                                    Median_Home_Value, Median_Year_Structure_Built)],
+                     by = 'GEOID', all = TRUE)
+tx_tracts <- left_join(tx_tracts, tract_demos, by = 'GEOID')
 tx_tracts <- st_make_valid(st_transform(tx_tracts, st_crs(albersNA)))
 
 # --- Democratic vote share by precinct (not from census) -----------------------

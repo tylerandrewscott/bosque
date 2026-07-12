@@ -42,7 +42,21 @@ id_crosswalk$PWS_ID <- format_pws_id(id_crosswalk$PWS_ID)
 overrides <- fread(file.path(CODE_DIR, "crosswalks", "pws_district_id_overrides.csv"),
                    colClasses = "character")
 overrides$PWS_ID <- format_pws_id(overrides$PWS_ID)
-ix <- match(id_crosswalk$PWS_ID, overrides$PWS_ID)
+# Fail fast on a malformed override row. This file is hand-edited, and a bad
+# row would corrupt silently: format_pws_id() returns NA for garbage, the
+# crosswalk holds ~1,600 legitimately-NA PWS_IDs, and match() pairs NA with
+# NA — so one NA override would overwrite District_ID on NA-keyed roster
+# rows. TX-prefixed garbage ("TXFOO") passes format_pws_id() untouched and
+# would be appended as a bogus new link below.
+bad <- is.na(overrides$PWS_ID) | !grepl("^TX[0-9]{7}$", overrides$PWS_ID) |
+  is.na(overrides$District_ID) | !nzchar(trimws(overrides$District_ID))
+if (any(bad)) {
+  stop("Malformed row(s) in pws_district_id_overrides.csv (need PWS_ID = TX + ",
+       "7 digits and a non-empty District_ID): ",
+       paste0("PWS_ID=", overrides$PWS_ID[bad], "/District_ID=",
+              overrides$District_ID[bad], collapse = "; "))
+}
+ix <- match(id_crosswalk$PWS_ID, overrides$PWS_ID, incomparables = NA)
 id_crosswalk$District_ID[!is.na(ix)] <- overrides$District_ID[ix[!is.na(ix)]]
 # Overrides whose PWS_ID the roster no longer links to any district (roster lists
 # PWS_ID = NA for these) are appended as new rows: each was verified against the
