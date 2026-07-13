@@ -94,12 +94,10 @@ util      <- function(...) file.path(UTIL_DIR, ...)
 #                        06_htmlscrape_storage_interconnects.R) still top up ONLY
 #                        systems missing from the existing output (incremental);
 #                        the bulk scrapers (01-04) keep their existing output as-is.
-# Precedence: an explicit RESCRAPE set before sourcing config wins; otherwise the
-# environment variable RESCRAPE (TRUE/FALSE/1/0/yes/no) is read; default TRUE.
-#   e.g.  RESCRAPE=FALSE Rscript drought_and_debt/code/run_all.R
+# Flip this one object to control Stage A re-fetching. (A value set before
+# sourcing config still wins, so run_all.R could override it if desired.)
 if (!exists("RESCRAPE")) {
-  .rs <- toupper(trimws(Sys.getenv("RESCRAPE", "TRUE")))
-  RESCRAPE <- !(.rs %in% c("FALSE", "F", "0", "NO", "N", "OFF"))
+  RESCRAPE <- TRUE
 }
 
 # reuse_prior(paths): TRUE when a bulk scraper should skip re-fetching, i.e.

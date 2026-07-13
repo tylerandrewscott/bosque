@@ -128,8 +128,12 @@ slim_inla <- function(fit) {
   fit$dic  <- drop_local(fit$dic)
   fit$waic <- drop_local(fit$waic)
   if (!is.null(fit$.args)) {
+    # $.args$.parent.frame is the environment inla() was called from; it closes
+    # over the ENTIRE expanded Cox panel (~8.7 GB serialized for Model 1 — the
+    # single biggest contributor to the "slim" file, invisible to object.size()
+    # since it doesn't traverse environments). Nothing in reporting reads it.
     fit$.args[c("data", "E", "Ntrials", "weights", "offset", "scale",
-                "lincomb", "y", "response")] <- NULL
+                "lincomb", "y", "response", ".parent.frame")] <- NULL
     if (!is.null(fit$.args$control.mode)) fit$.args$control.mode$result <- NULL
   }
   fit

@@ -31,10 +31,10 @@
 source(.find_file("code/config.R"))   # paths, window, projection, spatial helpers; sets wd = PROJ_ROOT
 CODE <- "code"                          # wd is now PROJ_ROOT, so "code" resolves for run_step()
 
-# RESCRAPE (defined in config.R; override via env var, e.g. RESCRAPE=FALSE Rscript ...)
-# governs Stage A: TRUE re-fetches from live sources; FALSE reuses the committed
-# prior scrape and only tops up systems missing from the per-system DWV outputs.
-run_assemble <- FALSE  # Stage A: raw ingestion (slow; needs bosquebox + network).
+# RESCRAPE (an object set in config.R; flip it there) governs Stage A: TRUE
+# re-fetches from live sources; FALSE reuses the committed prior scrape and only
+# tops up systems missing from the per-system DWV outputs.
+run_assemble <- TRUE  # Stage A: raw ingestion (slow; needs bosquebox + network).
                        # Outputs are committed under input/, so OFF by default.
 run_combine  <- TRUE   # Stage B: merges + spatial overlaps + demographics (needs bosquebox shapefiles + Census API key)
 run_model    <- TRUE   # Stage C: fit models
