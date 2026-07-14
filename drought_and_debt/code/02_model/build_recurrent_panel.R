@@ -44,6 +44,40 @@ analysis_end   <- end_date
 num <- function(x) as.numeric(gsub("[^0-9eE.+-]", "", as.character(x)))
 
 # =============================================================================
+# COVARIATE-NAME VECTORS  (always defined -- above the panel-build guard)
+# -----------------------------------------------------------------------------
+# These are pure name lists with no dependency on the panel data, so they are
+# (re)defined on EVERY source(), even when the expensive build below is skipped.
+# That is what keeps them from going stale in a reused environment: a consumer
+# can never see an old panel without the matching, up-to-date name vectors.
+# =============================================================================
+ctrl_vars   <- c("ln_connections", "storage_per_conn_g", "has_interconnect",
+                 "ln_income", "ln_home_value", "median_structure_age",
+                 "perc_rural", "perc_hispanic", "perc_black",
+                 "perc_dem_vote")
+# Demographic composition controls (% rural / % Hispanic / % Black) are held OUT
+# of the prime-time Model 1 and fit only in an appendix version. They stay in
+# ctrl_vars (so the panel still carries the columns and the complete-case sample
+# is identical across both variants) but are dropped from the prime-time formula.
+demo_vars   <- c("perc_rural", "perc_hispanic", "perc_black")
+shared_vars          <- setdiff(c("DSCI_100", ctrl_vars), demo_vars)  # prime-time Model 1
+shared_vars_appendix <- c(shared_vars, demo_vars)                     # appendix Model 1 (+ demographics)
+fiscal_vars <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn",
+                 "operating_ratio", "debt_svc_tax")
+
+# =============================================================================
+# PANEL BUILD GUARD  (single source of truth for "is the panel current?")
+# -----------------------------------------------------------------------------
+# Everything below rebuilds the expensive counting-process panel. Skip it when a
+# CURRENT panel is already in the environment: present AND carrying District_ID
+# (which Model 1/2's frailty needs). This one check lives with the builder, so
+# consumers just source() this file unconditionally instead of re-deriving --
+# and drifting on -- the "is it stale?" condition themselves.
+# =============================================================================
+if (!exists("panel_m1") || !exists("panel_m2") ||
+    !("District_ID" %in% names(panel_m1))) {
+
+# =============================================================================
 # 1. EVENTS -- distinct mandatory-restriction notices
 # -----------------------------------------------------------------------------
 # STAGE %in% {M1, M2, M3} are the mandatory stages. An event is a mandatory
@@ -131,23 +165,26 @@ controls[, `:=`(
   perc_dem_vote      = Perc_Dem_Vote_Share
 )]
 
-ctrl_vars   <- c("ln_connections", "storage_per_conn_g", "has_interconnect",
-                 "ln_income", "ln_home_value", "median_structure_age",
-                 "perc_rural", "perc_hispanic", "perc_black",
-                 "perc_dem_vote")
-shared_vars <- c("DSCI_100", ctrl_vars)
-
 panel <- merge(panel, controls[, c("PWS_ID", "Connections", ctrl_vars), with = FALSE],
                by = "PWS_ID", all.x = TRUE)
 panel_m1 <- panel[complete.cases(panel[, ctrl_vars, with = FALSE])]
-message(sprintf("Model 1 panel (complete controls): %s rows, %d systems.",
-                format(nrow(panel_m1), big.mark = ","), uniqueN(panel_m1$PWS_ID)))
+
+# Attach District_ID to every system (left join -> NA for systems with no water
+# district: city-owned, investor-owned, or otherwise private utilities). Model 1's
+# shared frailty then clusters by district where one exists and by the individual
+# system otherwise (see the frailty setup in 01_fit_recurrent_cox_inla.R).
+xw <- as.data.table(readRDS(committed("id_crosswalk.RDS")))
+xw <- unique(xw[!is.na(PWS_ID) & !is.na(District_ID), .(PWS_ID, District_ID)], by = "PWS_ID")
+panel_m1 <- merge(panel_m1, xw, by = "PWS_ID", all.x = TRUE)
+
+message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d district-linked, %d unaffiliated).",
+                format(nrow(panel_m1), big.mark = ","), uniqueN(panel_m1$PWS_ID),
+                uniqueN(panel_m1[!is.na(District_ID), PWS_ID]),
+                uniqueN(panel_m1[is.na(District_ID), PWS_ID])))
 
 # =============================================================================
 # 4. TIME-VARYING FINANCES + district-linked subsample (panel_m2)
 # =============================================================================
-xw <- as.data.table(readRDS(committed("id_crosswalk.RDS")))
-xw <- unique(xw[!is.na(PWS_ID) & !is.na(District_ID)], by = "PWS_ID")
 
 fin <- as.data.table(readRDS(committed("combined_and_lagged_finances.RDS")))
 fin[, YEAR := suppressWarnings(as.integer(YEAR))]
@@ -175,16 +212,13 @@ fin <- unique(fin[!is.na(District_ID), .(
   debt_svc_tax
 )], by = c("District_ID", "YEAR"))
 
-fiscal_vars <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn",
-                 "operating_ratio", "debt_svc_tax")
-
 # The fiscal indicators are likely conflated, so each is fit in its OWN model
 # rather than jointly. We therefore keep every district-year with a matched
 # audit (each fiscal column may be NA independently) and let each fit script
 # drop only the rows missing THAT covariate -- so e.g. a zero-expenditure audit
 # is missing only from the operating_ratio model, not the debt/revenue models.
 fin[, has_audit := 1L]
-panel_m2 <- merge(panel_m1, xw, by = "PWS_ID")          # inner join -> district-linked
+panel_m2 <- panel_m1[!is.na(District_ID)]               # district-linked subsample
 panel_m2[, cal_year := year(analysis_start + tstart * 7)]
 panel_m2 <- merge(panel_m2, fin, by.x = c("District_ID", "cal_year"),
                   by.y = c("District_ID", "YEAR"), all.x = TRUE)
@@ -199,3 +233,8 @@ for (v in fiscal_vars) {
   message(sprintf("  %-18s %s rows, %d events", v,
                   format(sum(ok), big.mark = ","), sum(panel_m2$event[ok])))
 }
+
+} else {
+  message("build_recurrent_panel.R: a current panel_m1/panel_m2 is already in ",
+          "this environment; skipping the rebuild (covariate-name vectors refreshed).")
+}   # end panel-build guard

@@ -16,13 +16,14 @@
 #                             across events with no reset.
 #   * robust variance clustered by district
 #                          -> a SHARED FRAILTY: an iid Gaussian random effect per
-#                             cluster (system in Model 1, district in Model 2).
+#                             cluster. Model 1 clusters by water district where the
+#                             system has one and by the individual system otherwise
+#                             (unaffiliated utilities); Model 2 clusters by district.
 #                             This is the Bayesian analog of the sandwich cluster.
 #   * "Model 1 as a prior for Model 2"
 #                          -> LITERAL here: Model 2's shared-covariate priors are
 #                             set to Model 1's posterior mean/precision via
-#                             control.fixed, and Model 1 warm-starts Model 2
-#                             (control.mode). Model 2 then updates the fiscal
+#                             control.fixed. Model 2 then updates the fiscal
 #                             effects on the district subsample.
 #
 # Requires INLA (non-CRAN):
@@ -46,11 +47,12 @@ if (!exists("PROJ_ROOT")) {
   .find_file <- function(f) { p <- Find(file.exists, file.path(c(".", "drought_and_debt", "..", "../.."), f)); if (is.null(p)) f else p }
   source(.find_file("code/config.R"))
 }
-# Build the shared panel unless a caller already built it in this environment
-# (run_all.R runs this and 04_descriptive_stats_table.R in one env so the
-# ~minutes-long build happens once).
-if (!exists("panel_m1") || !exists("panel_m2"))
-  source("code/02_model/build_recurrent_panel.R") # -> panel_m1, panel_m2, *_vars
+# Build the shared panel. The builder is idempotent: it skips its expensive
+# rebuild when a current panel is already in this environment (run_all.R runs
+# this and 04_descriptive_stats_table.R in one env so the ~minutes-long build
+# happens once) and always (re)defines the covariate-name vectors. So just
+# source it unconditionally rather than re-deriving its staleness rule here.
+source("code/02_model/build_recurrent_panel.R") # -> panel_m1, panel_m2, *_vars
 
 if (!requireNamespace("INLA", quietly = TRUE)) {
   stop("INLA is not installed. See the install command in this script's header.")
@@ -72,12 +74,17 @@ hazard_ctrl   <- list(model = "rw1", n.intervals = N_HAZARD_INTERVALS,
 inla_ctrl <- list(int.strategy = "eb")
 
 # Integer frailty indices (INLA wants 1..K grouping indices, not id strings).
-panel_m1[, pws_idx := .GRP, by = PWS_ID]
-panel_m2[, pws_idx := .GRP, by = PWS_ID]
+# Model 1's shared frailty clusters by water district where the system has one and
+# by the individual system otherwise (unaffiliated city-/investor-owned/private
+# utilities carry no District_ID). Build one combined cluster key, prefixed so the
+# district and PWS id namespaces can't collide, then an integer index for INLA.
+panel_m1[, cluster_key := fifelse(!is.na(District_ID),
+                                  paste0("D", District_ID), paste0("P", PWS_ID))]
+panel_m1[, cluster_idx := .GRP, by = cluster_key]
 panel_m2[, district_idx := .GRP, by = District_ID]
 
 resp <- "inla.surv(time = tstop, event = event, truncation = tstart)"
-f_pws <- 'f(pws_idx, model = "iid", hyper = frailty_hyper)'
+f_m1   <- 'f(cluster_idx, model = "iid", hyper = frailty_hyper)'
 f_dist <- 'f(district_idx, model = "iid", hyper = frailty_hyper)'
 
 # --- slim_inla(): a reduced fit for reporting/sharing ------------------------
@@ -141,10 +148,19 @@ slim_inla <- function(fit) {
 
 # =============================================================================
 # MODEL 1 (Bayesian) -- full sample, system-level shared frailty
+# -----------------------------------------------------------------------------
+# Two variants on the same panel/sample/frailty:
+#   * prime-time (model1_inla)          -- shared_vars, the reported main model.
+#   * appendix   (model1_appendix_inla) -- shared_vars_appendix, adds the
+#     demographic composition controls (% rural / % Hispanic / % Black) held out
+#     of the prime-time model. Reported only in the appendix.
+# Model 2's prior transfer reads the PRIME-TIME fit, so its shared-covariate
+# priors never include the demographic terms.
 # =============================================================================
-model1_inla <- NULL
+model1_inla          <- NULL
+model1_appendix_inla <- NULL
 if (FULL_SAMPLE_BAYES) {
-  form1 <- as.formula(paste(resp, "~", paste(c(shared_vars, f_pws), collapse = " + ")))
+  form1 <- as.formula(paste(resp, "~", paste(c(shared_vars, f_m1), collapse = " + ")))
   message("Fitting Bayesian Model 1 (full sample) -- this is the heavy one...")
   model1_inla <- inla(
     form1, family = "coxph", data = as.list(panel_m1),
@@ -157,6 +173,22 @@ if (FULL_SAMPLE_BAYES) {
   saveRDS(model1_inla, scratch("recurrent_coxinla_model1_full.RDS"))
   # Slim copy goes to output/ (git-tracked) so it can be shared via GitHub.
   saveRDS(slim_inla(model1_inla), output("recurrent_coxinla_model1_full_slim.RDS"))
+
+  # --- Appendix variant: prime-time spec PLUS demographic composition controls -
+  form1_app <- as.formula(paste(resp, "~",
+    paste(c(shared_vars_appendix, f_m1), collapse = " + ")))
+  message("Fitting Bayesian Model 1 (appendix, + demographic controls)...")
+  model1_appendix_inla <- inla(
+    form1_app, family = "coxph", data = as.list(panel_m1),
+    control.hazard = hazard_ctrl, control.inla = inla_ctrl,
+    control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
+    num.threads = parallel::detectCores(), verbose = FALSE
+  )
+  cat("\n============== MODEL 1 (INLA): appendix (+ demographics) ==============\n")
+  print(summary(model1_appendix_inla))
+  saveRDS(model1_appendix_inla, scratch("recurrent_coxinla_model1_appendix.RDS"))
+  saveRDS(slim_inla(model1_appendix_inla),
+          output("recurrent_coxinla_model1_appendix_slim.RDS"))
 }
 
 # =============================================================================
@@ -184,17 +216,17 @@ if (USE_SPATIAL) {
 # missing only from the operating_ratio model). A companion JOINT model then
 # enters all fiscal predictors together (on the rows where all are observed) for
 # comparison. The shared covariates' priors are set to Model 1's posteriors
-# (mean + precision); every fiscal term gets a vague prior. If Model 1 was not
-# fit, fall back to vague priors throughout.
+# (mean + precision); every fiscal term gets a weakly-informative prior (sd = 1 on
+# the log-hazard scale). If Model 1 was not fit, fall back to vague priors throughout.
 # =============================================================================
 if (!is.null(model1_inla)) {
   sf1 <- model1_inla$summary.fixed
   sf1 <- sf1[rownames(sf1) %in% shared_vars, ]
   prior_mean <- as.list(setNames(sf1[["mean"]], rownames(sf1)))
   prior_prec <- as.list(setNames(1 / sf1[["sd"]]^2, rownames(sf1)))
-  prior_mean$default <- 0; prior_prec$default <- 0.001   # vague for the fiscal term
+  prior_mean$default <- 0; prior_prec$default <- 1       # weakly-informative on the fiscal term (sd = 1, log-hazard scale)
   control_fixed <- list(mean = prior_mean, prec = prior_prec)
-  warm_start <- list(result = model1_inla, restart = TRUE)
+  warm_start <- NULL   # no cross-structure mode restart; the control.fixed prior transfer carries Model 1
   message("Fitting Bayesian fiscal models with Model 1 posteriors as priors on shared effects.")
 } else {
   control_fixed <- list(mean = 0, prec = 0.001)
@@ -243,7 +275,7 @@ saveRDS(slim_inla(model2_inla_all_fiscal),
         output("recurrent_coxinla_model2_all_fiscal_slim.RDS"))
 
 message("Done. Full Bayesian models -> scratch/ (gitignored): ",
-        if (FULL_SAMPLE_BAYES) "recurrent_coxinla_model1_full.RDS, " else "",
+        if (FULL_SAMPLE_BAYES) "recurrent_coxinla_model1_full.RDS, recurrent_coxinla_model1_appendix.RDS, " else "",
         "recurrent_coxinla_model2_by_fiscal.RDS, ",
         "recurrent_coxinla_model2_all_fiscal.RDS. ",
         "Reduced *_slim.RDS copies -> output/ (git-tracked).")

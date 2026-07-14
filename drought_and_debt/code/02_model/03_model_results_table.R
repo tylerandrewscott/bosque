@@ -4,9 +4,13 @@
 # Reporting for the Bayesian recurring-events Cox models fit in
 # 01_fit_recurrent_cox_inla.R. Reads the saved INLA objects and produces:
 #
-#   output/model_estimates.html   posterior mean + 95% credible interval for
-#                                 every fixed effect, on both the coefficient
-#                                 (log hazard-ratio) and hazard-ratio scales.
+#   output/model_estimates.html   WIDE table: one column per individual model
+#                                 fit (Model 1, each isolated fiscal model, and
+#                                 the joint fiscal model). Each cell is the
+#                                 posterior mean of the coefficient (log hazard
+#                                 ratio) with its 95% credible interval below.
+#                                 Shared controls appear in every column; a
+#                                 fiscal row is blank in any model that omits it.
 #   output/model_credible_intervals.png
 #                                 companion ggplot forest plot: each estimate is
 #                                 a line SEGMENT spanning its 95% CrI with the
@@ -54,6 +58,7 @@ load_fit <- function(stem) {
   NULL
 }
 model1_inla            <- load_fit("recurrent_coxinla_model1_full")
+model1_appendix_inla   <- load_fit("recurrent_coxinla_model1_appendix")
 model2_inla_by_fiscal  <- load_fit("recurrent_coxinla_model2_by_fiscal")
 model2_inla_all_fiscal <- load_fit("recurrent_coxinla_model2_all_fiscal")
 
@@ -89,110 +94,137 @@ fiscal_terms <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn",
 
 # --- Pull the posterior summaries into one tidy table ------------------------
 # INLA's summary.fixed has one row per fixed effect; we keep the mean and the
-# 2.5% / 97.5% quantiles (the bounds of the 95% credible interval).
-tidy_fixed <- function(fit, keep_terms, model_label, group_label) {
+# 2.5% / 97.5% quantiles (the bounds of the 95% credible interval). Every column
+# of the report is one model fit, so we now extract EVERY term each fit carries
+# (the shared controls too, not just its fiscal covariate) so common effects can
+# be compared across all models.
+tidy_all <- function(fit, col_label) {
+  if (is.null(fit)) return(NULL)
   sf <- as.data.frame(fit$summary.fixed)
   sf$term <- rownames(sf)
-  sf <- sf[sf$term %in% keep_terms, , drop = FALSE]
+  sf <- sf[sf$term %in% term_order, , drop = FALSE]
   if (!nrow(sf)) return(NULL)
   data.table(
     term  = sf$term,
-    model = model_label,
-    group = group_label,
+    col   = col_label,
     mean  = sf$mean,
     lower = sf[["0.025quant"]],
     upper = sf[["0.975quant"]]
   )
 }
 
-pieces <- list()
+# Short, single-line column headers for each isolated fiscal model.
+fiscal_short <- c(
+  debt_per_conn      = "Debt / conn.",
+  fund_bal_per_conn  = "Fund bal. / conn.",
+  revenue_per_conn   = "Revenue / conn.",
+  operating_ratio    = "Operating ratio",
+  debt_svc_tax       = "Debt-service tax"
+)
+COL_M1    <- "Model 1 (full sample)"      # referenced again when building the plot
+COL_JOINT <- "All fiscal (joint)"
 
-# Model 1: the drought effect + all system controls (full-sample estimates).
-if (!is.null(model1_inla)) {
-  shared <- setdiff(term_order, fiscal_terms)
-  pieces[["m1"]] <- tidy_fixed(model1_inla, shared,
-                               "Model 1 (full sample)", "Drought & controls")
+# Assemble the columns in a fixed left-to-right order: Model 1, then one column
+# per isolated fiscal model (in fiscal_terms order), then the joint fiscal model.
+pieces <- list(); col_levels <- character(0)
+add_col <- function(fit, label) {
+  p <- tidy_all(fit, label)
+  if (is.null(p)) return(invisible())
+  pieces[[length(pieces) + 1L]] <<- p
+  col_levels <<- c(col_levels, label)
 }
 
-# Model 2: one fit per fiscal covariate -> keep only that covariate's own row
-# (the shared effects there are pinned to Model 1's posteriors as priors).
-if (!is.null(model2_inla_by_fiscal)) {
-  for (v in names(model2_inla_by_fiscal)) {
-    fit <- model2_inla_by_fiscal[[v]]
-    if (is.null(fit)) next
-    pieces[[paste0("m2_", v)]] <- tidy_fixed(fit, v, "Model 2 (fiscal)", "Fiscal")
-  }
-}
+add_col(model1_inla, COL_M1)                       # full sample, shared controls only
+if (!is.null(model2_inla_by_fiscal))               # one isolated fiscal model per covariate
+  for (v in fiscal_terms) add_col(model2_inla_by_fiscal[[v]], unname(fiscal_short[v]))
+add_col(model2_inla_all_fiscal, COL_JOINT)         # joint model: shared controls + all fiscal
 
-# Joint fiscal model: one fit holding ALL fiscal covariates -> keep every fiscal
-# row (each effect conditioned on the others, on the all-observed subsample).
-if (!is.null(model2_inla_all_fiscal)) {
-  pieces[["m2_all"]] <- tidy_fixed(model2_inla_all_fiscal, fiscal_terms,
-                                   "Model 2 (all fiscal)", "Fiscal (joint)")
-}
+all_est <- rbindlist(pieces, use.names = TRUE)
+if (!nrow(all_est)) stop("No matching model terms found in the fitted objects.")
+all_est[, term := factor(term, levels = term_order)]
+all_est[, col  := factor(col,  levels = col_levels)]
 
-est <- rbindlist(pieces, use.names = TRUE)
-if (!nrow(est)) stop("No matching model terms found in the fitted objects.")
-
-# Ordered factor drives both table row order and plot y-axis order. Group order
-# keeps each block (controls, isolated fiscal, joint fiscal) contiguous so the
-# pack_rows() grouping below stays correct; within a block, order by term.
-group_levels <- c("Drought & controls", "Fiscal", "Fiscal (joint)")
-est[, group := factor(group, levels = group_levels)]
-est[, label := factor(term_labels[term], levels = rev(term_labels[term_order]))]
-est <- est[order(group, match(term, term_order))]
-
-# Hazard-ratio scale (these are Cox coefficients -> exp() = hazard ratios).
-est[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]
-
-# =============================================================================
-# 1. HTML table
-# =============================================================================
 fmt <- function(x) formatC(x, format = "f", digits = 3)
-tab <- est[, .(
-  Term        = as.character(label),
-  Model       = model,
-  `Post. mean (coef.)` = fmt(mean),
-  `95% CrI (coef.)`    = paste0("[", fmt(lower), ", ", fmt(upper), "]"),
-  `Hazard ratio`       = fmt(hr),
-  `95% CrI (HR)`       = paste0("[", fmt(hr_lower), ", ", fmt(hr_upper), "]")
-)]
+
+# =============================================================================
+# 1. HTML table -- wide: rows = terms, one column per model fit
+# =============================================================================
+# Each cell is the posterior mean with the 95% CrI beneath it (a <br> line
+# break, so the table renders with escape = FALSE). Terms a model did not
+# include stay blank.
+all_est[, cell := paste0(fmt(mean), "<br>[", fmt(lower), ", ", fmt(upper), "]")]
+wide <- dcast(all_est, term ~ col, value.var = "cell", drop = c(TRUE, FALSE))
+wide <- wide[order(term)]
+
+present_terms <- as.character(wide$term)
+disp <- as.data.frame(wide)
+disp$term <- unname(term_labels[present_terms])    # pretty row labels
+names(disp)[1] <- "Term"
+disp[is.na(disp)] <- ""                            # unmodelled terms -> blank cell
+
+# Contiguous control/fiscal blocks (term_order lists controls first) drive
+# pack_rows(); rle() gives the run lengths in display order.
+blocks     <- ifelse(present_terms %in% fiscal_terms, "Fiscal", "Drought & controls")
+block_runs <- rle(blocks)
+group_index <- setNames(block_runs$lengths, block_runs$values)
 
 html_path <- output("model_estimates.html")
-caption   <- "Bayesian recurring-events Cox model: posterior means and 95% credible intervals"
+caption   <- paste0("Bayesian recurring-events Cox model: posterior mean of the ",
+                    "coefficient (log hazard ratio) with 95% credible interval, ",
+                    "one column per model fit")
+align <- c("l", rep("c", ncol(disp) - 1L))
 
 if (requireNamespace("kableExtra", quietly = TRUE)) {
-  html_tbl <- knitr::kable(tab, format = "html", align = "lrrrrr", caption = caption)
+  html_tbl <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
+                           caption = caption)
   html_tbl <- kableExtra::kable_styling(
     html_tbl, bootstrap_options = c("striped", "hover", "condensed"),
     full_width = FALSE, position = "left")
-  html_tbl <- kableExtra::pack_rows(html_tbl, index = table(factor(est$group,
-                                    levels = unique(est$group))))
+  html_tbl <- kableExtra::pack_rows(html_tbl, index = group_index)
+  html_tbl <- kableExtra::footnote(html_tbl, general_title = "",
+    general = "Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model.")
   kableExtra::save_kable(html_tbl, file = html_path)
 } else {
   # kableExtra not installed -> plain but valid standalone HTML from knitr::kable.
-  body <- knitr::kable(tab, format = "html", align = "lrrrrr", caption = caption)
+  body <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
+                       caption = caption)
   writeLines(c(
     "<!DOCTYPE html><html><head><meta charset='utf-8'>",
     "<style>body{font-family:sans-serif;margin:2em}",
     "table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}",
-    "th{background:#f2f2f2;text-align:left}td{text-align:right}td:first-child{text-align:left}",
-    "</style></head><body>", as.character(body), "</body></html>"
+    "th{background:#f2f2f2;text-align:center}td{text-align:center}",
+    "th:first-child,td:first-child{text-align:left}",
+    "</style></head><body>", as.character(body),
+    "<p style='color:#555;font-size:90%'>Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model.</p>",
+    "</body></html>"
   ), html_path)
 }
 message("Wrote HTML table -> ", html_path)
 
-fwrite(est, output("model_estimates.csv"))
+# Tidy long form behind the wide table (every term x every model fit).
+all_est[, label := unname(term_labels[as.character(term)])]
+fwrite(all_est[order(col, term), .(term, label, model = col, mean, lower, upper)],
+       output("model_estimates.csv"))
 message("Wrote tidy estimates -> ", output("model_estimates.csv"))
 
 # =============================================================================
 # 2. Companion ggplot -- 95% credible intervals as line segments
 # =============================================================================
-# One row per term: a segment from the lower to the upper CrI bound with the
-# posterior mean as a point. Plotted on the hazard-ratio scale (log x-axis) with
-# a reference line at HR = 1 (no effect). A fiscal term appears in both the
-# isolated and the joint model, so dodge by group to show them side by side at
-# the same y instead of overplotting.
+# The wide table shows the shared controls in every column; the plot would be
+# unreadable with each control repeated across all models, so it keeps the
+# parsimonious view: each shared control once (from Model 1) and each fiscal
+# term from its isolated model and the joint model. Segment = 95% CrI, point =
+# posterior mean, on the hazard-ratio scale (log x-axis) with a reference line
+# at HR = 1. A fiscal term appears twice (isolated vs joint), so dodge by group.
+shared   <- setdiff(term_order, fiscal_terms)
+est      <- all_est[(as.character(term) %in% shared & col == COL_M1) |
+                    (as.character(term) %in% fiscal_terms)]
+est[, group := fifelse(as.character(term) %in% shared, "Drought & controls",
+              fifelse(col == COL_JOINT, "Fiscal (joint)", "Fiscal"))]
+est[, group := factor(group, levels = c("Drought & controls", "Fiscal", "Fiscal (joint)"))]
+est[, label := factor(term_labels[as.character(term)], levels = rev(term_labels[term_order]))]
+est[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]
+
 dodge <- position_dodge(width = 0.6)
 ci_plot <- ggplot(est, aes(y = label, colour = group)) +
   geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
@@ -213,5 +245,78 @@ plot_path <- output("model_credible_intervals.png")
 ggsave(plot_path, ci_plot, width = 8,
        height = 1 + 0.35 * nrow(est), units = "in", dpi = 400)
 message("Wrote credible-interval plot -> ", plot_path)
+
+# =============================================================================
+# 3. Appendix -- Model 1 with the demographic composition controls
+# -----------------------------------------------------------------------------
+# % rural / % Hispanic / % Black are held out of the prime-time Model 1 (above)
+# and reported ONLY here: the same full-sample fit with those three extra fixed
+# effects. Emits a standalone estimate table, tidy CSV, and forest plot mirroring
+# the main ones, with the demographic terms highlighted.
+# =============================================================================
+demo_terms <- c("perc_rural", "perc_hispanic", "perc_black")
+if (!is.null(model1_appendix_inla)) {
+  app <- tidy_all(model1_appendix_inla, "Model 1 (appendix)")
+  app[, term := factor(term, levels = term_order)]
+  app <- app[order(term)]
+  app[, label := unname(term_labels[as.character(term)])]
+
+  app_caption <- paste0("Appendix — Model 1 with demographic composition controls ",
+    "(% rural, % Hispanic, % Black), held out of the prime-time model. Posterior ",
+    "mean of the coefficient (log hazard ratio) with 95% credible interval.")
+  app_disp <- data.frame(
+    Term     = app$label,
+    Estimate = paste0(fmt(app$mean), "<br>[", fmt(app$lower), ", ", fmt(app$upper), "]"),
+    check.names = FALSE)
+  app_html <- output("model_estimates_appendix.html")
+  if (requireNamespace("kableExtra", quietly = TRUE)) {
+    t <- knitr::kable(app_disp, format = "html", align = c("l", "c"),
+                      escape = FALSE, caption = app_caption)
+    t <- kableExtra::kable_styling(t,
+      bootstrap_options = c("striped", "hover", "condensed"),
+      full_width = FALSE, position = "left")
+    kableExtra::save_kable(t, file = app_html)
+  } else {
+    body <- knitr::kable(app_disp, format = "html", align = c("l", "c"),
+                         escape = FALSE, caption = app_caption)
+    writeLines(c(
+      "<!DOCTYPE html><html><head><meta charset='utf-8'>",
+      "<style>body{font-family:sans-serif;margin:2em}",
+      "table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}",
+      "th{background:#f2f2f2;text-align:center}td{text-align:center}",
+      "th:first-child,td:first-child{text-align:left}",
+      "</style></head><body>", as.character(body), "</body></html>"), app_html)
+  }
+  message("Wrote appendix HTML table -> ", app_html)
+
+  fwrite(app[, .(term, label, model = col, mean, lower, upper)],
+         output("model_estimates_appendix.csv"))
+  message("Wrote appendix tidy estimates -> ", output("model_estimates_appendix.csv"))
+
+  # Forest plot: demographic (appendix) terms distinguished from the shared controls.
+  app[, is_demo := as.character(term) %in% demo_terms]
+  app[, label := factor(term_labels[as.character(term)],
+                        levels = rev(term_labels[term_order]))]
+  app[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]
+  app_plot <- ggplot(app, aes(y = label, colour = is_demo)) +
+    geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
+    geom_segment(aes(x = hr_lower, xend = hr_upper, yend = label), linewidth = 0.7) +
+    geom_point(aes(x = hr), size = 2) +
+    scale_x_continuous(trans = "log10", name = "Hazard ratio (95% credible interval)") +
+    scale_colour_manual(values = c(`FALSE` = "grey30", `TRUE` = "#d62728"),
+      labels = c(`FALSE` = "Prime-time controls", `TRUE` = "Demographic (appendix)"),
+      name = NULL) +
+    labs(y = NULL, title = "Appendix — Model 1 with demographic controls",
+         subtitle = "Posterior mean (point) and 95% credible interval (segment)") +
+    theme_bw() +
+    theme(legend.position = "bottom", panel.grid.minor = element_blank(),
+          plot.title = element_text(face = "bold"))
+  app_plot_path <- output("model_credible_intervals_appendix.png")
+  ggsave(app_plot_path, app_plot, width = 8,
+         height = 1 + 0.35 * nrow(app), units = "in", dpi = 400)
+  message("Wrote appendix credible-interval plot -> ", app_plot_path)
+} else {
+  message("Appendix Model 1 fit not found; skipping appendix outputs.")
+}
 
 message("Done. Model reporting outputs in ", OUTPUT_DIR, "/")

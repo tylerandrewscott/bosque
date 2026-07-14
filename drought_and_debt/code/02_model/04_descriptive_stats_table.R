@@ -30,11 +30,12 @@ if (!exists("PROJ_ROOT")) {
   .find_file <- function(f) { p <- Find(file.exists, file.path(c(".", "drought_and_debt", "..", "../.."), f)); if (is.null(p)) f else p }
   source(.find_file("code/config.R"))
 }
-# Build the shared panel unless a caller already built it in this environment
-# (run_all.R runs the fit script and this one in one env so the ~minutes-long
-# build happens once).
-if (!exists("panel_m1") || !exists("panel_m2"))
-  source("code/02_model/build_recurrent_panel.R") # -> panel_m1, panel_m2, *_vars
+# Build the shared panel. The builder is idempotent (skips the expensive rebuild
+# when a current panel is already in this env, always refreshes the covariate-
+# name vectors), so source it unconditionally rather than re-checking its outputs
+# here — run_all.R runs the fit script and this one in one env so the
+# ~minutes-long build happens once.
+source("code/02_model/build_recurrent_panel.R") # -> panel_m1, panel_m2, *_vars
 
 suppressPackageStartupMessages({
   library(data.table)
