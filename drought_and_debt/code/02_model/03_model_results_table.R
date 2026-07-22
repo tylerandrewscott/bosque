@@ -58,7 +58,6 @@ load_fit <- function(stem) {
   NULL
 }
 model1_inla            <- load_fit("recurrent_coxinla_model1_full")
-model1_appendix_inla   <- load_fit("recurrent_coxinla_model1_appendix")
 model2_inla_by_fiscal  <- load_fit("recurrent_coxinla_model2_by_fiscal")
 model2_inla_all_fiscal <- load_fit("recurrent_coxinla_model2_all_fiscal")
 
@@ -71,26 +70,23 @@ if (is.null(model1_inla) && is.null(model2_inla_by_fiscal) &&
 # --- Pretty labels for the model terms ---------------------------------------
 term_labels <- c(
   DSCI_100           = "Drought severity (DSCI/100)",
+  seller_restricted  = "Seller under restriction",
   ln_connections     = "Log connections",
   storage_per_conn_g = "Storage per connection (asinh gal)",
-  has_interconnect   = "Has interconnect",
-  ln_income          = "Log median income",
+  source_surface     = "Surface water (vs ground)",
+  purchases_water    = "Purchases water (primary)",
+  emergency_source   = "Emergency source/interconnect",
+  wholesaler         = "Wholesaler (sells water)",
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
-  perc_rural         = "% rural",
-  perc_hispanic      = "% Hispanic",
-  perc_black         = "% Black",
   perc_dem_vote      = "% Dem. vote share",
   debt_per_conn      = "Debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
-  revenue_per_conn   = "Revenue per connection (asinh)",
-  operating_ratio    = "Operating ratio (asinh)",
-  debt_svc_tax       = "Debt-service tax (0/1)"
+  revenue_per_conn   = "Revenue per connection (asinh)"
 )
 # Top-to-bottom ordering in the plot / table (drought & controls, then fiscal).
 term_order  <- names(term_labels)
-fiscal_terms <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn",
-                  "operating_ratio", "debt_svc_tax")
+fiscal_terms <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn")
 
 # --- Pull the posterior summaries into one tidy table ------------------------
 # INLA's summary.fixed has one row per fixed effect; we keep the mean and the
@@ -117,15 +113,13 @@ tidy_all <- function(fit, col_label) {
 fiscal_short <- c(
   debt_per_conn      = "Debt / conn.",
   fund_bal_per_conn  = "Fund bal. / conn.",
-  revenue_per_conn   = "Revenue / conn.",
-  operating_ratio    = "Operating ratio",
-  debt_svc_tax       = "Debt-service tax"
+  revenue_per_conn   = "Revenue / conn."
 )
-COL_M1    <- "Model 1 (full sample)"      # referenced again when building the plot
 COL_JOINT <- "All fiscal (joint)"
 
-# Assemble the columns in a fixed left-to-right order: Model 1, then one column
-# per isolated fiscal model (in fiscal_terms order), then the joint fiscal model.
+# Assemble the MAIN table columns left-to-right: one column per isolated fiscal
+# model (in fiscal_terms order), then the joint fiscal model. Model 1 (the global
+# fit) is NOT a main column -- it is reported in the appendix below.
 pieces <- list(); col_levels <- character(0)
 add_col <- function(fit, label) {
   p <- tidy_all(fit, label)
@@ -134,7 +128,6 @@ add_col <- function(fit, label) {
   col_levels <<- c(col_levels, label)
 }
 
-add_col(model1_inla, COL_M1)                       # full sample, shared controls only
 if (!is.null(model2_inla_by_fiscal))               # one isolated fiscal model per covariate
   for (v in fiscal_terms) add_col(model2_inla_by_fiscal[[v]], unname(fiscal_short[v]))
 add_col(model2_inla_all_fiscal, COL_JOINT)         # joint model: shared controls + all fiscal
@@ -212,12 +205,12 @@ message("Wrote tidy estimates -> ", output("model_estimates.csv"))
 # =============================================================================
 # The wide table shows the shared controls in every column; the plot would be
 # unreadable with each control repeated across all models, so it keeps the
-# parsimonious view: each shared control once (from Model 1) and each fiscal
-# term from its isolated model and the joint model. Segment = 95% CrI, point =
-# posterior mean, on the hazard-ratio scale (log x-axis) with a reference line
-# at HR = 1. A fiscal term appears twice (isolated vs joint), so dodge by group.
+# parsimonious view: each shared control once (from the joint fiscal model) and
+# each fiscal term from its isolated model and the joint model. Segment = 95% CrI,
+# point = posterior mean, on the hazard-ratio scale (log x-axis) with a reference
+# line at HR = 1. A fiscal term appears twice (isolated vs joint), so dodge by group.
 shared   <- setdiff(term_order, fiscal_terms)
-est      <- all_est[(as.character(term) %in% shared & col == COL_M1) |
+est      <- all_est[(as.character(term) %in% shared & col == COL_JOINT) |
                     (as.character(term) %in% fiscal_terms)]
 est[, group := fifelse(as.character(term) %in% shared, "Drought & controls",
               fifelse(col == COL_JOINT, "Fiscal (joint)", "Fiscal"))]
@@ -247,23 +240,23 @@ ggsave(plot_path, ci_plot, width = 8,
 message("Wrote credible-interval plot -> ", plot_path)
 
 # =============================================================================
-# 3. Appendix -- Model 1 with the demographic composition controls
+# 3. Appendix -- Model 1 (the global full-sample fit)
 # -----------------------------------------------------------------------------
-# % rural / % Hispanic / % Black are held out of the prime-time Model 1 (above)
-# and reported ONLY here: the same full-sample fit with those three extra fixed
-# effects. Emits a standalone estimate table, tidy CSV, and forest plot mirroring
-# the main ones, with the demographic terms highlighted.
+# Model 1 is the global model fit on the full CWS sample (drought + controls +
+# the seller-restriction network term, two frailties). It seeds Model 2's priors
+# and is reported HERE, in the appendix, rather than as a main column. Emits a
+# standalone estimate table, tidy CSV, and forest plot mirroring the main ones.
 # =============================================================================
-demo_terms <- c("perc_rural", "perc_hispanic", "perc_black")
-if (!is.null(model1_appendix_inla)) {
-  app <- tidy_all(model1_appendix_inla, "Model 1 (appendix)")
+if (!is.null(model1_inla)) {
+  app <- tidy_all(model1_inla, "Model 1 (global)")
   app[, term := factor(term, levels = term_order)]
   app <- app[order(term)]
   app[, label := unname(term_labels[as.character(term)])]
 
-  app_caption <- paste0("Appendix — Model 1 with demographic composition controls ",
-    "(% rural, % Hispanic, % Black), held out of the prime-time model. Posterior ",
-    "mean of the coefficient (log hazard ratio) with 95% credible interval.")
+  app_caption <- paste0("Appendix — Model 1, the global full-sample fit (drought, ",
+    "controls, and the seller-restriction network term) whose posteriors seed the ",
+    "Model 2 priors. Posterior mean of the coefficient (log hazard ratio) with 95% ",
+    "credible interval.")
   app_disp <- data.frame(
     Term     = app$label,
     Estimate = paste0(fmt(app$mean), "<br>[", fmt(app$lower), ", ", fmt(app$upper), "]"),
@@ -293,20 +286,17 @@ if (!is.null(model1_appendix_inla)) {
          output("model_estimates_appendix.csv"))
   message("Wrote appendix tidy estimates -> ", output("model_estimates_appendix.csv"))
 
-  # Forest plot: demographic (appendix) terms distinguished from the shared controls.
-  app[, is_demo := as.character(term) %in% demo_terms]
+  # Forest plot: all Model 1 covariates on the hazard-ratio scale.
   app[, label := factor(term_labels[as.character(term)],
                         levels = rev(term_labels[term_order]))]
   app[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]
-  app_plot <- ggplot(app, aes(y = label, colour = is_demo)) +
+  app_plot <- ggplot(app, aes(y = label)) +
     geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
-    geom_segment(aes(x = hr_lower, xend = hr_upper, yend = label), linewidth = 0.7) +
-    geom_point(aes(x = hr), size = 2) +
+    geom_segment(aes(x = hr_lower, xend = hr_upper, yend = label), linewidth = 0.7,
+                 colour = "grey30") +
+    geom_point(aes(x = hr), size = 2, colour = "grey30") +
     scale_x_continuous(trans = "log10", name = "Hazard ratio (95% credible interval)") +
-    scale_colour_manual(values = c(`FALSE` = "grey30", `TRUE` = "#d62728"),
-      labels = c(`FALSE` = "Prime-time controls", `TRUE` = "Demographic (appendix)"),
-      name = NULL) +
-    labs(y = NULL, title = "Appendix — Model 1 with demographic controls",
+    labs(y = NULL, title = "Appendix — Model 1 (global full-sample fit)",
          subtitle = "Posterior mean (point) and 95% credible interval (segment)") +
     theme_bw() +
     theme(legend.position = "bottom", panel.grid.minor = element_blank(),
@@ -316,7 +306,7 @@ if (!is.null(model1_appendix_inla)) {
          height = 1 + 0.35 * nrow(app), units = "in", dpi = 400)
   message("Wrote appendix credible-interval plot -> ", app_plot_path)
 } else {
-  message("Appendix Model 1 fit not found; skipping appendix outputs.")
+  message("Model 1 fit not found; skipping appendix outputs.")
 }
 
 message("Done. Model reporting outputs in ", OUTPUT_DIR, "/")

@@ -61,7 +61,6 @@ suppressPackageStartupMessages(library(INLA))
 
 # --- knobs -------------------------------------------------------------------
 FULL_SAMPLE_BAYES <- TRUE    # FALSE -> only fit the (small) fiscal-subsample model
-USE_SPATIAL       <- FALSE   # TRUE  -> add a BESAG county spatial effect (needs spdep/tigris)
 N_HAZARD_INTERVALS <- 30     # RW1 baseline-hazard resolution (higher = finer, slower)
 
 # PC prior on each frailty SD: P(sigma > 1) = 0.01 (weakly informative on the
@@ -83,9 +82,24 @@ panel_m1[, cluster_key := fifelse(!is.na(District_ID),
 panel_m1[, cluster_idx := .GRP, by = cluster_key]
 panel_m2[, district_idx := .GRP, by = District_ID]
 
+# County frailty: a SECOND iid random effect, added on top of the district/system
+# frailty above, pooling systems that share a (primary) county. There is NO spatial
+# ICAR term -- the drought covariate (DSCI) absorbs the core spatial variance, so the
+# county frailty only soaks up residual county-level heterogeneity. CFIPS is attached
+# in build_recurrent_panel.R; guard the rare NA with a catch-all level.
+panel_m1[, county_key := fifelse(is.na(CFIPS), "NA", as.character(CFIPS))]
+panel_m1[, county_idx := .GRP, by = county_key]
+panel_m2[, county_key := fifelse(is.na(CFIPS), "NA", as.character(CFIPS))]
+panel_m2[, county_idx := .GRP, by = county_key]
+
 resp <- "inla.surv(time = tstop, event = event, truncation = tstart)"
-f_m1   <- 'f(cluster_idx, model = "iid", hyper = frailty_hyper)'
-f_dist <- 'f(district_idx, model = "iid", hyper = frailty_hyper)'
+f_m1     <- 'f(cluster_idx, model = "iid", hyper = frailty_hyper)'
+f_cty1   <- 'f(county_idx,  model = "iid", hyper = frailty_hyper)'
+# Model 2's frailty priors (frailty_hyper_m2 for the district frailty,
+# frailty_hyper_cty2 for the county frailty) are set below: Model 1's matching
+# frailty posteriors when Model 1 was fit, else the same default PC prior.
+f_dist   <- 'f(district_idx, model = "iid", hyper = frailty_hyper_m2)'
+f_cty2   <- 'f(county_idx,  model = "iid", hyper = frailty_hyper_cty2)'
 
 # --- slim_inla(): a reduced fit for reporting/sharing ------------------------
 # The full inla object is huge here because the Cox likelihood expands the panel
@@ -96,8 +110,9 @@ f_dist <- 'f(district_idx, model = "iid", hyper = frailty_hyper)'
 # summary()/print() and the estimate tables still work. Dropped, in order of
 # bloat (see the "Result object" section of ?inla):
 #   * $.args$data etc. -- the full (expanded) input data stored with the call.
-#     For Model 2, $.args$control.mode$result also embeds an ENTIRE copy of
-#     Model 1 (it was passed in as the warm-start), so drop that too.
+#     (Model 2 once warm-started from Model 1, embedding an ENTIRE copy of it in
+#     $.args$control.mode$result; that warm-start has since been removed -- the
+#     prior transfer alone now carries Model 1 -- so there is no such copy to strip.)
 #   * $misc$configs           -- config=TRUE posterior configs (Q, means per theta)
 #   * $marginals/summary .linear.predictor & .fitted.values -- one entry per row
 #   * $model.matrix, $graph   -- the expanded design matrix / neighbour graph
@@ -141,26 +156,24 @@ slim_inla <- function(fit) {
     # since it doesn't traverse environments). Nothing in reporting reads it.
     fit$.args[c("data", "E", "Ntrials", "weights", "offset", "scale",
                 "lincomb", "y", "response", ".parent.frame")] <- NULL
-    if (!is.null(fit$.args$control.mode)) fit$.args$control.mode$result <- NULL
   }
   fit
 }
 
 # =============================================================================
-# MODEL 1 (Bayesian) -- full sample, system-level shared frailty
+# MODEL 1 (Bayesian) -- full sample; district/system + county frailties
 # -----------------------------------------------------------------------------
-# Two variants on the same panel/sample/frailty:
-#   * prime-time (model1_inla)          -- shared_vars, the reported main model.
-#   * appendix   (model1_appendix_inla) -- shared_vars_appendix, adds the
-#     demographic composition controls (% rural / % Hispanic / % Black) held out
-#     of the prime-time model. Reported only in the appendix.
-# Model 2's prior transfer reads the PRIME-TIME fit, so its shared-covariate
-# priors never include the demographic terms.
+# The global model: shared_vars (drought + controls + the seller-restriction
+# network term) with TWO iid frailties -- district-or-system (f_m1) and county
+# (f_cty1). Fit on the full CWS sample; its posteriors seed Model 2's priors, and
+# its coefficients are REPORTED IN THE APPENDIX (the main results are the Model 2
+# fiscal models). There is no held-out demographic/income variant -- those controls
+# were dropped from the specification entirely.
 # =============================================================================
-model1_inla          <- NULL
-model1_appendix_inla <- NULL
+model1_inla <- NULL
 if (FULL_SAMPLE_BAYES) {
-  form1 <- as.formula(paste(resp, "~", paste(c(shared_vars, f_m1), collapse = " + ")))
+  form1 <- as.formula(paste(resp, "~",
+    paste(c(shared_vars, f_m1, f_cty1), collapse = " + ")))
   message("Fitting Bayesian Model 1 (full sample) -- this is the heavy one...")
   model1_inla <- inla(
     form1, family = "coxph", data = as.list(panel_m1),
@@ -173,63 +186,62 @@ if (FULL_SAMPLE_BAYES) {
   saveRDS(model1_inla, scratch("recurrent_coxinla_model1_full.RDS"))
   # Slim copy goes to output/ (git-tracked) so it can be shared via GitHub.
   saveRDS(slim_inla(model1_inla), output("recurrent_coxinla_model1_full_slim.RDS"))
-
-  # --- Appendix variant: prime-time spec PLUS demographic composition controls -
-  form1_app <- as.formula(paste(resp, "~",
-    paste(c(shared_vars_appendix, f_m1), collapse = " + ")))
-  message("Fitting Bayesian Model 1 (appendix, + demographic controls)...")
-  model1_appendix_inla <- inla(
-    form1_app, family = "coxph", data = as.list(panel_m1),
-    control.hazard = hazard_ctrl, control.inla = inla_ctrl,
-    control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
-    num.threads = parallel::detectCores(), verbose = FALSE
-  )
-  cat("\n============== MODEL 1 (INLA): appendix (+ demographics) ==============\n")
-  print(summary(model1_appendix_inla))
-  saveRDS(model1_appendix_inla, scratch("recurrent_coxinla_model1_appendix.RDS"))
-  saveRDS(slim_inla(model1_appendix_inla),
-          output("recurrent_coxinla_model1_appendix_slim.RDS"))
-}
-
-# =============================================================================
-# Optional BESAG county spatial effect for Model 2
-# =============================================================================
-spatial_term <- character(0)
-if (USE_SPATIAL) {
-  if (!all(vapply(c("spdep", "tigris"), requireNamespace, logical(1), quietly = TRUE))) {
-    warning("USE_SPATIAL = TRUE but spdep/tigris unavailable; skipping spatial term.")
-  } else {
-    co <- as.data.table(readRDS(committed("pws_county_overlaps.RDS")))
-    co <- co[order(-Prop_Over_County)][!duplicated(PWS_ID), .(PWS_ID, CFIPS)]  # primary county
-    tx_county_sp <- tx_county_adjacency(crs = albersNA, adj_file = "tx.adj")   # writes tx.adj
-    co[, county_idx := match(CFIPS, tx_county_sp$GEOID)]
-    panel_m2 <- merge(panel_m2, co[, .(PWS_ID, county_idx)], by = "PWS_ID", all.x = TRUE)
-    spatial_term <- 'f(county_idx, model = "besag", graph = "tx.adj", hyper = frailty_hyper)'
-  }
 }
 
 # =============================================================================
 # MODEL 2 (Bayesian) -- fiscal effects, Model 1 as prior
 # -----------------------------------------------------------------------------
 # The fiscal indicators are likely conflated, so each is fit in its own model.
-# Each uses that covariate's own non-missing rows (a zero-expenditure audit is
-# missing only from the operating_ratio model). A companion JOINT model then
+# Each uses that covariate's own non-missing rows. A companion JOINT model then
 # enters all fiscal predictors together (on the rows where all are observed) for
-# comparison. The shared covariates' priors are set to Model 1's posteriors
-# (mean + precision); every fiscal term gets a weakly-informative prior (sd = 1 on
-# the log-hazard scale). If Model 1 was not fit, fall back to vague priors throughout.
+# comparison. Model 1's posteriors are carried into Model 2 as priors on BOTH the
+# shared fixed effects (each covariate's mean + precision) AND the three
+# hyperparameters -- the district/system-frailty precision, the county-frailty
+# precision, and the RW1 baseline-hazard precision. Every fiscal term gets a
+# weakly-informative prior (sd = 1 on the log-hazard scale). If Model 1 was not
+# fit, fall back to vague/default priors throughout.
 # =============================================================================
 if (!is.null(model1_inla)) {
+  # (a) Fixed effects: Model 1's posterior mean/precision on each shared covariate;
+  #     a weakly-informative default (mean 0, sd 1) for the as-yet-unseen fiscal term.
   sf1 <- model1_inla$summary.fixed
   sf1 <- sf1[rownames(sf1) %in% shared_vars, ]
   prior_mean <- as.list(setNames(sf1[["mean"]], rownames(sf1)))
   prior_prec <- as.list(setNames(1 / sf1[["sd"]]^2, rownames(sf1)))
   prior_mean$default <- 0; prior_prec$default <- 1       # weakly-informative on the fiscal term (sd = 1, log-hazard scale)
   control_fixed <- list(mean = prior_mean, prec = prior_prec)
-  warm_start <- NULL   # no cross-structure mode restart; the control.fixed prior transfer carries Model 1
-  message("Fitting Bayesian fiscal models with Model 1 posteriors as priors on shared effects.")
+
+  # (b) Hyperparameters: carry Model 1's frailty precision and RW1 baseline-hazard
+  #     precision forward as priors too. INLA parameterises both precisions on an
+  #     internal LOG scale ($internal.summary.hyperpar), where the posterior marginal
+  #     is ~Gaussian, so a "normal" prior on that scale with Model 1's internal mean
+  #     and precision (1/sd^2) is the matching posterior-as-prior transfer (i.e. a
+  #     log-normal prior on the precision itself). scale.model = TRUE keeps the RW1
+  #     precision comparable across the full sample and the subsample.
+  int_prior <- function(pattern) {
+    ish <- as.data.frame(model1_inla$internal.summary.hyperpar)
+    i <- grep(pattern, rownames(ish), fixed = TRUE)
+    if (length(i) != 1L)
+      stop("expected exactly one internal hyperparameter matching '", pattern,
+           "', found ", length(i))
+    list(prior = "normal", param = c(ish[i, "mean"], 1 / ish[i, "sd"]^2))
+  }
+  # Model 1's district/system frailty sits on cluster_idx; Model 2's is the same
+  # iid structure on district_idx, so its precision inherits Model 1's cluster-
+  # frailty posterior. The county frailty (county_idx) has the same name in both,
+  # so its precision transfers directly.
+  frailty_hyper_m2   <- list(prec = int_prior("cluster_idx"))
+  frailty_hyper_cty2 <- list(prec = int_prior("county_idx"))
+  hazard_ctrl_m2   <- modifyList(hazard_ctrl,
+                                 list(hyper = list(prec = int_prior("baseline.hazard"))))
+  warm_start <- NULL   # no cross-structure mode restart; the control.fixed / hyper priors carry Model 1
+  message("Fitting Bayesian fiscal models with Model 1 posteriors as priors on the ",
+          "shared effects and the frailty / baseline-hazard hyperparameters.")
 } else {
-  control_fixed <- list(mean = 0, prec = 0.001)
+  control_fixed      <- list(mean = 0, prec = 0.001)
+  frailty_hyper_m2   <- frailty_hyper    # default PC prior on the district frailty
+  frailty_hyper_cty2 <- frailty_hyper    # default PC prior on the county frailty
+  hazard_ctrl_m2     <- hazard_ctrl      # default RW1 baseline-hazard prior
   warm_start <- NULL
   message("Fitting Bayesian fiscal models with default vague priors (Model 1 not fit).")
 }
@@ -241,10 +253,11 @@ if (!is.null(model1_inla)) {
 fit_fiscal_inla <- function(vs) {
   d <- panel_m2[complete.cases(panel_m2[, ..vs])]
   d[, district_idx := .GRP, by = District_ID]           # reindex within subsample
+  d[, county_idx   := .GRP, by = county_key]            # reindex county within subsample
   form <- as.formula(paste(resp, "~",
-    paste(c(shared_vars, vs, f_dist, spatial_term), collapse = " + ")))
+    paste(c(shared_vars, vs, f_dist, f_cty2), collapse = " + ")))
   inla(form, family = "coxph", data = as.list(d),
-       control.hazard = hazard_ctrl, control.inla = inla_ctrl,
+       control.hazard = hazard_ctrl_m2, control.inla = inla_ctrl,
        control.fixed = control_fixed, control.mode = warm_start,
        control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
        num.threads = parallel::detectCores(), verbose = FALSE)
@@ -275,7 +288,7 @@ saveRDS(slim_inla(model2_inla_all_fiscal),
         output("recurrent_coxinla_model2_all_fiscal_slim.RDS"))
 
 message("Done. Full Bayesian models -> scratch/ (gitignored): ",
-        if (FULL_SAMPLE_BAYES) "recurrent_coxinla_model1_full.RDS, recurrent_coxinla_model1_appendix.RDS, " else "",
+        if (FULL_SAMPLE_BAYES) "recurrent_coxinla_model1_full.RDS, " else "",
         "recurrent_coxinla_model2_by_fiscal.RDS, ",
         "recurrent_coxinla_model2_all_fiscal.RDS. ",
         "Reduced *_slim.RDS copies -> output/ (git-tracked).")

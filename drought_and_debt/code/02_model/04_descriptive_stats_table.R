@@ -49,19 +49,16 @@ term_labels <- c(
   DSCI_100           = "Drought severity (DSCI/100)",
   ln_connections     = "Log connections",
   storage_per_conn_g = "Storage per connection (asinh gal)",
-  has_interconnect   = "Has interconnect (0/1)",
-  ln_income          = "Log median income",
+  source_surface     = "Surface water (vs ground)",
+  purchases_water    = "Purchases water (primary)",
+  emergency_source   = "Emergency source/interconnect",
+  wholesaler         = "Wholesaler (sells water)",
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
-  perc_rural         = "% rural",
-  perc_hispanic      = "% Hispanic",
-  perc_black         = "% Black",
   perc_dem_vote      = "% Dem. vote share",
   debt_per_conn      = "Debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
-  revenue_per_conn   = "Revenue per connection (asinh)",
-  operating_ratio    = "Operating ratio (asinh)",
-  debt_svc_tax       = "Debt-service tax (0/1)"
+  revenue_per_conn   = "Revenue per connection (asinh)"
 )
 
 # --- describe(): per-variable summary stats over a data.table ----------------

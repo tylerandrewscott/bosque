@@ -109,11 +109,11 @@ reuse_prior <- function(...) {
 }
 
 # --- Analysis window ----------------------------------------------------------
-# Weekly panel, May 2010 through 2025. (The window opens with the May 2010
-# drought episode; it originally closed Jul 2015 and was extended for the 2026
-# reboot.) build_recurrent_panel.R reads these, so this is the ONE place to
-# change the window.
-start_date <- as.Date("2010-05-04")
+# Weekly panel, Jan 2010 through Dec 2025. (The window originally opened with the
+# May 2010 drought episode and closed Jul 2015; it was extended to a full
+# 2010-01-01 -> 2025-12-31 span for the 2026 reboot.) build_recurrent_panel.R
+# reads these, so this is the ONE place to change the window.
+start_date <- as.Date("2010-01-01")
 end_date   <- as.Date("2025-12-31")
 start_year <- as.integer(format(start_date, "%Y"))
 

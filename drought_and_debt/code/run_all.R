@@ -96,6 +96,7 @@ if (run_model) {
   run_step("02_model/02_make_figure1.R")            # -> output/figure1.png, figure2.png
   run_step("02_model/03_model_results_table.R")     # -> output/model_estimates.{html,csv}, model_credible_intervals.png
   run_step("02_model/04_descriptive_stats_table.R", env = panel_env) # -> output/descriptive_stats.{csv,html}
+  run_step("02_model/05_paper_facts.R", env = panel_env)             # -> output/paper_facts.csv (scalar facts the manuscript cites)
   # Shared panel builder: 02_model/build_recurrent_panel.R (sourced by the fit script).
   # A frequentist `survival` version of the model is kept at
   # scratch_models/05_fit_recurrent_cox.R (reference, not on the default path),

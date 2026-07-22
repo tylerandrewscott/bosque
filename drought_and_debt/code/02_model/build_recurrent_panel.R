@@ -51,19 +51,32 @@ num <- function(x) as.numeric(gsub("[^0-9eE.+-]", "", as.character(x)))
 # That is what keeps them from going stale in a reused environment: a consumer
 # can never see an old panel without the matching, up-to-date name vectors.
 # =============================================================================
-ctrl_vars   <- c("ln_connections", "storage_per_conn_g", "has_interconnect",
-                 "ln_income", "ln_home_value", "median_structure_age",
-                 "perc_rural", "perc_hispanic", "perc_black",
-                 "perc_dem_vote")
-# Demographic composition controls (% rural / % Hispanic / % Black) are held OUT
-# of the prime-time Model 1 and fit only in an appendix version. They stay in
-# ctrl_vars (so the panel still carries the columns and the complete-case sample
-# is identical across both variants) but are dropped from the prime-time formula.
-demo_vars   <- c("perc_rural", "perc_hispanic", "perc_black")
-shared_vars          <- setdiff(c("DSCI_100", ctrl_vars), demo_vars)  # prime-time Model 1
-shared_vars_appendix <- c(shared_vars, demo_vars)                     # appendix Model 1 (+ demographics)
-fiscal_vars <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn",
-                 "operating_ratio", "debt_svc_tax")
+ctrl_vars   <- c("ln_connections", "storage_per_conn_g",
+                 "ln_home_value", "median_structure_age",
+                 "perc_dem_vote",
+                 # DWV source / network flags (time-invariant; §3), from
+                 # 07_scrape_source_and_purchases.R: (1) source_surface (surface-
+                 # vs-ground) and (2) purchases_water (wholesale is the PRIMARY
+                 # source), both from D_FED_PRIM_SRC_CD; (3) emergency_source (an
+                 # emergency-designated supply facility / interconnect, from
+                 # DashSourceWater); (4) wholesaler (the system SELLS water to
+                 # others, i.e. appears as a Seller in the buys-from edges). In
+                 # ctrl_vars so the complete-case sample gates on them too.
+                 "source_surface", "purchases_water", "emergency_source",
+                 "wholesaler")
+# Time-varying NETWORK covariate (built in §2b below): 1 in weeks where any system
+# the PWS buys water from is under a mandatory restriction. Not a time-invariant
+# control, so it lives outside ctrl_vars (and the complete-case gate) but enters
+# the model formula alongside the shared covariates.
+network_vars <- c("seller_restricted")
+# Prime-time Model 1 = drought + all time-invariant controls + the network term.
+# There is no held-out appendix control set: the demographic composition controls
+# (% rural / % Hispanic / % Black) and median household income were dropped from
+# the specification entirely, so shared_vars is the whole story.
+shared_vars <- c("DSCI_100", ctrl_vars, network_vars)
+# Three core fiscal capacity measures (§4.4): debt / revenue / fund-balance per
+# connection. (operating_ratio and debt_svc_tax were removed from the workflow.)
+fiscal_vars <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn")
 
 # =============================================================================
 # PANEL BUILD GUARD  (single source of truth for "is the panel current?")
@@ -125,6 +138,45 @@ message(sprintf("Counting-process panel: %s rows, %d systems, %d event-weeks.",
                 sum(panel$event)))
 
 # =============================================================================
+# 2b. TIME-VARYING NETWORK COVARIATE -- is an upstream SELLER under restriction?
+# -----------------------------------------------------------------------------
+# The DWV "buys-from" edges (pws_purchase_edges.RDS, from 07_scrape_source_and_
+# purchases.R) are a TIME-INVARIANT snapshot of wholesale relationships. The
+# covariate still varies in week-time because a seller's restriction STATUS comes
+# from the same mandatory notices that define the event flag (§1): at each
+# buyer-week we ask whether any system the buyer buys water from is currently
+# under a mandatory restriction.
+#
+# A seller notice adopted at week E is treated as "in effect" for NEIGHBOR_PERSIST
+# weeks -- a restriction persists, the weekly USDM grid is too fine for a literal
+# single-week match to carry signal, and recurrent re-declarations refresh the
+# window. A buyer interval (tstart, tstop] gets seller_restricted = 1 iff some
+# seller-exposure window [E, E + NEIGHBOR_PERSIST) overlaps it (tstart < win_end
+# AND tstop > win_start). Non-purchasers (no out-edges) stay 0. NEIGHBOR_PERSIST
+# is the one modeling knob (how long an upstream restriction is treated as
+# active); 4 weeks ~ a month. Override before source()ing to vary it.
+# =============================================================================
+if (!exists("NEIGHBOR_PERSIST")) NEIGHBOR_PERSIST <- 4   # weeks a seller restriction stays "on"
+
+panel[, seller_restricted := 0L]
+edges_net <- as.data.table(readRDS(committed("pws_purchase_edges.RDS")))
+edges_net <- unique(edges_net[!is.na(Buyer) & !is.na(Seller) & nzchar(Seller),
+                              .(Buyer, Seller)])
+# Map each seller's notice times onto the systems that buy from it.
+exposure <- merge(edges_net, events[, .(Seller = PWS_ID, event_time)],
+                  by = "Seller", allow.cartesian = TRUE)
+n_buyers_linked <- uniqueN(exposure$Buyer)
+if (nrow(exposure)) {
+  win <- exposure[, .(PWS_ID = Buyer, win_start = event_time,
+                      win_end = event_time + NEIGHBOR_PERSIST)]
+  panel[win, on = .(PWS_ID, tstart < win_end, tstop > win_start),
+        seller_restricted := 1L]
+}
+message(sprintf("Network covariate: %d buyers linked to a restricting seller; %s buyer-weeks seller_restricted=1 (persist=%dw).",
+                n_buyers_linked, format(sum(panel$seller_restricted), big.mark = ","),
+                NEIGHBOR_PERSIST))
+
+# =============================================================================
 # 3. TIME-INVARIANT SYSTEM CONTROLS
 # =============================================================================
 # Population served + service connections: one row per system, from the DWV
@@ -142,26 +194,34 @@ pop <- pop[, .(Connections = num(Connections),
 # TODO(units): Value is assumed to be MG (DWV serves TSTC in MG); revisit when
 # flow-rate/measure units are normalized (see 05_scrape_storage_and_pops.R).
 sc <- fread(committed("storage_connections_data.txt"), colClasses = list(character = "PWS_ID"))
-stor <- sc[Var == "TSTC", .(Storage_MG    = num(Value)[1],
-                            Interconnects = num(Num_Interconnections)[1]), by = PWS_ID]
+stor <- sc[Var == "TSTC", .(Storage_MG = num(Value)[1]), by = PWS_ID]
 
 demos <- as.data.table(readRDS(committed("pws_demos_MR.RDS")))
 
+# DWV source flags (one row per system; from 07_scrape_source_and_purchases.R):
+# source_surface, purchases_water, emergency_source are already 0/1, so they pass
+# straight through the transform below into ctrl_vars.
+source_flags <- as.data.table(readRDS(committed("pws_source.RDS")))[
+  , .(PWS_ID, source_surface, purchases_water, emergency_source)]
+
 controls <- Reduce(function(a, b) merge(a, b, by = "PWS_ID", all.x = TRUE),
-                   list(pop, stor, demos))
+                   list(pop, stor, demos, source_flags))
+# wholesaler: 1 if the system SELLS water to any other system -- i.e. it appears
+# as a Seller in the buys-from edges loaded in §2b (edges_net). Non-sellers are 0,
+# never NA, so this gates the complete-case sample without dropping anyone.
+controls[, wholesaler := as.integer(PWS_ID %in% unique(edges_net$Seller))]
 controls[, `:=`(
   ln_connections     = log1p(Connections),
   storage_per_conn_g = asinh((Storage_MG * 1e6) / pmax(Connections, 1)),
-  has_interconnect   = as.integer(Interconnects > 0),
-  ln_income          = log(pmax(Med_Household_Income, 1)),
+  # (has_interconnect dropped: the DWV source flags now capture interconnects more
+  # specifically -- purchases_water is a wholesale interconnect and emergency_source
+  # is an emergency-designated interconnect/supply -- so a bare "any interconnect"
+  # indicator is redundant with them.)
   ln_home_value      = log(pmax(Median_Home_Value, 1)),
   # Time-invariant per-PWS control (median structure built is a single value per
   # system); age is taken at the analysis start and floored at 0 for the rare
   # tract median built after the window opens.
   median_structure_age = pmax(year(analysis_start) - Median_Year_Structure_Built, 0),
-  perc_rural         = Perc_Rural,
-  perc_hispanic      = Perc_Hispanic,
-  perc_black         = Perc_Black,
   perc_dem_vote      = Perc_Dem_Vote_Share
 )]
 
@@ -177,6 +237,15 @@ xw <- as.data.table(readRDS(committed("id_crosswalk.RDS")))
 xw <- unique(xw[!is.na(PWS_ID) & !is.na(District_ID), .(PWS_ID, District_ID)], by = "PWS_ID")
 panel_m1 <- merge(panel_m1, xw, by = "PWS_ID", all.x = TRUE)
 
+# Attach each system's PRIMARY county (largest service-area overlap) so the fit
+# scripts can build a county-level frailty (an iid random effect added ON TOP of
+# the district/system frailty; there is no spatial ICAR term -- drought absorbs
+# the core spatial variance). CFIPS may be NA for the rare system with no county
+# overlap on record; those get their own catch-all county level in the fit.
+co <- as.data.table(readRDS(committed("pws_county_overlaps.RDS")))
+co <- co[order(-Prop_Over_County)][!duplicated(PWS_ID), .(PWS_ID, CFIPS)]
+panel_m1 <- merge(panel_m1, co, by = "PWS_ID", all.x = TRUE)
+
 message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d district-linked, %d unaffiliated).",
                 format(nrow(panel_m1), big.mark = ","), uniqueN(panel_m1$PWS_ID),
                 uniqueN(panel_m1[!is.na(District_ID), PWS_ID]),
@@ -186,43 +255,55 @@ message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d dist
 # 4. TIME-VARYING FINANCES + district-linked subsample (panel_m2)
 # =============================================================================
 
+# Each audit is stamped with its FISCAL YEAR ENDED date; we match on that date
+# (not just the year) so the join uses the actual reporting period. The three core
+# fiscal indicators (debt / fund-balance / revenue per connection, all asinh) are
+# computed per audit. (operating_ratio and debt_svc_tax were removed from the
+# workflow.)
 fin <- as.data.table(readRDS(committed("combined_and_lagged_finances.RDS")))
-fin[, YEAR := suppressWarnings(as.integer(YEAR))]
-fin <- fin[!is.na(YEAR) & YEAR >= year(analysis_start) & YEAR <= year(analysis_end)]
+fin[, District_ID := as.character(District_ID)]
+fin[, fy_end := as.Date(`FISCAL YEAR ENDED`)]
+fin <- fin[!is.na(fy_end) & !is.na(District_ID)]
 fin[, debt_outstanding := rowSums(cbind(num(TotalPrincipalOutstanding_GO),
                                         num(TotalPrincipalOutstanding_REV)), na.rm = TRUE)]
 fin[debt_outstanding == 0, debt_outstanding := num(`BONDS OUTSTANDING`)]
 fin[, `:=`(
   fund_balance  = num(Fund_Balance),
   total_revenue = num(Total_Revenue),
-  total_expense = num(Total_Expenditure),
-  water_conn    = num(`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`),
-  debt_svc_tax  = as.integer(num(`DEBT SERVICE TAX RATE`) > 0)
+  water_conn    = num(`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`)
 )]
-# No real district reports zero expenditure -- it's an audit reporting error. Treat
-# it as missing so operating_ratio is NA (and the district-year is dropped below)
-# rather than flooring the denominator and inventing a huge ratio.
-fin[total_expense <= 0, total_expense := NA_real_]
-fin <- unique(fin[!is.na(District_ID), .(
-  District_ID, YEAR,
+# Audits are occasionally re-filed for the same fiscal-year-end; keep one row per
+# (District_ID, fy_end), preferring the most complete (fewest NAs) so the roll
+# below picks a real observation and results are order-independent.
+fin[, .n_na := rowSums(is.na(.SD)),
+    .SDcols = c("debt_outstanding", "fund_balance", "total_revenue", "water_conn")]
+setorder(fin, District_ID, fy_end, .n_na)
+fin <- unique(fin, by = c("District_ID", "fy_end"))
+fin <- fin[, .(
+  District_ID, fy_end,
   debt_per_conn     = asinh(debt_outstanding / pmax(water_conn, 1)),
   fund_bal_per_conn = asinh(fund_balance     / pmax(water_conn, 1)),
   revenue_per_conn  = asinh(total_revenue    / pmax(water_conn, 1)),
-  operating_ratio   = asinh(total_revenue    / total_expense),
-  debt_svc_tax
-)], by = c("District_ID", "YEAR"))
+  has_audit         = 1L
+)]
 
-# The fiscal indicators are likely conflated, so each is fit in its OWN model
-# rather than jointly. We therefore keep every district-year with a matched
-# audit (each fiscal column may be NA independently) and let each fit script
-# drop only the rows missing THAT covariate -- so e.g. a zero-expenditure audit
-# is missing only from the operating_ratio model, not the debt/revenue models.
-fin[, has_audit := 1L]
+# Nearest-audit join: each system-week carries its district's most recent audit
+# whose FISCAL YEAR ENDED falls on/before the week, within a 730-day (two-year)
+# window -- matching only PRIOR audits so we never capture post-restriction
+# financials. Implemented as a data.table rolling join: match fin$fy_end to the
+# week's date, rolling the last prior audit forward up to 730 days (roll = 730).
+# Weeks with no audit in the window get NA fiscal columns (has_audit NA) and drop.
+# The fiscal indicators are likely conflated, so each is fit in its OWN model; a
+# matched audit may still have an individual NA covariate, and each fit script
+# drops only the rows missing THAT covariate.
 panel_m2 <- panel_m1[!is.na(District_ID)]               # district-linked subsample
-panel_m2[, cal_year := year(analysis_start + tstart * 7)]
-panel_m2 <- merge(panel_m2, fin, by.x = c("District_ID", "cal_year"),
-                  by.y = c("District_ID", "YEAR"), all.x = TRUE)
-panel_m2 <- panel_m2[has_audit == 1L]                   # district-years with a matched audit
+panel_m2[, week_date := analysis_start + tstart * 7]
+panel_m2 <- fin[panel_m2, on = .(District_ID, fy_end = week_date), roll = 730]
+# The roll join surfaces the WEEK date under fin's key name (fy_end); rename it
+# back so the column means what it says (the audit's own fy_end is consumed as the
+# join key and not retained -- we only need the matched fiscal values + has_audit).
+setnames(panel_m2, "fy_end", "week_date")
+panel_m2 <- panel_m2[has_audit == 1L]                   # weeks with a prior audit ≤730d
 
 message(sprintf("Model 2 fiscal panel (any matched audit): %s rows, %d systems, %d districts, %d event-weeks.",
                 format(nrow(panel_m2), big.mark = ","), uniqueN(panel_m2$PWS_ID),
