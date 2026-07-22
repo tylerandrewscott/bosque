@@ -82,13 +82,16 @@ fiscal_vars <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn")
 # PANEL BUILD GUARD  (single source of truth for "is the panel current?")
 # -----------------------------------------------------------------------------
 # Everything below rebuilds the expensive counting-process panel. Skip it when a
-# CURRENT panel is already in the environment: present AND carrying District_ID
-# (which Model 1/2's frailty needs). This one check lives with the builder, so
-# consumers just source() this file unconditionally instead of re-deriving --
-# and drifting on -- the "is it stale?" condition themselves.
+# CURRENT panel is already in the environment: present AND carrying the columns
+# that get added/changed over time -- the frailty keys (District_ID, CFIPS) and the
+# model covariates (shared_vars). Deriving the covariate part from shared_vars (which
+# is refreshed on every source()) means adding a covariate auto-invalidates a stale
+# cached panel, instead of it surviving reuse and failing later with `object not
+# found`. This one check lives with the builder, so consumers just source() this
+# file unconditionally instead of re-deriving -- and drifting on -- the staleness rule.
 # =============================================================================
 if (!exists("panel_m1") || !exists("panel_m2") ||
-    !("District_ID" %in% names(panel_m1))) {
+    !all(c("District_ID", "CFIPS", shared_vars) %in% names(panel_m1))) {
 
 # =============================================================================
 # 1. EVENTS -- distinct mandatory-restriction notices
