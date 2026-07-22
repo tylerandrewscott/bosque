@@ -258,6 +258,22 @@ message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d dist
 # 4. TIME-VARYING FINANCES + district-linked subsample (panel_m2)
 # =============================================================================
 
+# Per-connection DENOMINATOR: district service connections from EPA SDWIS
+# (Envirofacts WATER_SYSTEM snapshot -> input/pws_sdwis_connections.RDS, keyed by
+# the same TXnnnnnnn PWS_ID as the panel). This REPLACES the audit-reported count
+# `WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`, which is 0/blank for ~half of filings;
+# the old `pmax(water_conn, 1)` silently floored those to a per-$1 ratio, collapsing
+# "per connection" onto asinh(raw dollars) and mass points (e.g. debt median 0).
+# A district's connections = the sum over its member PWS (id_crosswalk `xw`, loaded
+# in §3). SDWIS covers ~99.8% of the fiscal panel's district-weeks. NOTE: this is a
+# single current snapshot applied to all years (time-invariant); a yearly SDWIS/TWDB
+# series can drop in later by adding a Year dimension to dist_conn and the join.
+sdwis_conn <- as.data.table(readRDS(committed("pws_sdwis_connections.RDS")))
+dist_conn  <- merge(xw, sdwis_conn[, .(PWS_ID, Connections_SDWIS)],
+                    by = "PWS_ID", all.x = TRUE)[
+                    , .(dist_conn = sum(Connections_SDWIS, na.rm = TRUE)), by = District_ID]
+dist_conn  <- dist_conn[dist_conn > 0]   # 0 => treated as MISSING (ratio NA), never floored
+
 # Each audit is stamped with its FISCAL YEAR ENDED date; we match on that date
 # (not just the year) so the join uses the actual reporting period. The three core
 # fiscal indicators (debt / fund-balance / revenue per connection, all asinh) are
@@ -272,21 +288,23 @@ fin[, debt_outstanding := rowSums(cbind(num(TotalPrincipalOutstanding_GO),
 fin[debt_outstanding == 0, debt_outstanding := num(`BONDS OUTSTANDING`)]
 fin[, `:=`(
   fund_balance  = num(Fund_Balance),
-  total_revenue = num(Total_Revenue),
-  water_conn    = num(`WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`)
+  total_revenue = num(Total_Revenue)
 )]
 # Audits are occasionally re-filed for the same fiscal-year-end; keep one row per
 # (District_ID, fy_end), preferring the most complete (fewest NAs) so the roll
 # below picks a real observation and results are order-independent.
 fin[, .n_na := rowSums(is.na(.SD)),
-    .SDcols = c("debt_outstanding", "fund_balance", "total_revenue", "water_conn")]
+    .SDcols = c("debt_outstanding", "fund_balance", "total_revenue")]
 setorder(fin, District_ID, fy_end, .n_na)
 fin <- unique(fin, by = c("District_ID", "fy_end"))
+# Attach the district connection denominator; districts with no SDWIS match (or 0
+# connections) get dist_conn = NA, so their ratios are NA and drop per-covariate.
+fin <- merge(fin, dist_conn, by = "District_ID", all.x = TRUE)
 fin <- fin[, .(
   District_ID, fy_end,
-  debt_per_conn     = asinh(debt_outstanding / pmax(water_conn, 1)),
-  fund_bal_per_conn = asinh(fund_balance     / pmax(water_conn, 1)),
-  revenue_per_conn  = asinh(total_revenue    / pmax(water_conn, 1)),
+  debt_per_conn     = asinh(debt_outstanding / dist_conn),
+  fund_bal_per_conn = asinh(fund_balance     / dist_conn),
+  revenue_per_conn  = asinh(total_revenue    / dist_conn),
   has_audit         = 1L
 )]
 

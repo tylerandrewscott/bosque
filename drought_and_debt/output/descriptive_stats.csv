@@ -1,19 +1,16 @@
 term,group,unit,N,mean,sd,min,p25,median,p75,max,label
-event,Outcome & drought (system-week),system-week,2956252,0.00134697583291276,0.0366764494460388,0,0,0,0,1,Mandatory restriction (event)
-DSCI,Outcome & drought (system-week),system-week,2956252,125.979445713284,145.667753847482,0,0,79,208,500,"Drought severity (DSCI, 0-100)"
-DSCI_100,Outcome & drought (system-week),system-week,2956252,1.25979445713394,1.45667753846635,0,0,0.79,2.08,5,Drought severity (DSCI/100)
+event,Outcome & drought (system-week),system-week,3017690,0.00131955237284148,0.0363016747700949,0,0,0,0,1,Mandatory restriction (event)
+DSCI,Outcome & drought (system-week),system-week,3017690,123.494013440515,145.237446900369,0,0,71.75,205,500,"Drought severity (DSCI, 0-100)"
+DSCI_100,Outcome & drought (system-week),system-week,3017690,1.23494013440531,1.45237446900991,0,0,0.7175,2.05,5,Drought severity (DSCI/100)
 ln_connections,System controls (time-invariant),system,3614,6.141380765654,1.74206526063221,1.09861228866811,4.78749174278205,6.07878771922231,7.31754286950695,13.8056440435984,Log connections
 storage_per_conn_g,System controls (time-invariant),system,3614,6.92076979107766,1.32377532917199,0,6.38815306313622,6.78611869299539,7.23248128823706,21.3091674871528,Storage per connection (asinh gal)
-has_interconnect,System controls (time-invariant),system,3614,0.434144991698949,0.495712731430174,0,0,0,1,1,Has interconnect (0/1)
-ln_income,System controls (time-invariant),system,3614,10.8654594047204,0.345233690228308,9.65267127214006,10.637129569468,10.8328668529524,11.0613274091639,12.3495304497314,Log median income
+source_surface,System controls (time-invariant),system,3614,0.279192030990592,0.448664173686947,0,0,0,1,1,Surface water (vs ground)
+purchases_water,System controls (time-invariant),system,3614,0.218871057000553,0.413538193193999,0,0,0,0,1,Purchases water (primary)
+emergency_source,System controls (time-invariant),system,3614,0.271997786386276,0.445050330681624,0,0,0,1,1,Emergency source/interconnect
+wholesaler,System controls (time-invariant),system,3614,0.27393469839513,0.446037587077922,0,0,0,1,1,Wholesaler (sells water)
 ln_home_value,System controls (time-invariant),system,3614,11.5989012355982,0.466924358331979,9.64212278840172,11.2872787834379,11.5608509247877,11.9063179918441,13.7675395240167,Log median home value
 median_structure_age,System controls (time-invariant),system,3614,26.2784149851876,10.6866143181966,6,19,25.7913544319077,32.3292565533839,63.0809666560747,Median structure age (yrs)
-perc_rural,System controls (time-invariant),system,3614,62.3888188647939,40.4161178210567,0,18.949857729264,82.7994782736517,100,100,% rural
-perc_hispanic,System controls (time-invariant),system,3614,22.5718905581741,19.7134698693135,0.863126248520181,9.40033126975472,15.7078171647771,29.0124825275586,98.999563262353,% Hispanic
-perc_black,System controls (time-invariant),system,3614,6.84512007712939,9.63112789088521,0,0.930773705642816,2.85086552906217,9.08108108108108,95.1177604674522,% Black
 perc_dem_vote,System controls (time-invariant),system,3614,30.0304597472345,12.8661451877037,5.5067543755799,21.6253946395298,26.7142111641931,34.2710792401267,94.8694044912962,% Dem. vote share
-debt_per_conn,"Fiscal (district subsample, system-week)",system-week,170219,10.6765767082475,5.99656816602684,0,8.39492975819422,10.359914531459,16.2314243362653,20.1186788333659,Debt per connection (asinh)
-fund_bal_per_conn,"Fiscal (district subsample, system-week)",system-week,170219,9.78227513564958,5.49394679321966,0,7.67472776342517,8.84880273178134,15.4485817904292,18.5412318028729,Fund balance per connection (asinh)
-revenue_per_conn,"Fiscal (district subsample, system-week)",system-week,170219,11.0395475752307,4.37312120332858,0,7.93979123893381,8.8229510615183,15.3593965292576,20.1677242929958,Revenue per connection (asinh)
-operating_ratio,"Fiscal (district subsample, system-week)",system-week,161979,1.00212899561151,0.400957150990568,0,0.879938237151972,0.973522003293064,1.07383087283692,6.5414860534327,Operating ratio (asinh)
-debt_svc_tax,"Fiscal (district subsample, system-week)",system-week,170219,0.629330450772241,0.482985512145977,0,0,1,1,1,Debt-service tax (0/1)
+debt_per_conn,"Fiscal (district subsample, system-week)",system-week,473457,3.35557975668623,4.33957668592368,0,1.11253692925389e-308,1.11253692925605e-308,8.46848433581492,13.9719732105004,Debt per connection (asinh)
+fund_bal_per_conn,"Fiscal (district subsample, system-week)",system-week,473457,6.37514131512183,3.16914545944877,0,6.33154111605108,7.67693845474517,8.35234109359325,13.3284291297063,Fund balance per connection (asinh)
+revenue_per_conn,"Fiscal (district subsample, system-week)",system-week,473457,7.44079841504779,1.45858508364466,0,7.20659824228616,7.65278836775658,8.06118371688013,13.7175409951347,Revenue per connection (asinh)
