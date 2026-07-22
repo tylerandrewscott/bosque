@@ -62,6 +62,11 @@ suppressPackageStartupMessages(library(INLA))
 # --- knobs -------------------------------------------------------------------
 FULL_SAMPLE_BAYES <- TRUE    # FALSE -> only fit the (small) fiscal-subsample model
 N_HAZARD_INTERVALS <- 30     # RW1 baseline-hazard resolution (higher = finer, slower)
+# When TRUE, reuse a cached full-sample Model 1 fit from scratch/ (if present)
+# instead of refitting it. Model 1 depends only on panel_m1 (drought + controls),
+# so when just the fiscal subsample / denominator changed, its posterior -- carried
+# into Model 2 as priors -- is unchanged and the ~heavy full-sample fit is skippable.
+if (!exists("REUSE_MODEL1_FIT")) REUSE_MODEL1_FIT <- FALSE
 
 # PC prior on each frailty SD: P(sigma > 1) = 0.01 (weakly informative on the
 # log-hazard scale). Shared by every iid random effect below.
@@ -172,20 +177,26 @@ slim_inla <- function(fit) {
 # =============================================================================
 model1_inla <- NULL
 if (FULL_SAMPLE_BAYES) {
-  form1 <- as.formula(paste(resp, "~",
-    paste(c(shared_vars, f_m1, f_cty1), collapse = " + ")))
-  message("Fitting Bayesian Model 1 (full sample) -- this is the heavy one...")
-  model1_inla <- inla(
-    form1, family = "coxph", data = as.list(panel_m1),
-    control.hazard = hazard_ctrl, control.inla = inla_ctrl,
-    control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
-    num.threads = parallel::detectCores(), verbose = FALSE
-  )
-  cat("\n============== MODEL 1 (INLA): full sample ==============\n")
-  print(summary(model1_inla))
-  saveRDS(model1_inla, scratch("recurrent_coxinla_model1_full.RDS"))
-  # Slim copy goes to output/ (git-tracked) so it can be shared via GitHub.
-  saveRDS(slim_inla(model1_inla), output("recurrent_coxinla_model1_full_slim.RDS"))
+  .m1_cache <- scratch("recurrent_coxinla_model1_full.RDS")
+  if (REUSE_MODEL1_FIT && file.exists(.m1_cache)) {
+    message("Reusing cached full-sample Model 1 fit (REUSE_MODEL1_FIT=TRUE): ", .m1_cache)
+    model1_inla <- readRDS(.m1_cache)
+  } else {
+    form1 <- as.formula(paste(resp, "~",
+      paste(c(shared_vars, f_m1, f_cty1), collapse = " + ")))
+    message("Fitting Bayesian Model 1 (full sample) -- this is the heavy one...")
+    model1_inla <- inla(
+      form1, family = "coxph", data = as.list(panel_m1),
+      control.hazard = hazard_ctrl, control.inla = inla_ctrl,
+      control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
+      num.threads = parallel::detectCores(), verbose = FALSE
+    )
+    cat("\n============== MODEL 1 (INLA): full sample ==============\n")
+    print(summary(model1_inla))
+    saveRDS(model1_inla, scratch("recurrent_coxinla_model1_full.RDS"))
+    # Slim copy goes to output/ (git-tracked) so it can be shared via GitHub.
+    saveRDS(slim_inla(model1_inla), output("recurrent_coxinla_model1_full_slim.RDS"))
+  }
 }
 
 # =============================================================================
