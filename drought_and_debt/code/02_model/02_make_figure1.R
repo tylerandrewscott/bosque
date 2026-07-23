@@ -26,31 +26,28 @@ suppressPackageStartupMessages({
   library(gridExtra)
 })
 
-# --- Figure 1A: metro-anchor county drought conditions ------------------------
-metro_counties <- c('48201' = 'Houston',
-                    '48113' = 'Dallas/Fort Worth',
-                    '48029' = 'San Antonio',
-                    '48453' = 'Austin',
-                    '48141' = 'El Paso')
-
-tx_dsci <- as.data.table(readRDS(committed('dsci_measures.RDS')))
-tx_dsci[, date := ymd(MapDate)]
-tx_dsci <- tx_dsci[!is.na(date) & date >= start_date & date <= end_date &
-                     as.character(FIPS) %in% names(metro_counties)]
-tx_dsci[, Name := metro_counties[as.character(FIPS)]]
-tx_dsci[, DSCI := as.numeric(DSCI)]
-setorder(tx_dsci, Name, date)
+# --- Figure 1A: average drought severity across the sample's districts --------
+# A single line: mean DSCI over time across the study's district-linked systems'
+# districts. Built from the same weekly drought grid and crosswalk that feed the
+# model panel, so this descriptive line describes the analysis sample. DSCI is
+# averaged within each district-week (over its systems), then across districts.
+dw <- as.data.table(readRDS(committed('pws_drought_weekly.RDS')))
+xw <- data.table(readRDS(committed('id_crosswalk.RDS')))[!is.na(PWS_ID)]
+dw[, date := ymd(DroughtDate)]
+dw <- dw[!is.na(date) & date >= start_date & date <= end_date]
+dw[, DSCI := as.numeric(DSCI)]
+dw <- xw[, .(District_ID, PWS_ID)][dw, on = 'PWS_ID', nomatch = 0]
+dist_week <- dw[, .(DSCI = mean(DSCI, na.rm = TRUE)), by = .(District_ID, date)]
+avg_dsci  <- dist_week[, .(DSCI = mean(DSCI, na.rm = TRUE)), by = date]
+setorder(avg_dsci, date)
 
 year_span <- paste(year(start_date), 'to', year(end_date))
-figure1A <- ggplot(data = tx_dsci, aes(x = date)) +
-  geom_path(aes(y = DSCI, group = Name, colour = Name)) +
+figure1A <- ggplot(data = avg_dsci, aes(x = date, y = DSCI)) +
+  geom_path() +
   scale_y_continuous(name = 'severity-coverage index') +
-  scale_color_tableau() + theme_bw() +
-  ggtitle(paste0('Major-metro county drought conditions, ', year_span)) +
-  scale_x_date(expand = c(0, 0), name = 'Weekly drought status') +
-  theme(legend.position = c(0.55, 0.70),
-        legend.background = element_rect(fill = alpha('white', 0.5)),
-        legend.title = element_blank())
+  theme_bw() +
+  ggtitle(paste0('Average district drought conditions, ', year_span)) +
+  scale_x_date(expand = c(0, 0), name = 'Weekly drought status')
 
 # --- Figure 1B: statewide % area in drought (UNL state statistics) ------------
 # Committed cache first; hit the live API only when RESCRAPE=TRUE or no cache.

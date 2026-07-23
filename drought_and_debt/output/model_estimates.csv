@@ -1,51 +1,64 @@
 term,label,model,mean,lower,upper
-DSCI_100,Drought severity (DSCI/100),Debt / conn.,0.350226573965987,0.3222676049253,0.378185543006674
-seller_restricted,Seller under restriction,Debt / conn.,1.69780026468725,1.59881587492352,1.79678465445099
-ln_connections,Log connections,Debt / conn.,0.236032363227203,0.188861201429996,0.28320352502441
-storage_per_conn_g,Storage per connection (asinh gal),Debt / conn.,0.0381826043161649,-0.00969433543201046,0.0860595440643402
-source_surface,Surface water (vs ground),Debt / conn.,1.02123900941104,0.810844035654892,1.23163398316719
-purchases_water,Purchases water (primary),Debt / conn.,-0.592297421139761,-0.794601501462726,-0.389993340816795
-emergency_source,Emergency source/interconnect,Debt / conn.,-0.0945076536807815,-0.238841481280694,0.049826173919131
-wholesaler,Wholesaler (sells water),Debt / conn.,-0.0846412062836562,-0.241189933978897,0.0719075214115845
-ln_home_value,Log median home value,Debt / conn.,0.507394488752942,0.310122700272551,0.704666277233333
-median_structure_age,Median structure age (yrs),Debt / conn.,-0.000311719841592289,-0.00889266838120175,0.00826922869801717
-perc_dem_vote,% Dem. vote share,Debt / conn.,-0.00596867000586413,-0.0124916538595652,0.000554313847836947
-debt_per_conn,Debt per connection (asinh),Debt / conn.,-0.0216895263194922,-0.0585731537108446,0.0151941010718603
-DSCI_100,Drought severity (DSCI/100),Fund bal. / conn.,0.350255713036281,0.322296886307214,0.378214539765349
-seller_restricted,Seller under restriction,Fund bal. / conn.,1.69826263247355,1.59927926243803,1.79724600250907
-ln_connections,Log connections,Fund bal. / conn.,0.237570914268466,0.19021489207374,0.284926936463192
-storage_per_conn_g,Storage per connection (asinh gal),Fund bal. / conn.,0.0374027564857623,-0.010513941557625,0.0853194545291497
-source_surface,Surface water (vs ground),Fund bal. / conn.,1.02178541504944,0.811292045277509,1.23227878482137
-purchases_water,Purchases water (primary),Fund bal. / conn.,-0.590855590504657,-0.793158080832144,-0.388553100177171
-emergency_source,Emergency source/interconnect,Fund bal. / conn.,-0.094946817928267,-0.239300059470593,0.0494064236140594
-wholesaler,Wholesaler (sells water),Fund bal. / conn.,-0.0840009141458724,-0.240630020436775,0.0726281921450306
-ln_home_value,Log median home value,Fund bal. / conn.,0.499827039158593,0.301905887135564,0.697748191181622
-median_structure_age,Median structure age (yrs),Fund bal. / conn.,7.01134154604669e-05,-0.00850777984957451,0.00864800668049544
-perc_dem_vote,% Dem. vote share,Fund bal. / conn.,-0.00612154550042668,-0.012646996197255,0.000403905196401619
-fund_bal_per_conn,Fund balance per connection (asinh),Fund bal. / conn.,0.0328952984951861,-0.0307806404687103,0.0965712374590824
-DSCI_100,Drought severity (DSCI/100),Revenue / conn.,0.350513910987835,0.32255395146175,0.378473870513919
-seller_restricted,Seller under restriction,Revenue / conn.,1.69770083673847,1.59872479286124,1.79667688061571
-ln_connections,Log connections,Revenue / conn.,0.238109027801852,0.190882792396484,0.28533526320722
-storage_per_conn_g,Storage per connection (asinh gal),Revenue / conn.,0.0369685394204282,-0.0109063848937266,0.084843463734583
-source_surface,Surface water (vs ground),Revenue / conn.,1.02056972031882,0.810225744767481,1.23091369587017
-purchases_water,Purchases water (primary),Revenue / conn.,-0.591046327064174,-0.793285376464289,-0.388807277664059
-emergency_source,Emergency source/interconnect,Revenue / conn.,-0.0941083712735269,-0.238435726157397,0.0502189836103434
-wholesaler,Wholesaler (sells water),Revenue / conn.,-0.0819185795935854,-0.238510120398586,0.0746729612114151
-ln_home_value,Log median home value,Revenue / conn.,0.502284065093212,0.304963984583783,0.699604145602641
-median_structure_age,Median structure age (yrs),Revenue / conn.,-6.76784588757133e-06,-0.00857934738628748,0.00856581169451233
-perc_dem_vote,% Dem. vote share,Revenue / conn.,-0.00601601502244364,-0.0125366301314074,0.000504600086520163
-revenue_per_conn,Revenue per connection (asinh),Revenue / conn.,0.0857446666841024,0.00470973282544354,0.166779600542761
-DSCI_100,Drought severity (DSCI/100),All fiscal (joint),0.350426711155626,0.322463403461856,0.378390018849397
-seller_restricted,Seller under restriction,All fiscal (joint),1.6969097082244,1.59793441468853,1.79588500176027
-ln_connections,Log connections,All fiscal (joint),0.239293735278012,0.191912439461134,0.28667503109489
-storage_per_conn_g,Storage per connection (asinh gal),All fiscal (joint),0.0365010469490679,-0.0113907554907283,0.0843928493888642
-source_surface,Surface water (vs ground),All fiscal (joint),1.0242866568814,0.813766792007948,1.23480652175485
-purchases_water,Purchases water (primary),All fiscal (joint),-0.592813722765245,-0.795107597423789,-0.390519848106702
-emergency_source,Emergency source/interconnect,All fiscal (joint),-0.0923093403827579,-0.236681402829156,0.0520627220636398
-wholesaler,Wholesaler (sells water),All fiscal (joint),-0.0800203099845194,-0.236685512949414,0.0766448929803754
-ln_home_value,Log median home value,All fiscal (joint),0.4998385865777,0.301970954900153,0.697706218255247
-median_structure_age,Median structure age (yrs),All fiscal (joint),-0.000160267196009183,-0.0087467723299231,0.00842623793790473
-perc_dem_vote,% Dem. vote share,All fiscal (joint),-0.00597907416421735,-0.0125061364003812,0.000547988071946492
-debt_per_conn,Debt per connection (asinh),All fiscal (joint),-0.0211783503673532,-0.0579520867467407,0.0155953860120344
-fund_bal_per_conn,Fund balance per connection (asinh),All fiscal (joint),0.0132093868949189,-0.0538467980146552,0.0802655718044929
-revenue_per_conn,Revenue per connection (asinh),All fiscal (joint),0.0802824879891982,-0.00462625054181184,0.165191226520208
+DSCI_100,Drought severity (DSCI/100),GO debt / conn.,0.344691141303959,0.316335586506302,0.373046696101617
+seller_restricted,Seller under restriction,GO debt / conn.,1.70428422232706,1.60345712556916,1.80511131908496
+ln_connections,Log connections,GO debt / conn.,0.234474860295028,0.186519751885919,0.282429968704136
+storage_per_conn_g,Storage per connection (asinh gal),GO debt / conn.,0.0358768993396151,-0.0128587058446727,0.0846125045239028
+source_surface,Surface water (vs ground),GO debt / conn.,1.04609651487673,0.82993784233016,1.26225518742329
+purchases_water,Purchases water (primary),GO debt / conn.,-0.581734053991795,-0.78965011149277,-0.37381799649082
+emergency_source,Emergency source/interconnect,GO debt / conn.,-0.0976061529280093,-0.244153540198244,0.0489412343422252
+wholesaler,Wholesaler (sells water),GO debt / conn.,-0.0910818755507045,-0.250579973070953,0.0684162219695439
+ln_home_value,Log median home value,GO debt / conn.,0.497916806058633,0.295223647355492,0.700609964761775
+median_structure_age,Median structure age (yrs),GO debt / conn.,-0.000342083759820362,-0.00912727335741698,0.00844310583777625
+perc_dem_vote,% Dem. vote share,GO debt / conn.,-0.00512122478713065,-0.0117905658168953,0.00154811624263399
+debt_go_per_conn,GO (tax) debt per connection (asinh),GO debt / conn.,-0.0190191031047927,-0.0770119128545393,0.0389737066449539
+DSCI_100,Drought severity (DSCI/100),Rev. debt / conn.,0.344627719267986,0.316271684647266,0.372983753888706
+seller_restricted,Seller under restriction,Rev. debt / conn.,1.70441402362344,1.60358001143327,1.80524803581362
+ln_connections,Log connections,Rev. debt / conn.,0.23457494430178,0.186628576936035,0.282521311667525
+storage_per_conn_g,Storage per connection (asinh gal),Rev. debt / conn.,0.035621429977641,-0.0131079881495814,0.0843508481048635
+source_surface,Surface water (vs ground),Rev. debt / conn.,1.04624944579089,0.830079943164121,1.26241894841766
+purchases_water,Purchases water (primary),Rev. debt / conn.,-0.579315268313968,-0.78742821795701,-0.371202318670927
+emergency_source,Emergency source/interconnect,Rev. debt / conn.,-0.0967558929623518,-0.243314101772205,0.0498023158475015
+wholesaler,Wholesaler (sells water),Rev. debt / conn.,-0.0908559593067637,-0.250351539120301,0.0686396205067729
+ln_home_value,Log median home value,Rev. debt / conn.,0.494924071274861,0.292752604838685,0.697095537711038
+median_structure_age,Median structure age (yrs),Rev. debt / conn.,-0.000235456947598343,-0.00900477965591965,0.00853386576072296
+perc_dem_vote,% Dem. vote share,Rev. debt / conn.,-0.00507630457351097,-0.0117465138596154,0.00159390471259351
+debt_rev_per_conn,Revenue debt per connection (asinh),Rev. debt / conn.,0.0226594929524759,-0.0444744955008311,0.0897934814057829
+DSCI_100,Drought severity (DSCI/100),Fund bal. / conn.,0.350255649088852,0.322296820866635,0.378214477311068
+seller_restricted,Seller under restriction,Fund bal. / conn.,1.69826250050229,1.59927913026651,1.79724587073806
+ln_connections,Log connections,Fund bal. / conn.,0.237570805524205,0.190214771158949,0.284926839889461
+storage_per_conn_g,Storage per connection (asinh gal),Fund bal. / conn.,0.0374028023299992,-0.0105138896818114,0.0853194943418099
+source_surface,Surface water (vs ground),Fund bal. / conn.,1.02178657960303,0.811293122406166,1.23228003679989
+purchases_water,Purchases water (primary),Fund bal. / conn.,-0.590855816423598,-0.793158393222296,-0.388553239624899
+emergency_source,Emergency source/interconnect,Fund bal. / conn.,-0.0949465673125436,-0.239299869368157,0.0494067347430699
+wholesaler,Wholesaler (sells water),Fund bal. / conn.,-0.0840003244492384,-0.240629500736495,0.0726288518380184
+ln_home_value,Log median home value,Fund bal. / conn.,0.499827792272976,0.301906595095811,0.697748989450142
+median_structure_age,Median structure age (yrs),Fund bal. / conn.,7.01293005235821e-05,-0.00850776273004874,0.0086480213310959
+perc_dem_vote,% Dem. vote share,Fund bal. / conn.,-0.00612151104400971,-0.0126469624022643,0.000403940314244876
+fund_bal_per_conn,Fund balance per connection (asinh),Fund bal. / conn.,0.0328958140081935,-0.0307803397009985,0.0965719677173855
+DSCI_100,Drought severity (DSCI/100),Revenue / conn.,0.350513881025022,0.322553920909951,0.378473841140093
+seller_restricted,Seller under restriction,Revenue / conn.,1.69770078060058,1.59872473733726,1.7966768238639
+ln_connections,Log connections,Revenue / conn.,0.23810884629629,0.190882609571076,0.285335083021504
+storage_per_conn_g,Storage per connection (asinh gal),Revenue / conn.,0.036968575311324,-0.0109063354552808,0.0848434860779288
+source_surface,Surface water (vs ground),Revenue / conn.,1.0205705222048,0.81022658134149,1.23091446306812
+purchases_water,Purchases water (primary),Revenue / conn.,-0.591046708473815,-0.793285735246267,-0.388807681701364
+emergency_source,Emergency source/interconnect,Revenue / conn.,-0.0941084124758926,-0.238435773304495,0.0502189483527096
+wholesaler,Wholesaler (sells water),Revenue / conn.,-0.0819184666292107,-0.238510014788098,0.0746730815296768
+ln_home_value,Log median home value,Revenue / conn.,0.502284339903283,0.304964315630594,0.699604364175972
+median_structure_age,Median structure age (yrs),Revenue / conn.,-6.75776176464055e-06,-0.0085793328149324,0.00856581729140312
+perc_dem_vote,% Dem. vote share,Revenue / conn.,-0.00601601623322272,-0.0125366285670898,0.000504596100644347
+revenue_per_conn,Revenue per connection (asinh),Revenue / conn.,0.085744651734683,0.0047097144026649,0.166779589066701
+DSCI_100,Drought severity (DSCI/100),All fiscal (joint),0.34473476724874,0.316375225228502,0.373094309268977
+seller_restricted,Seller under restriction,All fiscal (joint),1.7040271373075,1.60319732343726,1.80485695117775
+ln_connections,Log connections,All fiscal (joint),0.236217694020449,0.188180574893591,0.284254813147307
+storage_per_conn_g,Storage per connection (asinh gal),All fiscal (joint),0.035054189199893,-0.0136785919479635,0.0837869703477495
+source_surface,Surface water (vs ground),All fiscal (joint),1.04850931613602,0.832240042546553,1.26477858972548
+purchases_water,Purchases water (primary),All fiscal (joint),-0.577784619353928,-0.785952307981033,-0.369616930726823
+emergency_source,Emergency source/interconnect,All fiscal (joint),-0.0943878172718724,-0.241028598828779,0.0522529642850337
+wholesaler,Wholesaler (sells water),All fiscal (joint),-0.0878214905704475,-0.24737945502166,0.0717364738807646
+ln_home_value,Log median home value,All fiscal (joint),0.49417595160301,0.291242509749047,0.697109393456973
+median_structure_age,Median structure age (yrs),All fiscal (joint),-0.000405017749337371,-0.00919128666020594,0.0083812511615312
+perc_dem_vote,% Dem. vote share,All fiscal (joint),-0.00518405486825332,-0.011855282979484,0.00148717324297731
+debt_go_per_conn,GO (tax) debt per connection (asinh),All fiscal (joint),-0.026014905598527,-0.107595205242967,0.0555653940459135
+debt_rev_per_conn,Revenue debt per connection (asinh),All fiscal (joint),0.016873782300933,-0.0687211954962415,0.102468760098108
+fund_bal_per_conn,Fund balance per connection (asinh),All fiscal (joint),0.0229237091707438,-0.0740842538734971,0.119931672214985
+revenue_per_conn,Revenue per connection (asinh),All fiscal (joint),0.0650062225669199,-0.0301512795162619,0.160163724650102

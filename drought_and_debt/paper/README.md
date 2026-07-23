@@ -51,7 +51,7 @@ Defined in `_setup.R`. The model-column constants `M_DEBT`, `M_FUNDBAL`,
 | `appendix_table()` | Global Model 1 (prior-setting) table. |
 | `descriptives_table()` | Grouped summary-statistics table. |
 
-`term` accepts either the raw name (`"debt_per_conn"`) or its pretty label. A
+`term` accepts either the raw name (`"debt_go_per_conn"`) or its pretty label. A
 missing fact renders as `??key??` and a missing estimate errors — both are
 loud on purpose so gaps surface at render time.
 

@@ -74,9 +74,12 @@ network_vars <- c("seller_restricted")
 # (% rural / % Hispanic / % Black) and median household income were dropped from
 # the specification entirely, so shared_vars is the whole story.
 shared_vars <- c("DSCI_100", ctrl_vars, network_vars)
-# Three core fiscal capacity measures (§4.4): debt / revenue / fund-balance per
-# connection. (operating_ratio and debt_svc_tax were removed from the workflow.)
-fiscal_vars <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn")
+# Core fiscal capacity measures (§4.4): debt outstanding split by pledge type --
+# GO/ad-valorem (tax-backed) and revenue-backed -- entered as two SEPARATE
+# predictors, plus fund-balance and revenue, all per connection.
+# (operating_ratio and debt_svc_tax were removed from the workflow.)
+fiscal_vars <- c("debt_go_per_conn", "debt_rev_per_conn",
+                 "fund_bal_per_conn", "revenue_per_conn")
 
 # =============================================================================
 # PANEL BUILD GUARD  (single source of truth for "is the panel current?")
@@ -283,9 +286,33 @@ fin <- as.data.table(readRDS(committed("combined_and_lagged_finances.RDS")))
 fin[, District_ID := as.character(District_ID)]
 fin[, fy_end := as.Date(`FISCAL YEAR ENDED`)]
 fin <- fin[!is.na(fy_end) & !is.na(District_ID)]
-fin[, debt_outstanding := rowSums(cbind(num(TotalPrincipalOutstanding_GO),
-                                        num(TotalPrincipalOutstanding_REV)), na.rm = TRUE)]
-fin[debt_outstanding == 0, debt_outstanding := num(`BONDS OUTSTANDING`)]
+# Debt outstanding split by pledge type, straight from the TBRB principal-
+# outstanding series: GO = general-obligation / ad-valorem (tax-backed), REV =
+# revenue-backed. These enter the model as two SEPARATE covariates.
+#
+# Coding rules for the two debt terms:
+#  (1) District-year IN TBRB: use the GO/REV principal directly. A missing pledge
+#      side is a genuine $0 of that debt class (a district carrying that debt
+#      would have a row for it), so the absent side is set to 0, not NA.
+#  (2) District-year ABSENT from TBRB but with a filed audit reporting
+#      `BONDS OUTSTANDING` == 0: the audit confirms the district is active AND
+#      debt-free, so the TBRB absence is a true zero, not missingness -- set both
+#      debt classes to 0 and keep the observation. (The TBRB debt-outstanding
+#      series only enumerates governments that CARRY debt, so debt-free districts
+#      never appear; without this rule they would drop wholesale.)
+#  (3) District-year ABSENT from TBRB but audit `BONDS OUTSTANDING` > 0 (or NA):
+#      a name-match / coverage conflict -- real debt exists but the audit gives no
+#      pledge split, so it cannot feed the two-predictor model. Left NA on BOTH
+#      terms -> drops from the debt models rather than being mis-coded $0.
+fin[, `:=`(debt_go  = num(TotalPrincipalOutstanding_GO),
+           debt_rev = num(TotalPrincipalOutstanding_REV))]
+fin[, in_tbrb := !is.na(debt_go) | !is.na(debt_rev)]
+fin[in_tbrb & is.na(debt_go),  debt_go  := 0]
+fin[in_tbrb & is.na(debt_rev), debt_rev := 0]
+# Audit-confirmed zeros for district-years absent from TBRB (rule 2 above).
+fin[, bonds_audit := num(`BONDS OUTSTANDING`)]
+fin[!in_tbrb & !is.na(bonds_audit) & bonds_audit == 0,
+    `:=`(debt_go = 0, debt_rev = 0)]
 fin[, `:=`(
   fund_balance  = num(Fund_Balance),
   total_revenue = num(Total_Revenue)
@@ -294,7 +321,7 @@ fin[, `:=`(
 # (District_ID, fy_end), preferring the most complete (fewest NAs) so the roll
 # below picks a real observation and results are order-independent.
 fin[, .n_na := rowSums(is.na(.SD)),
-    .SDcols = c("debt_outstanding", "fund_balance", "total_revenue")]
+    .SDcols = c("debt_go", "debt_rev", "fund_balance", "total_revenue")]
 setorder(fin, District_ID, fy_end, .n_na)
 fin <- unique(fin, by = c("District_ID", "fy_end"))
 # Attach the district connection denominator; districts with no SDWIS match (or 0
@@ -302,9 +329,10 @@ fin <- unique(fin, by = c("District_ID", "fy_end"))
 fin <- merge(fin, dist_conn, by = "District_ID", all.x = TRUE)
 fin <- fin[, .(
   District_ID, fy_end,
-  debt_per_conn     = asinh(debt_outstanding / dist_conn),
-  fund_bal_per_conn = asinh(fund_balance     / dist_conn),
-  revenue_per_conn  = asinh(total_revenue    / dist_conn),
+  debt_go_per_conn  = asinh(debt_go       / dist_conn),
+  debt_rev_per_conn = asinh(debt_rev      / dist_conn),
+  fund_bal_per_conn = asinh(fund_balance  / dist_conn),
+  revenue_per_conn  = asinh(total_revenue / dist_conn),
   has_audit         = 1L
 )]
 
@@ -329,11 +357,20 @@ panel_m2 <- panel_m2[has_audit == 1L]                   # weeks with a prior aud
 message(sprintf("Model 2 fiscal panel (any matched audit): %s rows, %d systems, %d districts, %d event-weeks.",
                 format(nrow(panel_m2), big.mark = ","), uniqueN(panel_m2$PWS_ID),
                 uniqueN(panel_m2$District_ID), sum(panel_m2$event)))
-# Per-covariate coverage (each fiscal model uses this covariate's non-NA rows):
+# Per-covariate coverage (each fiscal model uses this covariate's non-NA rows).
+# Also report the NON-ZERO share: asinh(0)=0 marks a genuine $0 of that measure
+# (e.g. a district with no revenue-backed debt), so a covariate that is mostly
+# zeros carries little spread and its coefficient leans on relatively few nonzero
+# districts -- watch this for debt_rev_per_conn in particular (GO >> REV in TBRB).
 for (v in fiscal_vars) {
-  ok <- !is.na(panel_m2[[v]])
-  message(sprintf("  %-18s %s rows, %d events", v,
-                  format(sum(ok), big.mark = ","), sum(panel_m2$event[ok])))
+  x  <- panel_m2[[v]]
+  ok <- !is.na(x)
+  nz <- ok & x != 0
+  message(sprintf("  %-18s %s rows, %d events | nonzero: %s rows (%.0f%%), %d districts",
+                  v, format(sum(ok), big.mark = ","), sum(panel_m2$event[ok]),
+                  format(sum(nz), big.mark = ","),
+                  100 * sum(nz) / max(sum(ok), 1L),
+                  uniqueN(panel_m2$District_ID[nz])))
 }
 
 } else {

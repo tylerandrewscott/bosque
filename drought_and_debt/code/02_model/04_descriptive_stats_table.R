@@ -56,7 +56,8 @@ term_labels <- c(
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
   perc_dem_vote      = "% Dem. vote share",
-  debt_per_conn      = "Debt per connection (asinh)",
+  debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
+  debt_rev_per_conn  = "Revenue debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
   revenue_per_conn   = "Revenue per connection (asinh)"
 )

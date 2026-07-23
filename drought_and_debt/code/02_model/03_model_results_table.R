@@ -80,13 +80,15 @@ term_labels <- c(
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
   perc_dem_vote      = "% Dem. vote share",
-  debt_per_conn      = "Debt per connection (asinh)",
+  debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
+  debt_rev_per_conn  = "Revenue debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
   revenue_per_conn   = "Revenue per connection (asinh)"
 )
 # Top-to-bottom ordering in the plot / table (drought & controls, then fiscal).
 term_order  <- names(term_labels)
-fiscal_terms <- c("debt_per_conn", "fund_bal_per_conn", "revenue_per_conn")
+fiscal_terms <- c("debt_go_per_conn", "debt_rev_per_conn",
+                  "fund_bal_per_conn", "revenue_per_conn")
 
 # --- Pull the posterior summaries into one tidy table ------------------------
 # INLA's summary.fixed has one row per fixed effect; we keep the mean and the
@@ -111,7 +113,8 @@ tidy_all <- function(fit, col_label) {
 
 # Short, single-line column headers for each isolated fiscal model.
 fiscal_short <- c(
-  debt_per_conn      = "Debt / conn.",
+  debt_go_per_conn   = "GO debt / conn.",
+  debt_rev_per_conn  = "Rev. debt / conn.",
   fund_bal_per_conn  = "Fund bal. / conn.",
   revenue_per_conn   = "Revenue / conn."
 )

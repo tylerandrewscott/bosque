@@ -62,7 +62,12 @@ OUT <- .find_output()
 .desc      <- .read_csv("descriptive_stats.csv", required = FALSE)
 
 # --- Model-column constants (must match 03_model_results_table.R headers) -----
-M_DEBT    <- "Debt / conn."
+# Debt is split by pledge type into two isolated models / columns.
+M_DEBT_GO  <- "GO debt / conn."
+M_DEBT_REV <- "Rev. debt / conn."
+# Representative column for reading SHARED-control effects in prose (every isolated
+# fiscal model carries the same controls); points at the GO-debt column.
+M_DEBT    <- M_DEBT_GO
 M_FUNDBAL <- "Fund bal. / conn."
 M_REVENUE <- "Revenue / conn."
 M_JOINT   <- "All fiscal (joint)"

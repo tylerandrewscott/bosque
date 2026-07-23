@@ -7,20 +7,38 @@ if (!exists("committed")) source(Find(file.exists, file.path(
 suppressPackageStartupMessages({
   library(data.table)
   library(stringr)  # str_remove
-  library(tidyr)    # replace_na
+  library(xml2)     # read_xml / xml_find_* -- parse the pinned TBRB debt XML export
 })
 
 .out <- committed('district_debt_issuances.RDS')
 if (reuse_prior(.out)) {
-  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping TX open-data pull).")
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping debt XML parse).")
 } else {
 
-dinfo_dt <- load_latest_district_list()
-#OLD
-#debt = fread('bosquebox/input/tbrb/Debt_Outstanding_By_Local_Government_UPDATE.csv')
-#NEW: just read in from TX opendata website
-#https://data.texas.gov/Government-and-Taxes/Debt-Outstanding-by-Local-Government-Searchable-by/6d42-4z7a/data
-debt <- fread('https://data.texas.gov/api/views/6d42-4z7a/rows.csv?')
+# TBRB "Debt Outstanding by Local Government" (Socrata dataset dyv5-3bjd), read
+# from a PINNED local export in the raw tbrb folder rather than the live API, so
+# the debt snapshot is fixed and reproducible. This full-history series covers WD
+# FY2007-2025 -- the whole 2010-2025 analysis window -- with the GO (tax-backed) /
+# REV (revenue-backed) pledge split, which is why (a) the old 6d42-4z7a pull
+# (2016+ only) is gone and (b) the audit `BONDS OUTSTANDING` fallback could be
+# dropped in build_recurrent_panel.R. The Socrata query.xml export nests one <row>
+# per (government, fiscal year, pledge type); fields vary per row (REV rows omit
+# the tax columns), so each needed field is pulled with xml_find_first (NA-safe and
+# row-aligned) rather than assuming a fixed child order. Same column names the rest
+# of this script expects, so it stays a drop-in.
+# Source: https://data.texas.gov/d/dyv5-3bjd  (exported 2026-07-22)
+.debt_rows <- xml_find_all(
+  read_xml(raw_input('tbrb', 'Debt_Outstanding_By_Local_Government_20260722.xml')),
+  "//row")
+.getcol <- function(field) xml_text(xml_find_first(.debt_rows, paste0("./", field)))
+debt <- data.table(
+  GovernmentType              = .getcol('governmenttype'),
+  GovernmentName              = .getcol('governmentname'),
+  FiscalYear                  = as.integer(.getcol('fiscalyear')),
+  PledgeType                  = .getcol('pledgetype'),
+  TotalPrincipalOutstanding   = as.numeric(.getcol('totalprincipaloutstanding')),
+  TotalDebtServiceOutstanding = as.numeric(.getcol('totaldebtserviceoutstanding'))
+)
 
 debt = debt[debt$GovernmentType == 'WD',]
 debt$GovernmentName <- str_remove(toupper(debt$GovernmentName),"(\\s|-)DEFINED AREA.*")
@@ -31,128 +49,58 @@ setnames(debt,c('V1','V2'),c('TotalDebtServiceOutstanding','TotalPrincipalOutsta
 debt <- dcast(data = debt,GovernmentName + FiscalYear ~ PledgeType,value.var = c('TotalDebtServiceOutstanding','TotalPrincipalOutstanding'))
     
 
-### local issuance data are not as nice, API is limited to 1k at a time
-### so instead just use local file downloaded from: https://data.texas.gov/Government-and-Taxes/Local-Issuance/fnjb-etpr/data_preview
-iss = fread(raw_input('tbrb', 'Local_Issuance_20240924.csv'))
-iss = iss[iss$GovernmentType=='WD'&!is.na(iss$NewMoneyPar),]
-iss$GovernmentName <- str_remove(toupper(iss$GovernmentName),"(\\s|-)DEFINED AREA.*")
-iss = iss[,.(GovernmentName,NewMoneyPar,FiscalYearIssuance,PledgeType)]
-iss <- iss[,sum(NewMoneyPar),by=.(FiscalYearIssuance,GovernmentName,PledgeType)]
-setnames(iss,c('FiscalYearIssuance','V1'),c('FiscalYear','NewMoney'))
+# NOTE: the TBRB Local-Issuance (new-money) series is deliberately NOT used. It
+# only reaches back to ~2015 and its NewMoney_* columns never entered the model
+# (fiscal_vars uses debt OUTSTANDING per connection, not issuance), so the debt
+# measure now rests solely on the outstanding balances parsed above.
+fin <- debt
 
-iss <- dcast(iss,GovernmentName + FiscalYear ~ PledgeType,value.var = 'NewMoney')
-setnames(iss,c('GO','REV'),c('NewMoney_GO','NewMoney_REV'))
-setkey(iss,GovernmentName,FiscalYear)
-setkey(debt,GovernmentName,FiscalYear)
+# ---- District_ID linkage: consume the committed crosswalk --------------------
+# TBRB carries no district ID, only a government NAME. The NAME->District_ID
+# mapping is a human-reviewed committed artifact (input/tbrb_district_crosswalk.csv),
+# built and re-proposed by code/00_assemble/build_tbrb_crosswalk.R against the
+# AUDIT district universe with a PWS-linked tiebreak (so a reformed district's debt
+# lands on the operational ID the panel carries, never a no-PWS shell ID). This
+# script does NO name matching of its own -- it is a plain join on GovernmentName,
+# which above was uppercased + DEFINED-AREA-stripped byte-for-byte the same way the
+# builder keys the crosswalk. Names absent from the crosswalk (new TBRB governments
+# in a later export, or wholesale/regional authorities with no district audit) are
+# reported with their dollar totals and dropped -- rerun the builder + re-review to
+# fold in any genuinely recoverable ones.
+xwalk <- data.table::fread(committed("tbrb_district_crosswalk.csv"),
+                           colClasses = list(character = "District_ID"))
+fin$District_ID <- xwalk$District_ID[match(fin$GovernmentName, xwalk$GovernmentName)]
 
-fin <- merge(debt,iss,all = T)
+# Outstanding principal is a STOCK, so summarize each unmatched government by its
+# median annual principal (GO+REV), then total across governments -- summing the
+# balance across all 19 years would overstate the dropped debt ~19x.
+.prin_cols <- grep("^TotalPrincipalOutstanding", names(fin), value = TRUE)
+fin$.prin  <- rowSums(as.matrix(fin[, .prin_cols, with = FALSE]), na.rm = TRUE)
+miss <- is.na(fin$District_ID)
+if (any(miss)) {
+  miss_tab <- fin[miss, .(prin_med = median(.prin, na.rm = TRUE)), by = GovernmentName][order(-prin_med)]
+  data.table::fwrite(miss_tab, scratch("tbrb_unmatched_governments.csv"))
+  message(sprintf(
+    "debt link: %d of %d district-years linked; %d unmatched (%d governments, $%.1fM median-year principal) dropped -> scratch/tbrb_unmatched_governments.csv",
+    sum(!miss), nrow(fin), sum(miss), nrow(miss_tab), sum(miss_tab$prin_med) / 1e6))
+} else {
+  message(sprintf("debt link: all %d district-years linked to the committed crosswalk", nrow(fin)))
+}
+fin$.prin <- NULL
+fin <- fin[!is.na(fin$District_ID),]
 
-fin$District_Name = fin$GovernmentName
-# Shared canonicalization (ingest_helpers.R), then the TBRB-specific
-# abbreviation expansions and one-off aliases below.
-fin$District_Name = gsub('\\sNO(\\s[0-9]{1,})','\\1',fin$District_Name,perl = T)
-fin$District_Name = normalize_district_name(fin$District_Name)
-fin$District_Name = gsub(' ID$',' IRRIGATION DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub(' ID ',' IRRIGATION DISTRICT ',fin$District_Name,perl = T)
-fin$District_Name = gsub('IRRIG DISTRICT','IRRIGATION DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub(' RA$',' RIVER AUTHORITY',fin$District_Name,perl = T)
-fin$District_Name = gsub(' AUTH$',' AUTHORITY',fin$District_Name,perl = T)
-fin$District_Name = gsub(' WA$',' WATER AUTHORITY',fin$District_Name,perl = T)
-fin$District_Name = gsub(' DD$',' DRAINAGE DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub(' DD ',' DRAINAGE DISTRICT ',fin$District_Name,perl = T)
-fin$District_Name = gsub(' ND$',' NAVIGATION DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub(' WD$',' WATER DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub('HARRIS-FORT BEND','HARRIS FORT BEND',fin$District_Name,perl = T)
-fin$District_Name[grepl('MUD 1$',fin$District_Name)] = ifelse(fin$District_Name[grepl('MUD 1$',fin$District_Name)] %in% dinfo_dt$District_Name,fin$District_Name[grepl('MUD 1$',fin$District_Name)],
-                                                                gsub(" 1$",'',fin$District_Name[grepl('MUD 1$',fin$District_Name)]))
-fin$District_Name = gsub("ARANSAS COUNTY ND 1","ARANSAS COUNTY NAVIGATION DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("BEEVILLE WSD","BEEVILLE WATER SUPPLY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("BELL COUNTY WCID 2-LITTLE RIVER","BELL COUNTY WCID 2",fin$District_Name,perl = T)
-fin$District_Name = gsub("BELMONT FWSD 1","BELMONT FWSD 1 OF DENTON COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("BISTONE MWSD","BISTONE MUNICIPAL WATER SUPPLY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("BRIGHT STAR-SALEM","BRIGHT STAR SALEM",fin$District_Name,perl=T)
-fin$District_Name = gsub("BARKER-CYPRESS MUD","BARKER CYPRESS MUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("BRAZORIA-FORT BEND COUNTIES MUD","BRAZORIA-FORT BEND COUNTY MUD 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("BROOKSHIRE MWD","BROOKSHIRE MUNICIPAL WATER DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("BRUSHY CREEK MUD-DEFINED AREA","BRUSHY CREEK MUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("CANADIAN RIVER MWA","CANADIAN RIVER MUNICIPAL WATER AUTHORITY",fin$District_Name,perl = T)
-fin$District_Name = gsub("CARDINAL MEADOWS WCID","CARDINAL MEADOWS IMPROVEMENT DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("CENTRAL WCID","CENTRAL WCID OF ANGELINA COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("CHAMPIONS MUD","CHAMPIONS MUNICIPAL UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("COMMODORE COVE IRRIGATION DISTRICT","COMMODORE COVE IMPROVEMENT DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("CONROE MMD 1"," CONROE MUNICIPAL MANAGEMENT DISTRICT 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("CORYELL CITY WSD","CORYELL CITY WATER SUPPLY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("CY-CHAMP","CY CHAMP",fin$District_Name,perl = T)
-fin$District_Name = gsub("CYPRESS SPINGS SUD","CYPRESS SPRINGS SUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("DALLAS COUNTY U&RD","DALLAS COUNTY UTILITY & RECLAMATION DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("DENTON COUNTY FWSD 8A","DENTON COUNTY FWSD 8-A",fin$District_Name,perl = T)
-fin$District_Name = gsub("DENTON COUNTY FWSD 8B","DENTON COUNTY FWSD 8-B",fin$District_Name,perl = T)
-fin$District_Name = gsub("DENTON COUNTY FWSD 8C","DENTON COUNTY FWSD 8-C",fin$District_Name,perl = T)
-fin$District_Name = gsub("DENTON COUNTY RECL & RD$","DENTON COUNTY RECLAMATION & ROAD DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("DUVAL COUNTY C&RD","DUVAL COUNTY CONSERVATION & RECLAMATION DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("EASTLAND COUNTY WSD","EASTLAND COUNTY WATER SUPPLY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("EL PASO COUNTY WID-TORNILLO","EL PASO COUNTY TORNILLO WID",fin$District_Name,perl = T)
-fin$District_Name = gsub("FORT HANCOCK WCID 1","FORT HANCOCK WCID",fin$District_Name,perl = T)
-fin$District_Name = gsub("GRAND PRAIRIE METROPOLITAN U&RD","GRAND PRAIRIE METROPOLITAN UTILITY & RECLAMATION DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("GREATER TEXOMA UA","GREATER TEXOMA UTILITY AUTHORITY",fin$District_Name,perl = T)
-fin$District_Name = gsub("GREEN VALLEY SUD","GREEN VALLEY SPECIAL UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("HUDSPETH COUNTY C&RD 1","HUDSPETH COUNTY CONSERVATION & RECLAMATION DISTRICT 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("IRVING FCD SECTION 1","IRVING FLOOD CONTROL DISTRICT SECTION 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("IRVING FCD SECTION 3","IRVING FLOOD CONTROL DISTRICT SECTION 3",fin$District_Name,perl = T)
-fin$District_Name = gsub("JACKRABBIT ROAD PUD","JACKRABBIT ROAD PUBLIC UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("JACKSON COUNTY WCID 2-VANDERBILT","JACKSON COUNTY WCID 2",fin$District_Name,perl = T)
-fin$District_Name = gsub("KELLY LANE WCID 1","KELLY LANE WCID 1 OF TRAVIS COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("KELLY LANE WCID 2","KELLY LANE WCID 2 OF TRAVIS COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("LAKE CITIES MUA","LAKE CITIES MUNICIPAL UTILITY AUTHORITY",fin$District_Name,perl = T)
-fin$District_Name = gsub("LAKE VIEW MANAGEMENT & DEVELOPMENT DISTRICT","LAKE VIEW MANAGEMENT AND DEVELOPMENT DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("LIVE OAK CREEK MUD","LIVE OAK CREEK MUD 1 OF TARRANT COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("LONE STAR REGIONAL WATER AUTHORITY","LONE STAR RWA",fin$District_Name,perl = T)
-fin$District_Name = gsub("MACKENZIE MWA","MACKENZIE MUNICIPAL WATER AUTHORITY",fin$District_Name,perl = T)
-fin$District_Name = gsub("MATAGORDA COUNTY ND 1","MATAGORDA COUNTY NAVIGATION DISTRICT 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("MEEKER MWD","MEEKER MUNICIPAL WATER DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("MORNINGSTAR RANCH MUD","MORNINGSTAR RANCH MUD 1 OF PARKER COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("NORTHAMPTON MUD","NORTHAMPTON MUNICIPAL UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("NORTHEAST TEXAS MWD","NORTHEAST TEXAS MUNICIPAL WATER DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("OAKMONT PUD","OAKMONT PUBLIC UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("PALO PINTO COUNTY MWD 1","PALO PINTO COUNTY MUNICIPAL WATER DISTRICT 1",fin$District_Name,perl = T)
-fin$District_Name = gsub("PROVIDENCE VILLAGE WCID","PROVIDENCE VILLAGE WCID OF DENTON COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("RED RIVER AUTHORITY","RED RIVER AUTHORITY OF TEXAS",fin$District_Name,perl = T)
-fin$District_Name = gsub("SEDONA LAKES MUD","SEDONA LAKES MUD 1 OF BRAZORIA COUNTY",fin$District_Name,perl = T)
-fin$District_Name = gsub("SPINGS SUD$"," SPRINGS SUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("TARRANT REGIONAL WATER DISTRICT","TARRANT REGIONAL WATER DISTRICT A WCID",fin$District_Name,perl = T)
-fin$District_Name = gsub("TERRANOVA WEST MUD","TERRANOVA WEST MUNICIPAL UTILITY DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub("TIMBERLAKE IRRIGATION DISTRICT","TIMBERLAKE IRRIGATION DIST",fin$District_Name,perl = T)
-fin$District_Name = gsub("TRINITY BAY CD","TRINITY BAY CONSERVATION DISTRICT",fin$District_Name)
-fin$District_Name = gsub("TRINITY RIVER AUTHORITY","TRINITY RIVER AUTHORITY OF TEXAS",fin$District_Name)
-fin$District_Name = gsub("WALLER COUNTY ROAD IRRIGATION DISTRICT 1","WALLER COUNTY ROAD IMPROVEMENT DISTRICT 1",fin$District_Name)
-fin$District_Name = gsub("WALLER COUNTY ROAD IRRIGATION DISTRICT 2","WALLER COUNTY ROAD IMPROVEMENT DISTRICT 2",fin$District_Name)
-fin$District_Name = gsub("WEST HARRIS COUNTY REGIONAL WATER AUTHORITY","WEST HARRIS COUNTY RWA",fin$District_Name)
-fin$District_Name = gsub("WEST JEFFERSON COUNTY MWD","WEST JEFFERSON COUNTY MUNICIPAL WATER DISTRICT",fin$District_Name)
-fin$District_Name = gsub("WEST KEEGANS BAYOU IRRIGATION DISTRICT","WEST KEEGANS BAYOU IMPROVEMENT DISTRICT",fin$District_Name)
-fin$District_Name = gsub("WILLIAMSON COUNTY WATER SEWER IRRIG & DRAINAGE DISTRICT 3","WILLIAMSON COUNTY WATER SEWER IRRIGATION AND DRAINAGE DIST 3",fin$District_Name)
-fin$District_Name = gsub("WOODLANDS METRO CENTER MUD THE","THE WOODLANDS METRO CENTER MUD",fin$District_Name)
-fin$District_Name = gsub("WOODLANDS MUD 2","THE WOODLANDS MUD 2",fin$District_Name)
-fin$District_Name = gsub("CANEY CREEK MUD","CANEY CREEK MUD OF MATAGORDA COUNTY",fin$District_Name)
-fin$District_Name = gsub("D'ARC","DARC",fin$District_Name,perl = T)
-fin$District_Name = gsub("HUNTER'S GLEN MUD","HUNTERS GLEN MUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("\\sCONS\\s"," CONSOLIDATED ",fin$District_Name,perl = T)
-fin$District_Name = gsub("MOORE'S CROSSING MUD","MOORES CROSSING MUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("TRAVIS COUNTY WCID 17.*","TRAVIS COUNTY WCID 17",fin$District_Name,perl = T)
-fin$District_Name = gsub("SPORTSMAN'S WORLD MUD","SPORTSMANS WORLD MUD",fin$District_Name,perl = T)
-fin$District_Name = gsub("PORT O'CONNOR IRRIGATION DISTRICT","PORT OCONNOR IMPROVEMENT DISTRICT",fin$District_Name,perl = T)
-fin$District_Name = gsub('FLYING "L" RANCH PUD','FLYING L PUD',fin$District_Name,perl = T)
-fin$District_Name = gsub('TATTOR ROAD MUD','TATTOR ROAD MUNICIPAL DISTRICT',fin$District_Name,perl = T)
-fin$District_Name = gsub('(LAKESIDE WCID 2)([A-D])','\\1-\\2',fin$District_Name,perl = T)
+# Several TBRB governments can map to one operational District_ID -- a district's
+# defined-area subunits (e.g. TRAVIS COUNTY WCID 17 (A)/(B)/(C)/(D)) each file
+# their own bonds, but the district's single audit ID covers all of them. Sum the
+# outstanding balances to the (District_ID, FiscalYear) key the rest of the
+# pipeline joins on, so no subunit's debt is lost to the de-duplication in
+# 04_combine_district_fiscal_data.R. A no-op for the 1:1 districts (one row each).
+.val_cols <- grep("^Total(Debt|Principal)", names(fin), value = TRUE)
+sum_or_na <- function(x) if (all(is.na(x))) NA_real_ else sum(x, na.rm = TRUE)
+fin <- fin[, lapply(.SD, sum_or_na), by = .(District_ID, FiscalYear), .SDcols = .val_cols]
 
-fin$District_Name <- strip_county_suffix(fin$District_Name)
-
-
-
-fin$NewMoney_GO = replace_na(fin$NewMoney_GO,0)
-fin$NewMoney_REV = replace_na(fin$NewMoney_REV,0)
-fin$District_ID <- dinfo_dt$District_ID[match(fin$District_Name,dinfo_dt$District_Name)]
-fin = fin[!is.na(fin$District_ID),]
-
+# Filename kept as-is for downstream compatibility (01_combine reads it), though it
+# now holds debt OUTSTANDING only -- no issuance / new-money columns.
 saveRDS(fin, committed('district_debt_issuances.RDS'))
 
 }   # end RESCRAPE guard
