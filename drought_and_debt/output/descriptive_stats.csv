@@ -11,7 +11,7 @@ wholesaler,System controls (time-invariant),system,3614,0.27393469839513,0.44603
 ln_home_value,System controls (time-invariant),system,3614,11.5989012355982,0.466924358331979,9.64212278840172,11.2872787834379,11.5608509247877,11.9063179918441,13.7675395240167,Log median home value
 median_structure_age,System controls (time-invariant),system,3614,26.2784149851876,10.6866143181966,6,19,25.7913544319077,32.3292565533839,63.0809666560747,Median structure age (yrs)
 perc_dem_vote,System controls (time-invariant),system,3614,30.0304597472345,12.8661451877037,5.5067543755799,21.6253946395298,26.7142111641931,34.2710792401267,94.8694044912962,% Dem. vote share
-debt_go_per_conn,"Fiscal (district subsample, system-week)",system-week,357776,7.34662436523201,3.84235615733168,0,7.39725151163129,9.02250266130247,9.77079263331642,12.1820432208296,GO (tax) debt per connection (asinh)
-debt_rev_per_conn,"Fiscal (district subsample, system-week)",system-week,357776,1.97594176801364,3.42478580503455,0,0,0,5.22138548413653,14.9512316265826,Revenue debt per connection (asinh)
+debt_go_per_conn,"Fiscal (district subsample, system-week)",system-week,422408,6.55715259343559,4.27994593817733,0,0,8.81482682333374,9.64523722028843,12.1820432208296,GO (tax) debt per connection (asinh)
+debt_rev_per_conn,"Fiscal (district subsample, system-week)",system-week,422408,1.00320456451669,2.66984922172298,0,0,0,0,14.9512316265826,Revenue debt per connection (asinh)
 fund_bal_per_conn,"Fiscal (district subsample, system-week)",system-week,473457,6.37514131512183,3.16914545944877,0,6.33154111605108,7.67693845474517,8.35234109359325,13.3284291297063,Fund balance per connection (asinh)
 revenue_per_conn,"Fiscal (district subsample, system-week)",system-week,473457,7.44079841504779,1.45858508364466,0,7.20659824228616,7.65278836775658,8.06118371688013,13.7175409951347,Revenue per connection (asinh)

@@ -1,12 +1,12 @@
 term,label,model,mean,lower,upper
-DSCI_100,Drought severity (DSCI/100),Model 1 (global),0.329296111931417,0.299687097825241,0.358905126037593
-seller_restricted,Seller under restriction,Model 1 (global),1.66662371000722,1.55915284442507,1.77409457558937
-ln_connections,Log connections,Model 1 (global),0.23253498290904,0.182753989064084,0.282315976753996
-storage_per_conn_g,Storage per connection (asinh gal),Model 1 (global),0.0432839835527302,-0.00611430609324088,0.0926822731987013
-source_surface,Surface water (vs ground),Model 1 (global),1.08111764314892,0.829694876789917,1.33254040950792
-purchases_water,Purchases water (primary),Model 1 (global),-0.553947588145701,-0.789778065525343,-0.318117110766059
-emergency_source,Emergency source/interconnect,Model 1 (global),-0.0469989599740483,-0.204520773781926,0.110522853833829
-wholesaler,Wholesaler (sells water),Model 1 (global),-0.0235572570984069,-0.196242043006409,0.149127528809595
-ln_home_value,Log median home value,Model 1 (global),0.462034881363238,0.241826605797006,0.682243156929469
-median_structure_age,Median structure age (yrs),Model 1 (global),-0.00173767338863832,-0.0110941004666825,0.0076187536894059
-perc_dem_vote,% Dem. vote share,Model 1 (global),-0.010261256668036,-0.0178872846055276,-0.00263522873054447
+DSCI_100,Drought severity (DSCI/100),Model 1 (global),0.329295988923974,0.299686973015009,0.358905004832939
+seller_restricted,Seller under restriction,Model 1 (global),1.66662337282743,1.55915251536703,1.77409423028783
+ln_connections,Log connections,Model 1 (global),0.232535410461322,0.182754452191019,0.282316368731625
+storage_per_conn_g,Storage per connection (asinh gal),Model 1 (global),0.043283785747749,-0.00611447579852979,0.0926820472940278
+source_surface,Surface water (vs ground),Model 1 (global),1.0811134970007,0.829690809031959,1.33253618496944
+purchases_water,Purchases water (primary),Model 1 (global),-0.553946192264767,-0.7897764894475,-0.318115895082035
+emergency_source,Emergency source/interconnect,Model 1 (global),-0.0469984210731098,-0.204520081300003,0.110523239153784
+wholesaler,Wholesaler (sells water),Model 1 (global),-0.0235574990157003,-0.196242113643554,0.149127115612154
+ln_home_value,Log median home value,Model 1 (global),0.46203307762011,0.241824789562199,0.68224136567802
+median_structure_age,Median structure age (yrs),Model 1 (global),-0.0017377388276146,-0.0110941742340031,0.00761869657877385
+perc_dem_vote,% Dem. vote share,Model 1 (global),-0.0102612333291496,-0.0178872699312184,-0.0026351967270808

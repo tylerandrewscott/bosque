@@ -261,21 +261,23 @@ message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d dist
 # 4. TIME-VARYING FINANCES + district-linked subsample (panel_m2)
 # =============================================================================
 
-# Per-connection DENOMINATOR: district service connections from EPA SDWIS
-# (Envirofacts WATER_SYSTEM snapshot -> input/pws_sdwis_connections.RDS, keyed by
-# the same TXnnnnnnn PWS_ID as the panel). This REPLACES the audit-reported count
-# `WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`, which is 0/blank for ~half of filings;
-# the old `pmax(water_conn, 1)` silently floored those to a per-$1 ratio, collapsing
-# "per connection" onto asinh(raw dollars) and mass points (e.g. debt median 0).
-# A district's connections = the sum over its member PWS (id_crosswalk `xw`, loaded
-# in §3). SDWIS covers ~99.8% of the fiscal panel's district-weeks. NOTE: this is a
-# single current snapshot applied to all years (time-invariant); a yearly SDWIS/TWDB
-# series can drop in later by adding a Year dimension to dist_conn and the join.
-sdwis_conn <- as.data.table(readRDS(committed("pws_sdwis_connections.RDS")))
-dist_conn  <- merge(xw, sdwis_conn[, .(PWS_ID, Connections_SDWIS)],
-                    by = "PWS_ID", all.x = TRUE)[
-                    , .(dist_conn = sum(Connections_SDWIS, na.rm = TRUE)), by = District_ID]
-dist_conn  <- dist_conn[dist_conn > 0]   # 0 => treated as MISSING (ratio NA), never floored
+# Per-connection DENOMINATOR: district service connections from EPA SDWIS, BY YEAR
+# (yearly Q1 "Water System Summary" exports -> input/pws_sdwis_connections.RDS via
+# 00_assemble/08, keyed by the same TXnnnnnnn PWS_ID as the panel). This REPLACES
+# the audit-reported count `WATER CUSTOMERS - EQ SINGLE FAMILY UNITS`, which is
+# 0/blank for ~half of filings; the old `pmax(water_conn, 1)` silently floored those
+# to a per-$1 ratio, collapsing "per connection" onto asinh(raw dollars) and mass
+# points (e.g. debt median 0). A district's connections in a given year = the sum
+# over its member PWS (id_crosswalk `xw`, loaded in §3) of that year's SDWIS count.
+# The by-year table (2013-2026) is matched to each audit's fiscal year below; years
+# outside the SDWIS span back-fill to the nearest available year (2010-2012 -> 2013).
+sdwis_conn   <- as.data.table(readRDS(committed("pws_sdwis_connections.RDS")))
+dist_conn_yr <- merge(xw, sdwis_conn[, .(PWS_ID, Year, Connections_SDWIS)],
+                      by = "PWS_ID", all.x = TRUE, allow.cartesian = TRUE)[
+                      , .(dist_conn = sum(Connections_SDWIS, na.rm = TRUE)),
+                      by = .(District_ID, Year)]
+dist_conn_yr <- dist_conn_yr[dist_conn > 0]   # 0 => treated as MISSING (ratio NA), never floored
+setkey(dist_conn_yr, District_ID, Year)
 
 # Each audit is stamped with its FISCAL YEAR ENDED date; we match on that date
 # (not just the year) so the join uses the actual reporting period. The three core
@@ -324,9 +326,13 @@ fin[, .n_na := rowSums(is.na(.SD)),
     .SDcols = c("debt_go", "debt_rev", "fund_balance", "total_revenue")]
 setorder(fin, District_ID, fy_end, .n_na)
 fin <- unique(fin, by = c("District_ID", "fy_end"))
-# Attach the district connection denominator; districts with no SDWIS match (or 0
-# connections) get dist_conn = NA, so their ratios are NA and drop per-covariate.
-fin <- merge(fin, dist_conn, by = "District_ID", all.x = TRUE)
+# Attach each audit's YEAR-matched district connection denominator: a rolling
+# "nearest" join on year within District_ID, so each audit uses its own year's
+# SDWIS snapshot and audits outside the SDWIS span (2013-2026) back-fill to the
+# nearest available year (2010-2012 -> 2013). Districts with no SDWIS year at all
+# (or 0 connections) get dist_conn = NA, so their ratios are NA and drop per-covariate.
+fin[, fy_year := year(fy_end)]
+fin <- dist_conn_yr[fin, on = .(District_ID, Year = fy_year), roll = "nearest"]
 fin <- fin[, .(
   District_ID, fy_end,
   debt_go_per_conn  = asinh(debt_go       / dist_conn),

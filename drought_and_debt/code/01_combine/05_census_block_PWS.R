@@ -112,7 +112,7 @@ tx_tracts <- st_make_valid(st_transform(tx_tracts, st_crs(albersNA)))
 # https://geodata.lib.utexas.edu/catalog/princeton-ww72bg01w
 precincts <- st_read(spatial('princeton-ww72bg01w-geojson.json'), quiet = TRUE)
 precincts$COUNTY_VTD <- paste0('48', precincts$COUNTYFP10, '_', precincts$VTDST10)
-elections <- list.files(committed('precinct_votes'), full.names = TRUE)
+elections <- list.files(raw_input('precinct_votes'), full.names = TRUE)
 elects <- rbindlist(lapply(elections, read.dta), fill = T, use.names = T)
 elects$CFIPS <- paste0('48', formatC(elects$fips, width = 3, flag = '0'))
 elects$COUNTY_VTD <- paste(elects$CFIPS, elects$vtd, sep = '_')

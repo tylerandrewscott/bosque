@@ -52,6 +52,7 @@ if (run_assemble) {
   run_step("00_assemble/04_assemble_debt.R")                    # -> input/district_debt_issuances.RDS
   run_step("00_assemble/05_scrape_storage_and_pops.R")          # -> input/pws_storage.RDS, pws_population.RDS
   run_step("00_assemble/06_htmlscrape_storage_interconnects.R") # -> input/storage_connections_data.txt
+  run_step("00_assemble/08_assemble_sdwis_connections.R")       # -> input/pws_sdwis_connections.RDS
 }
 
 # --- Stage B: combine + demographics -----------------------------------------
