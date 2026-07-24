@@ -207,6 +207,27 @@ dwv_widget <- function(ses, endpoint, tinwsys, number0 = NULL, st_code = "TX",
   dt[]
 }
 
+# --- Widget fetch with retries + explicit failure signal ----------------------
+# dwv_widget() already retries transient HTTP failures inside dwv_get(); this
+# wrapper adds whole-call retries (session hiccups, parse errors) and — the
+# important part — returns NULL on final failure so callers can distinguish
+# "query FAILED" (NULL) from "queried fine, zero rows" (empty data.table).
+# Callers should record failures as NA / refetchable, never as zeros.
+dwv_widget_retry <- function(ses, endpoint, tinwsys, number0 = NULL,
+                             tries = 3, ...) {
+  for (k in seq_len(tries)) {
+    out <- tryCatch(dwv_widget(ses, endpoint, tinwsys, number0, ...),
+                    error = identity)
+    if (!inherits(out, "error")) return(out)
+    if (k < tries) Sys.sleep(3 * k)
+  }
+  message(sprintf("  %s [%s]: FAILED after %d attempts: %s", endpoint,
+                  trimws(number0 %||% as.character(tinwsys)), tries,
+                  conditionMessage(out)))
+  NULL
+}
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
 # --- Convenience: iterate a widget over many systems --------------------------
 # Applies dwv_widget across a systems data.table (needs TINWSYS_IS_NUMBER +
 # NUMBER0 columns, e.g. the output of dwv_search) and row-binds the results.

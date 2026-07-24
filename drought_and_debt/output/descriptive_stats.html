@@ -2,13 +2,14 @@
 <style>body{font-family:sans-serif;margin:2em}
 table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}
 th{background:#f2f2f2;text-align:left}td{text-align:right}
-td:first-child,td:nth-child(2){text-align:left}
+td:first-child,td:nth-child(2),td:nth-child(3){text-align:left}
 </style></head><body>
 <table>
 <caption>Descriptive statistics for recurring-events Cox model variables</caption>
  <thead>
   <tr>
    <th style="text-align:left;"> Variable </th>
+   <th style="text-align:left;"> Sample </th>
    <th style="text-align:left;"> Unit </th>
    <th style="text-align:right;"> N </th>
    <th style="text-align:right;"> Mean </th>
@@ -23,10 +24,11 @@ td:first-child,td:nth-child(2){text-align:left}
 <tbody>
   <tr>
    <td style="text-align:left;"> Mandatory restriction (event) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 3,017,690 </td>
+   <td style="text-align:right;"> 2,936,640 </td>
    <td style="text-align:right;"> 0.001 </td>
-   <td style="text-align:right;"> 0.036 </td>
+   <td style="text-align:right;"> 0.037 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
@@ -35,57 +37,88 @@ td:first-child,td:nth-child(2){text-align:left}
   </tr>
   <tr>
    <td style="text-align:left;"> Drought severity (DSCI, 0-100) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 3,017,690 </td>
-   <td style="text-align:right;"> 123.494 </td>
-   <td style="text-align:right;"> 145.237 </td>
+   <td style="text-align:right;"> 2,936,640 </td>
+   <td style="text-align:right;"> 126.956 </td>
+   <td style="text-align:right;"> 146.264 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 71.750 </td>
-   <td style="text-align:right;"> 205.000 </td>
+   <td style="text-align:right;"> 80.000 </td>
+   <td style="text-align:right;"> 211.000 </td>
    <td style="text-align:right;"> 500.000 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Drought severity (DSCI/100) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 3,017,690 </td>
-   <td style="text-align:right;"> 1.235 </td>
-   <td style="text-align:right;"> 1.452 </td>
+   <td style="text-align:right;"> 2,936,640 </td>
+   <td style="text-align:right;"> 1.270 </td>
+   <td style="text-align:right;"> 1.463 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 0.718 </td>
-   <td style="text-align:right;"> 2.050 </td>
+   <td style="text-align:right;"> 0.800 </td>
+   <td style="text-align:right;"> 2.110 </td>
    <td style="text-align:right;"> 5.000 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Log connections </td>
-   <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 6.141 </td>
-   <td style="text-align:right;"> 1.742 </td>
-   <td style="text-align:right;"> 1.099 </td>
-   <td style="text-align:right;"> 4.787 </td>
-   <td style="text-align:right;"> 6.079 </td>
-   <td style="text-align:right;"> 7.318 </td>
-   <td style="text-align:right;"> 13.806 </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 2,936,640 </td>
+   <td style="text-align:right;"> 5.958 </td>
+   <td style="text-align:right;"> 1.751 </td>
+   <td style="text-align:right;"> 0.693 </td>
+   <td style="text-align:right;"> 4.605 </td>
+   <td style="text-align:right;"> 5.858 </td>
+   <td style="text-align:right;"> 7.175 </td>
+   <td style="text-align:right;"> 14.238 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log connections </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 469,690 </td>
+   <td style="text-align:right;"> 7.019 </td>
+   <td style="text-align:right;"> 1.180 </td>
+   <td style="text-align:right;"> 0.693 </td>
+   <td style="text-align:right;"> 6.431 </td>
+   <td style="text-align:right;"> 7.197 </td>
+   <td style="text-align:right;"> 7.726 </td>
+   <td style="text-align:right;"> 11.547 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Storage per connection (asinh gal) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
    <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 6.921 </td>
-   <td style="text-align:right;"> 1.324 </td>
+   <td style="text-align:right;"> 3,648 </td>
+   <td style="text-align:right;"> 6.819 </td>
+   <td style="text-align:right;"> 0.762 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 6.388 </td>
-   <td style="text-align:right;"> 6.786 </td>
-   <td style="text-align:right;"> 7.232 </td>
-   <td style="text-align:right;"> 21.309 </td>
+   <td style="text-align:right;"> 6.379 </td>
+   <td style="text-align:right;"> 6.778 </td>
+   <td style="text-align:right;"> 7.217 </td>
+   <td style="text-align:right;"> 13.813 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Storage per connection (asinh gal) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
+   <td style="text-align:left;"> system </td>
+   <td style="text-align:right;"> 662 </td>
+   <td style="text-align:right;"> 6.858 </td>
+   <td style="text-align:right;"> 0.732 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 6.499 </td>
+   <td style="text-align:right;"> 6.833 </td>
+   <td style="text-align:right;"> 7.189 </td>
+   <td style="text-align:right;"> 13.813 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Surface water (vs ground) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
    <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 0.279 </td>
+   <td style="text-align:right;"> 3,648 </td>
+   <td style="text-align:right;"> 0.280 </td>
    <td style="text-align:right;"> 0.449 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
@@ -94,10 +127,24 @@ td:first-child,td:nth-child(2){text-align:left}
    <td style="text-align:right;"> 1.000 </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> Purchases water (primary) </td>
+   <td style="text-align:left;"> Surface water (vs ground) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 0.219 </td>
+   <td style="text-align:right;"> 662 </td>
+   <td style="text-align:right;"> 0.406 </td>
+   <td style="text-align:right;"> 0.492 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Purchases water (primary) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system </td>
+   <td style="text-align:right;"> 3,648 </td>
+   <td style="text-align:right;"> 0.220 </td>
    <td style="text-align:right;"> 0.414 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
@@ -106,10 +153,24 @@ td:first-child,td:nth-child(2){text-align:left}
    <td style="text-align:right;"> 1.000 </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> Emergency source/interconnect </td>
+   <td style="text-align:left;"> Purchases water (primary) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 0.272 </td>
+   <td style="text-align:right;"> 662 </td>
+   <td style="text-align:right;"> 0.355 </td>
+   <td style="text-align:right;"> 0.479 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Emergency source/interconnect </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system </td>
+   <td style="text-align:right;"> 3,648 </td>
+   <td style="text-align:right;"> 0.273 </td>
    <td style="text-align:right;"> 0.445 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
@@ -118,100 +179,173 @@ td:first-child,td:nth-child(2){text-align:left}
    <td style="text-align:right;"> 1.000 </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> Wholesaler (sells water) </td>
+   <td style="text-align:left;"> Emergency source/interconnect </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 0.274 </td>
-   <td style="text-align:right;"> 0.446 </td>
+   <td style="text-align:right;"> 662 </td>
+   <td style="text-align:right;"> 0.568 </td>
+   <td style="text-align:right;"> 0.496 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Wholesaler (sells water) </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system </td>
+   <td style="text-align:right;"> 3,648 </td>
+   <td style="text-align:right;"> 0.275 </td>
+   <td style="text-align:right;"> 0.447 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Wholesaler (sells water) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
+   <td style="text-align:left;"> system </td>
+   <td style="text-align:right;"> 662 </td>
+   <td style="text-align:right;"> 0.631 </td>
+   <td style="text-align:right;"> 0.483 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 1.000 </td>
    <td style="text-align:right;"> 1.000 </td>
    <td style="text-align:right;"> 1.000 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Log median home value </td>
-   <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 11.599 </td>
-   <td style="text-align:right;"> 0.467 </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 2,936,640 </td>
+   <td style="text-align:right;"> 11.757 </td>
+   <td style="text-align:right;"> 0.523 </td>
    <td style="text-align:right;"> 9.642 </td>
-   <td style="text-align:right;"> 11.287 </td>
-   <td style="text-align:right;"> 11.561 </td>
-   <td style="text-align:right;"> 11.906 </td>
-   <td style="text-align:right;"> 13.768 </td>
+   <td style="text-align:right;"> 11.386 </td>
+   <td style="text-align:right;"> 11.721 </td>
+   <td style="text-align:right;"> 12.087 </td>
+   <td style="text-align:right;"> 14.372 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log median home value </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 469,690 </td>
+   <td style="text-align:right;"> 11.957 </td>
+   <td style="text-align:right;"> 0.473 </td>
+   <td style="text-align:right;"> 10.292 </td>
+   <td style="text-align:right;"> 11.663 </td>
+   <td style="text-align:right;"> 11.952 </td>
+   <td style="text-align:right;"> 12.258 </td>
+   <td style="text-align:right;"> 14.372 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Median structure age (yrs) </td>
-   <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 26.278 </td>
-   <td style="text-align:right;"> 10.687 </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 2,936,640 </td>
+   <td style="text-align:right;"> 31.937 </td>
+   <td style="text-align:right;"> 11.236 </td>
    <td style="text-align:right;"> 6.000 </td>
-   <td style="text-align:right;"> 19.000 </td>
-   <td style="text-align:right;"> 25.791 </td>
-   <td style="text-align:right;"> 32.329 </td>
-   <td style="text-align:right;"> 63.081 </td>
+   <td style="text-align:right;"> 24.000 </td>
+   <td style="text-align:right;"> 31.066 </td>
+   <td style="text-align:right;"> 38.588 </td>
+   <td style="text-align:right;"> 77.000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Median structure age (yrs) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 469,690 </td>
+   <td style="text-align:right;"> 26.533 </td>
+   <td style="text-align:right;"> 9.549 </td>
+   <td style="text-align:right;"> 6.000 </td>
+   <td style="text-align:right;"> 19.394 </td>
+   <td style="text-align:right;"> 26.429 </td>
+   <td style="text-align:right;"> 33.000 </td>
+   <td style="text-align:right;"> 71.000 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> % Dem. vote share </td>
-   <td style="text-align:left;"> system </td>
-   <td style="text-align:right;"> 3,614 </td>
-   <td style="text-align:right;"> 30.030 </td>
-   <td style="text-align:right;"> 12.866 </td>
-   <td style="text-align:right;"> 5.507 </td>
-   <td style="text-align:right;"> 21.625 </td>
-   <td style="text-align:right;"> 26.714 </td>
-   <td style="text-align:right;"> 34.271 </td>
-   <td style="text-align:right;"> 94.869 </td>
+   <td style="text-align:left;"> Global (Model 1) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 2,936,640 </td>
+   <td style="text-align:right;"> 26.544 </td>
+   <td style="text-align:right;"> 16.979 </td>
+   <td style="text-align:right;"> 0.000 </td>
+   <td style="text-align:right;"> 15.242 </td>
+   <td style="text-align:right;"> 20.420 </td>
+   <td style="text-align:right;"> 32.725 </td>
+   <td style="text-align:right;"> 98.810 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> % Dem. vote share </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
+   <td style="text-align:left;"> system-week </td>
+   <td style="text-align:right;"> 469,690 </td>
+   <td style="text-align:right;"> 39.171 </td>
+   <td style="text-align:right;"> 20.701 </td>
+   <td style="text-align:right;"> 4.485 </td>
+   <td style="text-align:right;"> 21.486 </td>
+   <td style="text-align:right;"> 36.026 </td>
+   <td style="text-align:right;"> 53.975 </td>
+   <td style="text-align:right;"> 95.395 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> GO (tax) debt per connection (asinh) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 422,408 </td>
-   <td style="text-align:right;"> 6.557 </td>
-   <td style="text-align:right;"> 4.280 </td>
+   <td style="text-align:right;"> 417,745 </td>
+   <td style="text-align:right;"> 6.833 </td>
+   <td style="text-align:right;"> 4.457 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 8.815 </td>
-   <td style="text-align:right;"> 9.645 </td>
-   <td style="text-align:right;"> 12.182 </td>
+   <td style="text-align:right;"> 9.002 </td>
+   <td style="text-align:right;"> 10.003 </td>
+   <td style="text-align:right;"> 15.975 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Revenue debt per connection (asinh) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 422,408 </td>
-   <td style="text-align:right;"> 1.003 </td>
-   <td style="text-align:right;"> 2.670 </td>
+   <td style="text-align:right;"> 417,745 </td>
+   <td style="text-align:right;"> 1.024 </td>
+   <td style="text-align:right;"> 2.712 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 14.951 </td>
+   <td style="text-align:right;"> 12.871 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Fund balance per connection (asinh) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 473,457 </td>
-   <td style="text-align:right;"> 6.375 </td>
-   <td style="text-align:right;"> 3.169 </td>
+   <td style="text-align:right;"> 469,690 </td>
+   <td style="text-align:right;"> 6.673 </td>
+   <td style="text-align:right;"> 3.245 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 6.332 </td>
-   <td style="text-align:right;"> 7.677 </td>
-   <td style="text-align:right;"> 8.352 </td>
-   <td style="text-align:right;"> 13.328 </td>
+   <td style="text-align:right;"> 6.766 </td>
+   <td style="text-align:right;"> 7.949 </td>
+   <td style="text-align:right;"> 8.573 </td>
+   <td style="text-align:right;"> 13.491 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Revenue per connection (asinh) </td>
+   <td style="text-align:left;"> District-only (Model 2) </td>
    <td style="text-align:left;"> system-week </td>
-   <td style="text-align:right;"> 473,457 </td>
-   <td style="text-align:right;"> 7.441 </td>
-   <td style="text-align:right;"> 1.459 </td>
+   <td style="text-align:right;"> 469,690 </td>
+   <td style="text-align:right;"> 7.727 </td>
+   <td style="text-align:right;"> 1.572 </td>
    <td style="text-align:right;"> 0.000 </td>
-   <td style="text-align:right;"> 7.207 </td>
-   <td style="text-align:right;"> 7.653 </td>
-   <td style="text-align:right;"> 8.061 </td>
-   <td style="text-align:right;"> 13.718 </td>
+   <td style="text-align:right;"> 7.467 </td>
+   <td style="text-align:right;"> 7.884 </td>
+   <td style="text-align:right;"> 8.290 </td>
+   <td style="text-align:right;"> 13.896 </td>
   </tr>
 </tbody>
 </table>

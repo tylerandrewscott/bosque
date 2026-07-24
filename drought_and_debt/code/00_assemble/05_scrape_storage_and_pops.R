@@ -74,12 +74,15 @@ if (file.exists(.shp) && requireNamespace("sf", quietly = TRUE)) {
 # systems), whereas a system with no DWV flow-rate rows legitimately never
 # appears in pws_storage.RDS — requiring both files would re-fetch those
 # systems forever. The new rows are merged back in before saving (see the
-# rbind before saveRDS). RESCRAPE = TRUE ignores the prior files and
-# re-fetches every system.
+# rbind before saveRDS). RESCRAPE = TRUE re-fetches every system, but the
+# prior files are STILL merged under the fresh rows at save time: a system
+# that has dropped off the DWV active list keeps its previously collected
+# row instead of vanishing (scrapes are additive — a full rescrape refreshes
+# values, it never discards data).
 .pop_out  <- committed("pws_population.RDS")
 .stor_out <- committed("pws_storage.RDS")
-prev_pop  <- if (!RESCRAPE && file.exists(.pop_out))  as.data.table(readRDS(.pop_out))  else NULL
-prev_stor <- if (!RESCRAPE && file.exists(.stor_out)) as.data.table(readRDS(.stor_out)) else NULL
+prev_pop  <- if (file.exists(.pop_out))  as.data.table(readRDS(.pop_out))  else NULL
+prev_stor <- if (file.exists(.stor_out)) as.data.table(readRDS(.stor_out)) else NULL
 if (!RESCRAPE && !is.null(prev_pop)) {
   done_ids <- as.character(prev_pop$PWS_ID)
   n0 <- nrow(systems)
@@ -157,12 +160,14 @@ storage <- if (nrow(storage_long)) {
   merge(val, uom, by = keys)
 } else data.table(PWS_ID = character(0), TINWSYS_IS_NUMBER = integer(0))
 
-# Merge newly-fetched rows back onto the reused prior scrape (RESCRAPE = FALSE).
+# Merge newly-fetched rows back onto the prior scrape — under BOTH policies.
 # Fresh rows come FIRST so unique(by = "PWS_ID") keeps the just-fetched row for
-# any system that got re-fetched, not the stale prior one.
-if (!RESCRAPE && !is.null(prev_pop))
+# any system that got re-fetched, not the stale prior one; prior rows survive
+# only for systems NOT fetched this run (top-up skips under RESCRAPE = FALSE,
+# systems that dropped off the DWV active list under RESCRAPE = TRUE).
+if (!is.null(prev_pop))
   population <- unique(rbindlist(list(population, prev_pop), use.names = TRUE, fill = TRUE), by = "PWS_ID")
-if (!RESCRAPE && !is.null(prev_stor))
+if (!is.null(prev_stor))
   storage <- unique(rbindlist(list(storage, prev_stor), use.names = TRUE, fill = TRUE), by = "PWS_ID")
 
 saveRDS(storage,    committed("pws_storage.RDS"))

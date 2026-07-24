@@ -88,16 +88,31 @@ util      <- function(...) file.path(UTIL_DIR, ...)
 
 # --- Rescrape policy (Stage A raw ingestion, 00_assemble/*) --------------------
 # One switch governs whether the raw-ingestion scripts re-hit their live sources:
-#   RESCRAPE = TRUE   -> re-fetch everything from the source (full scrape).
-#   RESCRAPE = FALSE  -> reuse the committed prior scrape. The per-system DWV
-#                        scrapers (05_scrape_storage_and_pops.R,
-#                        06_htmlscrape_storage_interconnects.R) still top up ONLY
+#   RESCRAPE = FALSE  -> (default) reuse the committed prior scrape. The
+#                        per-system DWV scrapers (05_scrape_storage_and_pops.R,
+#                        06_htmlscrape_storage_interconnects.R,
+#                        07_scrape_source_and_purchases.R) still top up ONLY
 #                        systems missing from the existing output (incremental);
 #                        the bulk scrapers (01-04) keep their existing output as-is.
+#   RESCRAPE = TRUE   -> re-fetch every system from the source (full refresh).
+#                        Fresh rows REPLACE prior rows per system, but systems no
+#                        longer listed by the source keep their prior rows (the
+#                        scrapers merge over the committed file; a full rescrape
+#                        never discards previously collected data).
 # Flip this one object to control Stage A re-fetching. (A value set before
 # sourcing config still wins, so run_all.R could override it if desired.)
 if (!exists("RESCRAPE")) {
-  RESCRAPE <- TRUE
+  RESCRAPE <- FALSE
+}
+
+# REPROCESS: re-run the assemble scripts that only PROCESS LOCAL raw files —
+# 02 (FOIA sheet + wayback snapshots), 03 (audits CSV), 04 (debt XML),
+# 08 (SDWIS summaries) — even though their committed output exists. Flip this
+# after editing their parsing logic; unlike RESCRAPE = TRUE it touches no live
+# source (01, 05-07 are unaffected). RESCRAPE = TRUE already implies
+# reprocessing (reuse_prior() returns FALSE then).
+if (!exists("REPROCESS")) {
+  REPROCESS <- FALSE
 }
 
 # reuse_prior(paths): TRUE when a bulk scraper should skip re-fetching, i.e.
@@ -109,11 +124,13 @@ reuse_prior <- function(...) {
 }
 
 # --- Analysis window ----------------------------------------------------------
-# Weekly panel, Jan 2010 through Dec 2025. (The window originally opened with the
-# May 2010 drought episode and closed Jul 2015; it was extended to a full
-# 2010-01-01 -> 2025-12-31 span for the 2026 reboot.) build_recurrent_panel.R
-# reads these, so this is the ONE place to change the window.
-start_date <- as.Date("2010-01-01")
+# Weekly panel, Aug 2010 through Dec 2025. The window OPENS at the month of the
+# first observed mandatory restriction notice (2010-08-01): the restriction
+# sources (FOIA sheets, wayback snapshots) have no coverage before then, so
+# earlier weeks would be structurally event-free at-risk time. (Pre-reboot the
+# window was 2010-01-01; changed 2026-07-23, see PLANNING_REVIEW M9.)
+# build_recurrent_panel.R reads these, so this is the ONE place to change it.
+start_date <- as.Date("2010-08-01")
 end_date   <- as.Date("2025-12-31")
 start_year <- as.integer(format(start_date, "%Y"))
 
@@ -122,6 +139,9 @@ start_year <- as.integer(format(start_date, "%Y"))
 albersNA <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
 
 # --- Spatial helpers (terra/sf; replaces retired rgeos/rgdal/maptools/sp) -----
+# Cache TIGER shapefile downloads (counties, tracts, block groups) locally so
+# Stage B doesn't re-download them from the Census Bureau on every run.
+options(tigris_use_cache = TRUE)
 source(file.path(PROJ_ROOT, "code", "spatial_helpers.R"))
 
 # --- Ingest helpers (format_pws_id, load_latest_district_list) ----------------

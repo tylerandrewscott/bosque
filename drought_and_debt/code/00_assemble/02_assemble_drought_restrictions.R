@@ -21,8 +21,9 @@ suppressPackageStartupMessages({
   library(pbapply)
 })
 .out <- committed('combined_restriction_records.RDS')
-if (reuse_prior(.out)) {
-  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping FOIA re-processing).")
+if (reuse_prior(.out) && !isTRUE(REPROCESS)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out),
+          " (skipping FOIA re-processing; set REPROCESS=TRUE to re-run it).")
 } else {
 
 tceq_file <- raw_input("TCEQ_FOIA", "PIR 98118_Copy_Drought_Database_Reported_MASTER.xlsx")
@@ -170,11 +171,13 @@ table(rest_df$Priority)
 rest_df$Priority_Numeric <- as.numeric(fct_relevel(rest_df$Priority,'Resolved','Watch','Concern','Priority','Emergency','Outage'))
 # 
 rest_df$Stage<-toupper(rest_df$Stage)
+# Wayback snapshots span two TCEQ stage vocabularies: 1/2/3 (older layout) and
+# literal M1/M2/M3 (2024+ layout). Both mean mandatory; catch both.
 rest_df <- rest_df %>% mutate(Stage = case_when(
    Stage == 'V' ~ 'Voluntary',
-   Stage == '1' ~ 'Mild',
-   Stage == '2' ~ 'Moderate',
-   Stage == '3' ~ 'Severe',
+   Stage %in% c('1', 'M1') ~ 'Mild',
+   Stage %in% c('2', 'M2') ~ 'Moderate',
+   Stage %in% c('3', 'M3') ~ 'Severe',
    TRUE ~ 'Voluntary'
  ))
 rest_df$Mandatory <- (rest_df$Stage != "Voluntary") + 0

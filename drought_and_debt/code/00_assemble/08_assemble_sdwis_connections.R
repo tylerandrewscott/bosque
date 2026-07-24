@@ -23,8 +23,9 @@ suppressPackageStartupMessages({
 })
 
 .out <- committed('pws_sdwis_connections.RDS')
-if (reuse_prior(.out)) {
-  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping SDWIS assembly).")
+if (reuse_prior(.out) && !isTRUE(REPROCESS)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out),
+          " (skipping SDWIS assembly; set REPROCESS=TRUE to re-run it).")
 } else {
 
 sdwis_dir <- raw_input('epa_sdwis', 'water_system_summary_yearly')

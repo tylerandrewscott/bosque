@@ -1,19 +1,19 @@
 key,value,fmt,label
-n_districts_sample,613,comma,Distinct special water districts in the fiscal-model subsample
-n_systems_sample,643,comma,Distinct CWSs in the fiscal-model subsample
-pct_adopt_ge1,0.309951060358891,pct0,% of sample districts adopting >=1 mandatory restriction
-pct_adopt_ge2,0.141924959216966,pct0,% of sample districts adopting >=2 mandatory restrictions
+n_districts_sample,632,comma,Distinct special water districts in the fiscal-model subsample
+n_systems_sample,662,comma,Distinct CWSs in the fiscal-model subsample
+pct_adopt_ge1,0.311708860759494,pct0,% of sample districts adopting >=1 mandatory restriction
+pct_adopt_ge2,0.145569620253165,pct0,% of sample districts adopting >=2 mandatory restrictions
 max_restrictions,18,int,Max mandatory restrictions adopted by a single sample district
-n_event_weeks_sample,428,comma,Restriction-adoption event-weeks in the fiscal-model subsample
-n_cws_global,3614,comma,Distinct CWSs in the global (Model 1) full sample
-n_districts_linked_global,619,comma,District-linked systems in the global full sample
-n_event_weeks_global,3982,comma,Restriction-adoption event-weeks in the global full sample
-n_districts_total,613,comma,Total sample districts (footnote 7)
-n_districts_one_cws,578,comma,Sample districts administering exactly one CWS
+n_event_weeks_sample,451,comma,Restriction-adoption event-weeks in the fiscal-model subsample
+n_cws_global,3648,comma,Distinct CWSs in the global (Model 1) full sample
+n_districts_linked_global,638,comma,District-linked systems in the global full sample
+n_event_weeks_global,4052,comma,Restriction-adoption event-weeks in the global full sample
+n_districts_total,632,comma,Total sample districts (footnote 7)
+n_districts_one_cws,597,comma,Sample districts administering exactly one CWS
 n_districts_multi_cws,35,comma,Sample districts administering more than one CWS
 n_cws_in_multi,104,comma,CWSs administered by the multi-CWS districts
-n_districts_window730,613,comma,Districts usable with a 730-day prior-audit window
-n_districts_window365,612,comma,Districts usable with a 365-day prior-audit window
+n_districts_window730,632,comma,Districts usable with a 730-day prior-audit window
+n_districts_window365,631,comma,Districts usable with a 365-day prior-audit window
 max_pop_served_sample,110826,comma,Largest service population among sample districts
 start_year,2010,int,First year of the observation window
 end_year,2025,int,Last year of the observation window

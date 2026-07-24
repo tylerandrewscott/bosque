@@ -54,7 +54,7 @@ Run order matters: `02` (PWS↔county overlap) **must precede** `03`, which read
 | `02_combine_pws_with_counties.R` | PWS shapefile, tigris counties | `input/pws_county_overlaps.RDS` |
 | `03_combine_district_and_drought.R` | `dsci_measures.RDS`, `pws_county_overlaps.RDS` | `input/pws_drought_weekly.RDS` |
 | `04_combine_district_fiscal_data.R` | `district_audits.RDS`, `district_debt_issuances.RDS` | `input/combined_and_lagged_finances.RDS` |
-| `05_census_block_PWS.R` | PWS shapefile, tidycensus (needs a Census API key: `CENSUS_API_KEY` or a `census_api_key` file one level above the repo), precinct `.dta` + precinct geojson | `input/pws_demos_MR.RDS` (incl. `Median_Home_Value`, `Median_Year_Structure_Built` for the panel builder) |
+| `05_census_block_PWS.R` | PWS shapefile, tidycensus (needs a Census API key: `CENSUS_API_KEY` or a `census_api_key` file one level above the repo), TLC VTD returns + shapefile (`bosquebox/input/vtd_elections_tlc/`) | `input/pws_demos_MR.RDS` (incl. the vintage-suffixed `Median_Home_Value_*`, `Median_Year_Structure_Built_*`, `Perc_Dem_*` columns for the panel builder) |
 
 ## Stage C — `02_model/` (fit models)
 
@@ -69,6 +69,7 @@ the committed `input/*.RDS` via one shared panel builder.
 | `02_make_figure1.R` | `dsci_measures.RDS`, `statewide_drought_area.RDS` (cached from the UNL API; re-fetched only when `RESCRAPE=TRUE` or absent), `combined_restriction_records.RDS`, `id_crosswalk.RDS` | `output/figure1.png` (metro-county + statewide drought) and `output/figure2.png` (timing of first mandatory-restriction adoption) |
 | `03_model_results_table.R` | `scratch/recurrent_coxinla_*.RDS`, falling back to `output/*_slim.RDS` | `output/model_estimates.{html,csv}`, `output/model_credible_intervals.png` (posterior mean + 95% CrI forest table for every fixed effect, coefficient and hazard-ratio scales) |
 | `04_descriptive_stats_table.R` | the builder | `output/descriptive_stats.{csv,html}` (N/mean/sd/quantiles per model variable, at the correct unit of analysis) |
+| `06_make_appendix_figures.R` | `output/recurrent_coxinla_model1_full_slim.RDS` + the builder (frailty-index mapping, verified against the fit's panel fingerprint); boundaries from Box (TWDB dissolve + TCEQ districts) with a TCEQ open-data geojson fallback when Box is unreadable | `output/baseline_hazard_appendix.png` (RW1 baseline-hazard step ribbon vs mean DSCI), `output/frailty_map_appendix.png` (district posterior-mean frailty choropleth) |
 
 A frequentist `survival` version of the same model
 (`scratch_models/05_fit_recurrent_cox.R`) and the earlier INLA/joint specs

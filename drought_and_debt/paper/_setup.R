@@ -22,6 +22,7 @@
 #   results_table()             wide main results table (kable)
 #   appendix_table()            global Model 1 table (kable)
 #   descriptives_table()        grouped summary-statistics table (kable)
+#   correlation_table("global"|"fiscal")  predictor correlation matrix (kable)
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -171,16 +172,33 @@ appendix_table <- function(digits = 2) {
 descriptives_table <- function() {
   if (is.null(.desc)) return(knitr::kable(data.frame(Note = "Descriptive stats not found.")))
   dt <- copy(.desc)
+  if (!"sample" %in% names(dt)) dt[, sample := ""]   # pre-split CSVs
   num <- function(x) formatC(x, format = "f", digits = 2, big.mark = ",")
   out <- dt[, .(
     Group    = group,
     Variable = label,
+    Sample   = sample,
     Unit     = unit,
     N        = formatC(N, format = "d", big.mark = ","),
     Mean     = num(mean), SD = num(sd),
     Min      = num(min), Median = num(median), Max = num(max))]
-  knitr::kable(out, format = "pipe", align = c("l", "l", "l", rep("r", 6)),
-               caption = "Descriptive statistics for the recurring-events Cox model variables.")
+  knitr::kable(out, format = "pipe", align = c("l", "l", "l", "l", rep("r", 6)),
+               caption = "Descriptive statistics for the recurring-events Cox model variables. System controls are summarized separately for the global (Model 1) sample and the district-linked (Model 2) subsample.")
+}
+
+# Predictor correlation matrix (appendix): the display-ready lower-triangle CSVs
+# written by 04_descriptive_stats_table.R, rendered as-is.
+correlation_table <- function(which = c("global", "fiscal")) {
+  which <- match.arg(which)
+  dt <- .read_csv(paste0("correlation_", which, ".csv"), required = FALSE)
+  if (is.null(dt))
+    return(knitr::kable(data.frame(Note = paste0("correlation_", which,
+      ".csv not found -- run the model pipeline first."))))
+  cap <- if (which == "global")
+    "Pairwise Pearson correlations among the global-model (Model 1) predictors, over the system-week rows the model is fit on." else
+    "Pairwise Pearson correlations among the fiscal-model (Model 2) predictors, over the district-subsample system-week rows."
+  knitr::kable(dt, format = "pipe", align = c("l", rep("r", ncol(dt) - 1L)),
+               caption = cap)
 }
 
 message("paper/_setup.R: loaded ", nrow(.facts), " facts, ",

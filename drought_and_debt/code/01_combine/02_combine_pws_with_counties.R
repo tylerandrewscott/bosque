@@ -18,10 +18,15 @@ if (!exists("committed")) source(Find(file.exists, file.path(
   c(".", "..", "../..", "drought_and_debt"), "code", "config.R")))
 suppressPackageStartupMessages({
   library(data.table)
+  library(dplyr)   # group_by/summarise dissolve below
 })
 
 #https://www3.twdb.texas.gov/apps/waterserviceboundaries
 pws_boundaries = load_pws_boundaries()   # spatial_helpers.R; shared with 01_combine/05
+# Dissolve to ONE polygon per system (as 05_census_block_PWS.R does) so
+# area_overlay's per-id area denominator stays well-defined even if the
+# shapefile ever ships multiple rows per PWS_ID.
+pws_boundaries = pws_boundaries %>% group_by(PWS_ID) %>% summarise()
 
 tx_county     = load_tx_counties()
 

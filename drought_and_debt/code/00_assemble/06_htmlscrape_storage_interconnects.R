@@ -20,12 +20,17 @@
 #   input/storage_connections_data.txt
 #     columns: PWS_ID, Var (== "TSTC"), Value, Unit, Num_Interconnections, Source
 #
-# Value is TSTC in MG (DWV serves it already in megagallons, so no unit parsing
-# is needed — Unit is carried for provenance). A `Source` column marks rows as
-# "DWV". The committed baseline file was scraped from the DECOMMISSIONED dww2
-# source; to avoid silently mixing sources, this script IGNORES any existing
-# file that is not tagged Source == "DWV" and re-fetches from scratch. Resume
-# still works across interrupted DWV runs.
+# Value is TSTC in whatever unit DWV serves (mostly MG, occasionally GAL); the
+# Unit column is carried so build_recurrent_panel.R can normalize to MG — do
+# NOT assume MG here. A `Source` column marks rows as "DWV". The committed
+# baseline file was scraped from the DECOMMISSIONED dww2 source; to avoid
+# silently mixing sources, this script IGNORES any existing file that is not
+# tagged Source == "DWV" and re-fetches from scratch.
+#
+# FAILURE SEMANTICS: each widget call gets in-run retries (dwv_widget_retry);
+# a query that still fails is recorded with Fetch_OK = FALSE and NA values —
+# never as a zero — and the next run automatically re-queues those systems.
+# Scrape steps are ADDITIVE (append/top-up/retry); they never clobber good rows.
 # =============================================================================
 
 # --- Shared config: paths, projection, window, helpers (idempotent) -----------
@@ -37,6 +42,10 @@ source(util("scraping", "dwv_api_helpers.R"))   # dwv_session/search/widget clie
 output_file <- committed("storage_connections_data.txt")
 # Rescrape policy from config.R: RESCRAPE = TRUE re-fetches every system;
 # FALSE fetches only systems missing from the existing (DWV-sourced) file.
+# Under BOTH policies the committed file is merged UNDER the fresh rows at
+# write time: re-fetched systems get their fresh values, and systems that
+# dropped off the DWV active list keep their prior rows (a full rescrape
+# refreshes values, it never discards previously collected data).
 CLOBBER <- isTRUE(RESCRAPE)
 # Periodic checkpoints go to a gitignored scratch file, NEVER to the committed
 # output: an interrupted run must not replace the committed file with a partial
@@ -52,11 +61,13 @@ message("Active community systems: ", nrow(systems))
 
 # --- Resume support: skip systems already fetched ------------------------------
 # Two sources of already-fetched rows: the committed output (previous completed
-# runs; ignored under CLOBBER) and the scratch progress file (an interrupted
-# run's partial rows — removed on successful completion, so if it exists it is
-# always a resume). Only reuse files this (DWV) script wrote. A pre-DWV baseline
-# (no Source column, or Source != "DWV") is discarded so old- and new-source
-# rows never mix.
+# runs; counts as "done" only under !CLOBBER — under CLOBBER every system is
+# re-fetched, though the committed rows are still merged back in at write time)
+# and the scratch progress file (an interrupted run's partial rows — removed on
+# successful completion, so if it exists it is always a resume, under either
+# policy). Only reuse files this (DWV) script wrote. A pre-DWV baseline (no
+# Source column, or Source != "DWV") is discarded so old- and new-source rows
+# never mix.
 read_dwv_rows <- function(f) {
   if (!file.exists(f)) return(data.table())
   d <- fread(f, colClasses = list(character = "PWS_ID"))
@@ -67,11 +78,19 @@ read_dwv_rows <- function(f) {
   }
   d
 }
-committed_rows <- if (CLOBBER) data.table() else read_dwv_rows(output_file)
+committed_rows <- read_dwv_rows(output_file)
 existing_data  <- unique(
-  rbindlist(list(committed_rows, read_dwv_rows(progress_file)),
+  rbindlist(list(if (CLOBBER) data.table() else committed_rows,
+                 read_dwv_rows(progress_file)),
             use.names = TRUE, fill = TRUE),
   by = "PWS_ID")
+# Rows whose queries FAILED last run (Fetch_OK == FALSE; NA on legacy rows means
+# OK) are re-queued instead of sitting as false zeros forever.
+if ("Fetch_OK" %in% names(existing_data)) {
+  .n_failed <- existing_data[Fetch_OK %in% FALSE, .N]
+  if (.n_failed) message("Re-queuing ", .n_failed, " system(s) whose queries failed on a prior run.")
+  existing_data <- existing_data[!Fetch_OK %in% FALSE]
+}
 
 todo <- if (!nrow(existing_data)) systems else
   systems[!(trimws(NUMBER0) %in% existing_data$PWS_ID)]
@@ -83,21 +102,21 @@ for (i in seq_len(nrow(todo))) {
   tinwsys <- todo$TINWSYS_IS_NUMBER[i]
   number0 <- todo$NUMBER0[i]
 
-  # Total Storage Capacity (TSTC) from the system-measures widget.
-  meas <- tryCatch(dwv_widget(ses, "DashWaterSystemMeasures", tinwsys, number0),
-                   error = function(e) data.table())
-  tstc <- if (nrow(meas) && "MEASURE_NAME" %in% names(meas))
+  # Total Storage Capacity (TSTC) from the system-measures widget. NULL means
+  # the query FAILED after retries (recorded Fetch_OK = FALSE below, re-queued
+  # next run); an empty table is a genuine "system reports no TSTC".
+  meas  <- dwv_widget_retry(ses, "DashWaterSystemMeasures", tinwsys, number0)
+  # Interconnections = number of systems this PWS purchases water from.
+  purch <- dwv_widget_retry(ses, "DashPurchases", tinwsys, number0)
+  tstc <- if (!is.null(meas) && nrow(meas) && "MEASURE_NAME" %in% names(meas))
             meas[grepl("^TSTC", MEASURE_NAME)] else data.table()
   temp_dt <- data.table(
     PWS_ID = pws_id, Var = "TSTC",
     Value  = if (nrow(tstc)) as.numeric(tstc$MEASURE_QUANTITY[1]) else NA_real_,
     Unit   = if (nrow(tstc)) trimws(tstc$MEASURE_UOM_CODE[1]) else NA_character_,
-    Source = "DWV")
-
-  # Interconnections = number of systems this PWS purchases water from.
-  purch <- tryCatch(dwv_widget(ses, "DashPurchases", tinwsys, number0),
-                    error = function(e) data.table())
-  temp_dt[, Num_Interconnections := nrow(purch)]
+    Source = "DWV",
+    Fetch_OK = !is.null(meas) && !is.null(purch))
+  temp_dt[, Num_Interconnections := if (is.null(purch)) NA_integer_ else nrow(purch)]
 
   existing_data <- rbindlist(list(existing_data, temp_dt), use.names = TRUE, fill = TRUE)
 
@@ -109,10 +128,17 @@ for (i in seq_len(nrow(todo))) {
 }
 
 # The fetch loop completed: (re)write the committed output only now, and clear
-# the scratch checkpoint so the next run starts clean.
-if (nrow(existing_data) > nrow(committed_rows)) {
-  fwrite(existing_data, output_file)
-  message("Wrote ", output_file, " (", nrow(existing_data), " rows).")
+# the scratch checkpoint so the next run starts clean. Fresh/resumed rows come
+# FIRST so unique(by = "PWS_ID") keeps the just-fetched value for re-fetched
+# systems, while committed rows survive for systems not fetched this run (e.g.
+# systems that dropped off the DWV active list) — the file can gain rows or
+# refresh them, never lose them.
+final_data <- unique(
+  rbindlist(list(existing_data, committed_rows), use.names = TRUE, fill = TRUE),
+  by = "PWS_ID")
+if (nrow(todo) > 0 || nrow(final_data) > nrow(committed_rows)) {
+  fwrite(final_data, output_file)
+  message("Wrote ", output_file, " (", nrow(final_data), " rows).")
 } else {
   message("No new data.")
 }

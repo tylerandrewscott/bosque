@@ -61,6 +61,36 @@ model1_inla            <- load_fit("recurrent_coxinla_model1_full")
 model2_inla_by_fiscal  <- load_fit("recurrent_coxinla_model2_by_fiscal")
 model2_inla_all_fiscal <- load_fit("recurrent_coxinla_model2_all_fiscal")
 
+# Generation check: Model 2 consumes Model 1's posteriors as priors, so a
+# Model 1 fit file NEWER than the Model 2 fits means the table would mix fit
+# generations. Warn loudly and say what to run.
+.newest_mtime <- function(stem) {
+  f <- c(scratch(paste0(stem, ".RDS")), output(paste0(stem, "_slim.RDS")))
+  f <- f[file.exists(f)]
+  if (!length(f)) NA else max(file.mtime(f))
+}
+.m1_t <- .newest_mtime("recurrent_coxinla_model1_full")
+.m2_t <- min(.newest_mtime("recurrent_coxinla_model2_by_fiscal"),
+             .newest_mtime("recurrent_coxinla_model2_all_fiscal"))
+if (!is.na(.m1_t) && !is.na(.m2_t) && .m1_t > .m2_t + 60)
+  warning("Model 1 fit is NEWER than the Model 2 fits: the Model 2 columns were fit ",
+          "against an older Model 1 posterior. Rerun 01_fit_recurrent_cox_inla.R ",
+          "(all models in one pass) before publishing this table.")
+
+# Data-staleness check: any committed input/ file newer than the OLDEST fit
+# means the panel the fits were built from may no longer reflect the current
+# data. (mtimes are heuristic — a fresh checkout re-stamps every input — but a
+# false positive just says "refit to be sure", which is the safe direction.)
+.fit_t <- suppressWarnings(min(.m1_t, .m2_t, na.rm = TRUE))
+if (is.finite(.fit_t)) {
+  .inputs <- list.files(COMMITTED_DIR, full.names = TRUE)
+  .newer  <- basename(.inputs[file.mtime(.inputs) > .fit_t])
+  if (length(.newer))
+    warning("Committed input(s) are NEWER than the fitted models — the table may ",
+            "be stale w.r.t. the data: ", paste(.newer, collapse = ", "),
+            ". Rerun 01_fit_recurrent_cox_inla.R before publishing this table.")
+}
+
 if (is.null(model1_inla) && is.null(model2_inla_by_fiscal) &&
     is.null(model2_inla_all_fiscal)) {
   stop("No fitted models found (scratch/ or output/*_slim.RDS). ",
@@ -83,12 +113,16 @@ term_labels <- c(
   debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
   debt_rev_per_conn  = "Revenue debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
-  revenue_per_conn   = "Revenue per connection (asinh)"
+  revenue_per_conn   = "Revenue per connection (asinh)",
+  sd_frailty         = "Frailty SD (district/system)",
+  sd_baseline        = "Baseline-hazard SD (RW1)"
 )
-# Top-to-bottom ordering in the plot / table (drought & controls, then fiscal).
+# Top-to-bottom ordering in the plot / table (drought & controls, then fiscal,
+# then the random-effect hyperparameters).
 term_order  <- names(term_labels)
 fiscal_terms <- c("debt_go_per_conn", "debt_rev_per_conn",
                   "fund_bal_per_conn", "revenue_per_conn")
+hyper_terms  <- c("sd_frailty", "sd_baseline")
 
 # --- Pull the posterior summaries into one tidy table ------------------------
 # INLA's summary.fixed has one row per fixed effect; we keep the mean and the
@@ -102,12 +136,39 @@ tidy_all <- function(fit, col_label) {
   sf$term <- rownames(sf)
   sf <- sf[sf$term %in% term_order, , drop = FALSE]
   if (!nrow(sf)) return(NULL)
+  rbind(
+    data.table(
+      term  = sf$term,
+      col   = col_label,
+      mean  = sf$mean,
+      lower = sf[["0.025quant"]],
+      upper = sf[["0.975quant"]]
+    ),
+    tidy_hyper(fit, col_label)
+  )
+}
+
+# --- Random-effect hyperparameters -------------------------------------------
+# Each fit's $summary.hyperpar carries the posterior of its PRECISION
+# hyperparameters: the shared frailty (cluster_idx in Model 1, district_idx in
+# Model 2) and the RW1 baseline hazard. Report both as STANDARD DEVIATIONS,
+# sd = prec^-1/2: a monotone transform, so the 95% CrI bounds are the inverted
+# opposite precision quantiles, and the point estimate is the posterior MEDIAN
+# (the mean does not transform; the median does). These fill the `mean` column
+# so the same cell/CSV machinery applies -- flagged in the table footnote.
+hyper_map <- c("Precision for cluster_idx"     = "sd_frailty",
+               "Precision for district_idx"    = "sd_frailty",
+               "Precision for baseline.hazard" = "sd_baseline")
+tidy_hyper <- function(fit, col_label) {
+  sh <- as.data.frame(fit$summary.hyperpar)
+  sh <- sh[rownames(sh) %in% names(hyper_map), , drop = FALSE]
+  if (!nrow(sh)) return(NULL)
   data.table(
-    term  = sf$term,
+    term  = unname(hyper_map[rownames(sh)]),
     col   = col_label,
-    mean  = sf$mean,
-    lower = sf[["0.025quant"]],
-    upper = sf[["0.975quant"]]
+    mean  = 1 / sqrt(sh[["0.5quant"]]),
+    lower = 1 / sqrt(sh[["0.975quant"]]),
+    upper = 1 / sqrt(sh[["0.025quant"]])
   )
 }
 
@@ -158,9 +219,11 @@ disp$term <- unname(term_labels[present_terms])    # pretty row labels
 names(disp)[1] <- "Term"
 disp[is.na(disp)] <- ""                            # unmodelled terms -> blank cell
 
-# Contiguous control/fiscal blocks (term_order lists controls first) drive
-# pack_rows(); rle() gives the run lengths in display order.
-blocks     <- ifelse(present_terms %in% fiscal_terms, "Fiscal", "Drought & controls")
+# Contiguous control/fiscal/hyperparameter blocks (term_order lists controls
+# first, hyperparameters last) drive pack_rows(); rle() gives the run lengths
+# in display order.
+blocks     <- ifelse(present_terms %in% hyper_terms, "Random effects",
+              ifelse(present_terms %in% fiscal_terms, "Fiscal", "Drought & controls"))
 block_runs <- rle(blocks)
 group_index <- setNames(block_runs$lengths, block_runs$values)
 
@@ -178,7 +241,7 @@ if (requireNamespace("kableExtra", quietly = TRUE)) {
     full_width = FALSE, position = "left")
   html_tbl <- kableExtra::pack_rows(html_tbl, index = group_index)
   html_tbl <- kableExtra::footnote(html_tbl, general_title = "",
-    general = "Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model.")
+    general = "Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model. Random-effect rows report the hyperparameter as a standard deviation (posterior median and 95% CrI).")
   kableExtra::save_kable(html_tbl, file = html_path)
 } else {
   # kableExtra not installed -> plain but valid standalone HTML from knitr::kable.
@@ -191,7 +254,7 @@ if (requireNamespace("kableExtra", quietly = TRUE)) {
     "th{background:#f2f2f2;text-align:center}td{text-align:center}",
     "th:first-child,td:first-child{text-align:left}",
     "</style></head><body>", as.character(body),
-    "<p style='color:#555;font-size:90%'>Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model.</p>",
+    "<p style='color:#555;font-size:90%'>Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model. Random-effect rows report the hyperparameter as a standard deviation (posterior median and 95% CrI).</p>",
     "</body></html>"
   ), html_path)
 }
@@ -212,7 +275,9 @@ message("Wrote tidy estimates -> ", output("model_estimates.csv"))
 # each fiscal term from its isolated model and the joint model. Segment = 95% CrI,
 # point = posterior mean, on the hazard-ratio scale (log x-axis) with a reference
 # line at HR = 1. A fiscal term appears twice (isolated vs joint), so dodge by group.
-shared   <- setdiff(term_order, fiscal_terms)
+# The random-effect hyperparameter rows are TABLE-ONLY (they are SDs, not
+# log-hazard coefficients, so exp() would be meaningless here).
+shared   <- setdiff(term_order, c(fiscal_terms, hyper_terms))
 est      <- all_est[(as.character(term) %in% shared & col == COL_JOINT) |
                     (as.character(term) %in% fiscal_terms)]
 est[, group := fifelse(as.character(term) %in% shared, "Drought & controls",
@@ -259,7 +324,8 @@ if (!is.null(model1_inla)) {
   app_caption <- paste0("Appendix — Model 1, the global full-sample fit (drought, ",
     "controls, and the seller-restriction network term) whose posteriors seed the ",
     "Model 2 priors. Posterior mean of the coefficient (log hazard ratio) with 95% ",
-    "credible interval.")
+    "credible interval; random-effect rows report the hyperparameter as a standard ",
+    "deviation (posterior median and 95% CrI).")
   app_disp <- data.frame(
     Term     = app$label,
     Estimate = paste0(fmt(app$mean), "<br>[", fmt(app$lower), ", ", fmt(app$upper), "]"),
@@ -289,7 +355,9 @@ if (!is.null(model1_inla)) {
          output("model_estimates_appendix.csv"))
   message("Wrote appendix tidy estimates -> ", output("model_estimates_appendix.csv"))
 
-  # Forest plot: all Model 1 covariates on the hazard-ratio scale.
+  # Forest plot: Model 1 covariates on the hazard-ratio scale (hyperparameter
+  # rows are table-only -- they are SDs, not log-hazard coefficients).
+  app <- app[!as.character(term) %in% hyper_terms]
   app[, label := factor(term_labels[as.character(term)],
                         levels = rev(term_labels[term_order]))]
   app[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]

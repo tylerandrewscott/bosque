@@ -31,9 +31,12 @@
 source(.find_file("code/config.R"))   # paths, window, projection, spatial helpers; sets wd = PROJ_ROOT
 CODE <- "code"                          # wd is now PROJ_ROOT, so "code" resolves for run_step()
 
-# RESCRAPE (an object set in config.R; flip it there) governs Stage A: TRUE
-# re-fetches from live sources; FALSE reuses the committed prior scrape and only
-# tops up systems missing from the per-system DWV outputs.
+# RESCRAPE (an object set in config.R; flip it there; default FALSE) governs
+# Stage A: FALSE reuses the committed prior scrape and only tops up systems
+# missing from the per-system DWV outputs; TRUE re-fetches every system but
+# still merges over the committed files (never discards prior rows).
+# REPROCESS (also config.R; default FALSE) re-runs just the local-raw
+# processing scripts (02-04, 08) after a parsing-logic edit — no network.
 run_assemble <- F  # Stage A: raw ingestion (slow; needs bosquebox + network).
                        # Outputs are committed under input/, so OFF by default.
 run_combine  <- F   # Stage B: merges + spatial overlaps + demographics (needs bosquebox shapefiles + Census API key)
@@ -52,6 +55,7 @@ if (run_assemble) {
   run_step("00_assemble/04_assemble_debt.R")                    # -> input/district_debt_issuances.RDS
   run_step("00_assemble/05_scrape_storage_and_pops.R")          # -> input/pws_storage.RDS, pws_population.RDS
   run_step("00_assemble/06_htmlscrape_storage_interconnects.R") # -> input/storage_connections_data.txt
+  run_step("00_assemble/07_scrape_source_and_purchases.R")      # -> input/pws_source.RDS, pws_purchase_edges.RDS
   run_step("00_assemble/08_assemble_sdwis_connections.R")       # -> input/pws_sdwis_connections.RDS
 }
 
@@ -98,6 +102,7 @@ if (run_model) {
   run_step("02_model/03_model_results_table.R")     # -> output/model_estimates.{html,csv}, model_credible_intervals.png
   run_step("02_model/04_descriptive_stats_table.R", env = panel_env) # -> output/descriptive_stats.{csv,html}
   run_step("02_model/05_paper_facts.R", env = panel_env)             # -> output/paper_facts.csv (scalar facts the manuscript cites)
+  run_step("02_model/06_make_appendix_figures.R", env = panel_env)   # -> output/baseline_hazard_appendix.png, frailty_map_appendix.png
   # Shared panel builder: 02_model/build_recurrent_panel.R (sourced by the fit script).
   # A frequentist `survival` version of the model is kept at
   # scratch_models/05_fit_recurrent_cox.R (reference, not on the default path),

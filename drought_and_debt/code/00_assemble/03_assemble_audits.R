@@ -12,8 +12,9 @@ suppressPackageStartupMessages({
 })
 
 .out <- committed('district_audits.RDS')
-if (reuse_prior(.out)) {
-  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping audit re-processing).")
+if (reuse_prior(.out) && !isTRUE(REPROCESS)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out),
+          " (skipping audit re-processing; set REPROCESS=TRUE to re-run it).")
 } else {
 
 audits = fread(raw_input('tceq_audits', 'district_audits.csv'))
@@ -39,14 +40,29 @@ audits$DISTRICT_NAME <- dinfo_dt$District_Name[match(audits$DISTRICT_ID,dinfo_dt
 money = as.vector(which(apply(audits,2,function(x) any(grepl('\\$',x)))))
 audits = cbind(audits[,-money,with=F],audits[,lapply(.SD,parse_number),.SDcols = money])
 
-audits$FISCAL_YEAR = year(mdy(audits$`FISCAL YEAR ENDED`))
 audits$`FISCAL YEAR ENDED` <- mdy(audits$`FISCAL YEAR ENDED`)
+# Repair mangled year typos (e.g. "08/31/0005" -> 2005), then drop the rows
+# with no FY-end date at all: every downstream use (the panel's rolling join,
+# the SDWIS denominator year-match) keys on this date.
+audits$`FISCAL YEAR ENDED`[!is.na(audits$`FISCAL YEAR ENDED`) &
+                           year(audits$`FISCAL YEAR ENDED`) < 1000] <-
+  audits$`FISCAL YEAR ENDED`[!is.na(audits$`FISCAL YEAR ENDED`) &
+                             year(audits$`FISCAL YEAR ENDED`) < 1000] + years(2000)
+if (anyNA(audits$`FISCAL YEAR ENDED`)) {
+  message(sprintf("Dropping %d audit row(s) with no parseable FISCAL YEAR ENDED date.",
+                  sum(is.na(audits$`FISCAL YEAR ENDED`))))
+  audits <- audits[!is.na(`FISCAL YEAR ENDED`),]
+}
+audits$FISCAL_YEAR = year(audits$`FISCAL YEAR ENDED`)
 setnames(audits,"DISTRICT_ID", "District_ID")
 setnames(audits,"TOTAL TAX RATE", "Total_Tax_Rate")
 
-audits$common = paste(audits$District_ID,audits$`FISCAL YEAR ENDED`,sep='_')
+# One audit per district-YEAR (not per FY-end date, which let same-year refilings
+# through). Keep the FULLEST filing: fewest zero-valued fields, breaking ties in
+# favor of the later FY-end date.
+audits$common = paste(audits$District_ID,audits$FISCAL_YEAR,sep='_')
 audits$zeros = rowSums(audits == 0,na.rm = T)
-audits = audits[order(common, -zeros),]
+audits = audits[order(common, zeros, -as.numeric(`FISCAL YEAR ENDED`)),]
 audits = audits[!duplicated(audits, incomparables=FALSE, fromLast=FALSE, by='common'),]
 audits$Date = decimal_date(audits$`FISCAL YEAR ENDED`)
 audits$Retail_Wastewater = (audits$`WASTEWATER CUST - EQ SINGLE FAMILY UNITS`>0)+0

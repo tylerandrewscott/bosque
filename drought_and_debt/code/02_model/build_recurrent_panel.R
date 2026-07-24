@@ -51,6 +51,13 @@ num <- function(x) as.numeric(gsub("[^0-9eE.+-]", "", as.character(x)))
 # That is what keeps them from going stale in a reused environment: a consumer
 # can never see an old panel without the matching, up-to-date name vectors.
 # =============================================================================
+# TIME-VARYING: ln_connections (yearly SDWIS service connections), the two
+# tract ACS covariates ln_home_value / median_structure_age (two decennial-
+# anchored vintages, 2006-2010 and 2016-2020, forward-filled by week-year in
+# §3; structure age also advances with the week's calendar year), and
+# perc_dem_vote (biennial TLC VTD general-election vintages 2012-2024,
+# forward-filled the same way; 2010-2011 weeks back-fill from 2012). The rest
+# are time-invariant per system.
 ctrl_vars   <- c("ln_connections", "storage_per_conn_g",
                  "ln_home_value", "median_structure_age",
                  "perc_dem_vote",
@@ -64,12 +71,17 @@ ctrl_vars   <- c("ln_connections", "storage_per_conn_g",
                  # ctrl_vars so the complete-case sample gates on them too.
                  "source_surface", "purchases_water", "emergency_source",
                  "wholesaler")
+# The TIME-VARYING subset of ctrl_vars (joined by week-year in §3). Consumers
+# (e.g. the descriptive-stats table) use this to summarise these per system-week
+# and the rest once per system.
+tv_ctrl_vars <- c("ln_connections", "ln_home_value", "median_structure_age",
+                  "perc_dem_vote")
 # Time-varying NETWORK covariate (built in §2b below): 1 in weeks where any system
 # the PWS buys water from is under a mandatory restriction. Not a time-invariant
 # control, so it lives outside ctrl_vars (and the complete-case gate) but enters
 # the model formula alongside the shared covariates.
 network_vars <- c("seller_restricted")
-# Prime-time Model 1 = drought + all time-invariant controls + the network term.
+# Prime-time Model 1 = drought + all system controls + the network term.
 # There is no held-out appendix control set: the demographic composition controls
 # (% rural / % Hispanic / % Black) and median household income were dropped from
 # the specification entirely, so shared_vars is the whole story.
@@ -86,7 +98,7 @@ fiscal_vars <- c("debt_go_per_conn", "debt_rev_per_conn",
 # -----------------------------------------------------------------------------
 # Everything below rebuilds the expensive counting-process panel. Skip it when a
 # CURRENT panel is already in the environment: present AND carrying the columns
-# that get added/changed over time -- the frailty keys (District_ID, CFIPS) and the
+# that get added/changed over time -- the frailty key (District_ID) and the
 # model covariates (shared_vars). Deriving the covariate part from shared_vars (which
 # is refreshed on every source()) means adding a covariate auto-invalidates a stale
 # cached panel, instead of it surviving reuse and failing later with `object not
@@ -94,7 +106,8 @@ fiscal_vars <- c("debt_go_per_conn", "debt_rev_per_conn",
 # file unconditionally instead of re-deriving -- and drifting on -- the staleness rule.
 # =============================================================================
 if (!exists("panel_m1") || !exists("panel_m2") ||
-    !all(c("District_ID", "CFIPS", shared_vars) %in% names(panel_m1))) {
+    !all(c("District_ID", shared_vars) %in% names(panel_m1)) ||
+    !all(fiscal_vars %in% names(panel_m2))) {
 
 # =============================================================================
 # 1. EVENTS -- distinct mandatory-restriction notices
@@ -127,6 +140,21 @@ drought <- drought[DroughtDate >= analysis_start & DroughtDate <= analysis_end &
                      !is.na(PWS_ID)]
 setorder(drought, PWS_ID, DroughtDate)
 
+# --- Sample restriction: COMMUNITY water systems only -------------------------
+# The modeling universe is CWS: Model 1 = all mapped community systems, Model 2 =
+# the district-linked subset. SDWIS types each system per year
+# (pws_sdwis_connections.RDS); a system counts as CWS if any yearly snapshot
+# types it CWS (type changes are rare and this keeps systems that deactivated
+# mid-window). Non-CWS systems (transient/non-transient non-community) are out.
+# (sdwis_conn is loaded once here and reused for the time-varying ln_connections
+# control in §3 and the fiscal per-connection denominator in §4.)
+sdwis_conn <- as.data.table(readRDS(committed("pws_sdwis_connections.RDS")))
+.cws_ids <- unique(sdwis_conn[pws_type_code == "CWS", PWS_ID])
+.n_mapped <- uniqueN(drought$PWS_ID)
+drought <- drought[PWS_ID %in% .cws_ids]
+message(sprintf("CWS filter: %d of %d mapped systems are SDWIS-typed CWS; non-CWS systems excluded from the risk set.",
+                uniqueN(drought$PWS_ID), .n_mapped))
+
 drought[, tstart := as.numeric(DroughtDate - analysis_start) / 7]
 drought[, tstop  := shift(tstart, type = "lead"), by = PWS_ID]
 end_time <- as.numeric(analysis_end - analysis_start) / 7
@@ -142,6 +170,21 @@ panel[events, on = .(PWS_ID, tstart < event_time, tstop >= event_time), event :=
 message(sprintf("Counting-process panel: %s rows, %d systems, %d event-weeks.",
                 format(nrow(panel), big.mark = ","), uniqueN(panel$PWS_ID),
                 sum(panel$event)))
+
+# --- Reconciliation: notices from systems OUTSIDE the risk set ----------------
+# Some mandatory notices come from systems the risk set excludes by construction:
+# non-CWS systems, or CWS with no polygon in the TCEQ retail service-area
+# shapefile (mostly wholesale-only or no-longer-public systems — see
+# PLANNING_REVIEW_2026-07-23.md, M2). Those events are DROPPED with the system;
+# this accounting keeps the drop visible instead of silent.
+.ev_excl   <- setdiff(unique(events$PWS_ID), unique(panel$PWS_ID))
+.n_ev_excl <- events[PWS_ID %in% .ev_excl, .N]
+message(sprintf("Excluded events: %d of %d notices, from %d systems outside the risk set (%d non-CWS; %d CWS without a mapped service area).",
+                .n_ev_excl, nrow(events), length(.ev_excl),
+                sum(!.ev_excl %in% .cws_ids), sum(.ev_excl %in% .cws_ids)))
+if (.n_ev_excl > 0.10 * nrow(events)) warning(sprintf(
+  "%.1f%% of mandatory notices fall outside the CWS+mapped risk set — check the service-area shapefile / SDWIS typing before trusting the event counts.",
+  100 * .n_ev_excl / nrow(events)))
 
 # =============================================================================
 # 2b. TIME-VARYING NETWORK COVARIATE -- is an upstream SELLER under restriction?
@@ -183,24 +226,36 @@ message(sprintf("Network covariate: %d buyers linked to a restricting seller; %s
                 NEIGHBOR_PERSIST))
 
 # =============================================================================
-# 3. TIME-INVARIANT SYSTEM CONTROLS
+# 3. SYSTEM CONTROLS (time-invariant, except tv_ctrl_vars which vary by year)
 # =============================================================================
 # Population served + service connections: one row per system, from the DWV
 # master totals written by 05_scrape_storage_and_pops.R (Connections =
-# SVC_CONNECT_CNT, Population_Served = D_POPULATION_COUNT).
+# SVC_CONNECT_CNT, Population_Served = D_POPULATION_COUNT). This DWV snapshot
+# count feeds the storage-per-connection ratio (both sides of that ratio are the
+# same DWV snapshot); the ln_connections CONTROL is time-varying and comes from
+# the yearly SDWIS series below.
 pop <- as.data.table(readRDS(committed("pws_population.RDS")))
 pop <- pop[, .(Connections = num(Connections),
                PopServed   = num(Population_Served)), by = PWS_ID]
 
-# Total storage capacity (TSTC, in MG) and the interconnection count come from
+# Total storage capacity (TSTC) and the interconnection count come from
 # the DWV measures/purchases widgets, written to storage_connections_data.txt by
 # 06_htmlscrape_storage_interconnects.R. NOTE: DWV's flow-rate table
 # (pws_storage.RDS) is demand/usage, NOT storage capacity, so it is not used
 # here — total storage now lives only in the interconnects file.
-# TODO(units): Value is assumed to be MG (DWV serves TSTC in MG); revisit when
-# flow-rate/measure units are normalized (see 05_scrape_storage_and_pops.R).
+# UNITS: DWV serves TSTC mostly in MG, but some systems report GAL, so the Unit
+# column is normalized to MG here rather than assumed. An unrecognized unit
+# becomes NA (drops with complete cases) instead of a silently wrong magnitude.
 sc <- fread(committed("storage_connections_data.txt"), colClasses = list(character = "PWS_ID"))
-stor <- sc[Var == "TSTC", .(Storage_MG = num(Value)[1]), by = PWS_ID]
+sc[, Value := num(Value)]
+sc[Var == "TSTC" & !is.na(Unit) & Unit == "GAL", `:=`(Value = Value / 1e6, Unit = "MG")]
+.unk <- sc[Var == "TSTC" & !is.na(Value) & !is.na(Unit) & !Unit %in% c("MG", ""), unique(Unit)]
+if (length(.unk)) {
+  message("Storage: unrecognized TSTC unit(s) ", paste(.unk, collapse = ", "),
+          " set to NA — add a conversion here if they are real.")
+  sc[Var == "TSTC" & Unit %in% .unk, Value := NA_real_]
+}
+stor <- sc[Var == "TSTC", .(Storage_MG = Value[1]), by = PWS_ID]
 
 demos <- as.data.table(readRDS(committed("pws_demos_MR.RDS")))
 
@@ -216,23 +271,86 @@ controls <- Reduce(function(a, b) merge(a, b, by = "PWS_ID", all.x = TRUE),
 # as a Seller in the buys-from edges loaded in §2b (edges_net). Non-sellers are 0,
 # never NA, so this gates the complete-case sample without dropping anyone.
 controls[, wholesaler := as.integer(PWS_ID %in% unique(edges_net$Seller))]
-controls[, `:=`(
-  ln_connections     = log1p(Connections),
-  storage_per_conn_g = asinh((Storage_MG * 1e6) / pmax(Connections, 1)),
-  # (has_interconnect dropped: the DWV source flags now capture interconnects more
-  # specifically -- purchases_water is a wholesale interconnect and emergency_source
-  # is an emergency-designated interconnect/supply -- so a bare "any interconnect"
-  # indicator is redundant with them.)
-  ln_home_value      = log(pmax(Median_Home_Value, 1)),
-  # Time-invariant per-PWS control (median structure built is a single value per
-  # system); age is taken at the analysis start and floored at 0 for the rare
-  # tract median built after the window opens.
-  median_structure_age = pmax(year(analysis_start) - Median_Year_Structure_Built, 0),
-  perc_dem_vote      = Perc_Dem_Vote_Share
-)]
+# (has_interconnect dropped: the DWV source flags now capture interconnects more
+# specifically -- purchases_water is a wholesale interconnect and emergency_source
+# is an emergency-designated interconnect/supply -- so a bare "any interconnect"
+# indicator is redundant with them.)
+controls[, storage_per_conn_g := asinh((Storage_MG * 1e6) / pmax(Connections, 1))]
+# ln_home_value / median_structure_age / perc_dem_vote are NOT built here: they
+# come from the vintage series and join by week-year in §3 below (tv_ctrl_vars).
 
-panel <- merge(panel, controls[, c("PWS_ID", "Connections", ctrl_vars), with = FALSE],
+panel <- merge(panel,
+               controls[, c("PWS_ID", "Connections",
+                            setdiff(ctrl_vars, tv_ctrl_vars)), with = FALSE],
                by = "PWS_ID", all.x = TRUE)
+
+# --- TIME-VARYING ln_connections: yearly SDWIS service connections ------------
+# The yearly Q1 SDWIS "Water System Summary" exports (2013-2026, sdwis_conn from
+# §2 -- the same series the fiscal denominator uses in §4) give each system a
+# service-connection count BY YEAR. Each weekly interval takes its calendar
+# year's count via a rolling "nearest" join within PWS_ID, so weeks before the
+# SDWIS span BACK-FILL from the earliest snapshot (2010-2012 -> 2013) and gap
+# years take the nearest observed one. Systems with no SDWIS count in any year
+# get NA and drop with the complete-case gate below.
+conn_yr <- sdwis_conn[!is.na(Connections_SDWIS),
+                      .(PWS_ID, Year, ln_connections = log1p(Connections_SDWIS))]
+setkey(conn_yr, PWS_ID, Year)
+panel[, conn_year := year(analysis_start + tstart * 7)]
+panel <- conn_yr[panel, on = .(PWS_ID, Year = conn_year), roll = "nearest"]
+setnames(panel, "Year", "conn_year")   # the join key carries the WEEK's year
+
+# --- TIME-VARYING tract demographics: two ACS 5-year vintages -----------------
+# pws_demos_MR.RDS carries the two model tract variables at both decennial-
+# anchored vintages (2006-2010 ACS on 2010 tract lines; 2016-2020 ACS on 2020
+# lines -- see 01_combine/05). Forward fill by the week's calendar year with a
+# LOCF rolling join: weeks in 2010-2019 take the 2010 vintage, 2020 on the 2020
+# vintage. Structure age = week-year minus the prevailing vintage's median year
+# built (floored at 0), so it advances with the panel instead of freezing at
+# the window start.
+demos_tv <- rbind(
+  demos[, .(PWS_ID, vint_year = 2010L,
+            Median_Home_Value           = Median_Home_Value_2010,
+            Median_Year_Structure_Built = Median_Year_Structure_Built_2010)],
+  # A missing 2020 median (all overlapping tracts NA) keeps the 2010 value --
+  # last OBSERVED vintage carried forward, not a mid-panel sample exit.
+  demos[, .(PWS_ID, vint_year = 2020L,
+            Median_Home_Value           = fcoalesce(Median_Home_Value_2020,
+                                                    Median_Home_Value_2010),
+            Median_Year_Structure_Built = fcoalesce(Median_Year_Structure_Built_2020,
+                                                    Median_Year_Structure_Built_2010))])
+# A median year built still NA after the fallback (no computable tract median
+# over the system's area in either vintage) takes the GLOBAL median of its
+# vintage, instead of dropping the system from the complete-case sample.
+demos_tv[, Median_Year_Structure_Built := fcoalesce(
+  Median_Year_Structure_Built,
+  median(Median_Year_Structure_Built, na.rm = TRUE)), by = vint_year]
+setkey(demos_tv, PWS_ID, vint_year)
+panel <- demos_tv[panel, on = .(PWS_ID, vint_year = conn_year), roll = Inf]
+setnames(panel, "vint_year", "conn_year")   # the join key carries the WEEK's year
+panel[, `:=`(ln_home_value        = log(pmax(Median_Home_Value, 1)),
+             median_structure_age = pmax(conn_year - Median_Year_Structure_Built, 0))]
+panel[, c("Median_Home_Value", "Median_Year_Structure_Built") := NULL]
+
+# --- TIME-VARYING dem vote share: biennial general-election vintages ----------
+# pws_demos_MR.RDS carries Perc_Dem_2012..Perc_Dem_2024 (TLC VTD returns, all
+# cycles on the 2024 VTD plan -- see 01_combine/05). Same LOCF forward fill by
+# the week's calendar year; rollends=TRUE additionally BACK-fills 2010-2011
+# weeks from the first (2012) vintage, matching the SDWIS connection convention.
+vote_tv <- melt(demos[, c("PWS_ID", grep("^Perc_Dem_\\d{4}$", names(demos),
+                                         value = TRUE)), with = FALSE],
+                id.vars = "PWS_ID", variable.name = "vint_year",
+                value.name = "perc_dem_vote")
+vote_tv[, vint_year := as.integer(sub("^Perc_Dem_", "", as.character(vint_year)))]
+# A vintage a system misses (all-NA VTD overlap that cycle) carries the nearest
+# observed cycle instead of forcing a mid-panel complete-case exit.
+vote_tv[is.nan(perc_dem_vote), perc_dem_vote := NA]
+setorder(vote_tv, PWS_ID, vint_year)
+vote_tv[, perc_dem_vote := nafill(nafill(perc_dem_vote, "locf"), "nocb"), by = PWS_ID]
+setkey(vote_tv, PWS_ID, vint_year)
+panel <- vote_tv[panel, on = .(PWS_ID, vint_year = conn_year),
+                 roll = Inf, rollends = c(TRUE, TRUE)]
+setnames(panel, "vint_year", "conn_year")   # the join key carries the WEEK's year
+
 panel_m1 <- panel[complete.cases(panel[, ctrl_vars, with = FALSE])]
 
 # Attach District_ID to every system (left join -> NA for systems with no water
@@ -243,14 +361,8 @@ xw <- as.data.table(readRDS(committed("id_crosswalk.RDS")))
 xw <- unique(xw[!is.na(PWS_ID) & !is.na(District_ID), .(PWS_ID, District_ID)], by = "PWS_ID")
 panel_m1 <- merge(panel_m1, xw, by = "PWS_ID", all.x = TRUE)
 
-# Attach each system's PRIMARY county (largest service-area overlap) so the fit
-# scripts can build a county-level frailty (an iid random effect added ON TOP of
-# the district/system frailty; there is no spatial ICAR term -- drought absorbs
-# the core spatial variance). CFIPS may be NA for the rare system with no county
-# overlap on record; those get their own catch-all county level in the fit.
-co <- as.data.table(readRDS(committed("pws_county_overlaps.RDS")))
-co <- co[order(-Prop_Over_County)][!duplicated(PWS_ID), .(PWS_ID, CFIPS)]
-panel_m1 <- merge(panel_m1, co, by = "PWS_ID", all.x = TRUE)
+# (The county-level iid frailty was removed from the specification -- drought
+# conditions (DSCI) already carry the spatial variation, so no CFIPS attach here.)
 
 message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d district-linked, %d unaffiliated).",
                 format(nrow(panel_m1), big.mark = ","), uniqueN(panel_m1$PWS_ID),
@@ -269,9 +381,9 @@ message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d dist
 # to a per-$1 ratio, collapsing "per connection" onto asinh(raw dollars) and mass
 # points (e.g. debt median 0). A district's connections in a given year = the sum
 # over its member PWS (id_crosswalk `xw`, loaded in §3) of that year's SDWIS count.
-# The by-year table (2013-2026) is matched to each audit's fiscal year below; years
-# outside the SDWIS span back-fill to the nearest available year (2010-2012 -> 2013).
-sdwis_conn   <- as.data.table(readRDS(committed("pws_sdwis_connections.RDS")))
+# The by-year table (2013-2026, sdwis_conn loaded in §2) is matched to each
+# audit's fiscal year below; years outside the SDWIS span back-fill to the
+# nearest available year (2010-2012 -> 2013).
 dist_conn_yr <- merge(xw, sdwis_conn[, .(PWS_ID, Year, Connections_SDWIS)],
                       by = "PWS_ID", all.x = TRUE, allow.cartesian = TRUE)[
                       , .(dist_conn = sum(Connections_SDWIS, na.rm = TRUE)),

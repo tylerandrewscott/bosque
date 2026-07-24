@@ -11,12 +11,21 @@
 #     median year structure built. (M/R used block groups throughout; these
 #     variables are not in the public block-group data, so tracts are the
 #     closest public equivalent.)
-#   * voting-precinct level: Democratic vote share (Harvard EDA / UT geodata)
+#   * tract level, 2016-2020 ACS (2020 tract lines): median home value and
+#     median year structure built AGAIN -- the two tract variables in the model
+#     spec are pulled at both decennial-anchored vintages so the panel can
+#     forward-fill them (2010 vintage covers panel years 2010-2019, 2020
+#     vintage 2020 on; the rolling join lives in build_recurrent_panel.R §3).
+#   * VTD (voting district) level: Democratic vote share at BIENNIAL vintages
+#     2012-2024 (TLC Capitol Data Portal returns, all cycles re-tabulated onto
+#     the single 2024 VTD plan), forward-filled by week-year in the panel
+#     builder alongside the ACS vintages.
 #
 # Needs a Census API key: export CENSUS_API_KEY, or put the key in a
 # `census_api_key` file one directory above the bosque repo root.
 # Writes input/pws_demos_MR.RDS, consumed by 02_model/build_recurrent_panel.R
-# (which needs Median_Home_Value and Median_Year_Structure_Built in particular).
+# (which needs the vintage-suffixed Median_Home_Value_*,
+# Median_Year_Structure_Built_*, and Perc_Dem_* columns in particular).
 # =============================================================================
 
 # --- Shared config: paths, projection, window, helpers (idempotent) -----------
@@ -28,7 +37,6 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(stringr)
   library(tigris)
-  library(foreign)   # read.dta (precinct votes)
 })
 
 # --- Census API key: fail fast, not twelve API calls in ------------------------
@@ -49,19 +57,21 @@ twd_boundaries <- load_pws_boundaries()
 twd_boundaries <- twd_boundaries %>% group_by(PWS_ID) %>% summarise()
 
 # --- Block-group demographics: 2010 decennial SF1 ------------------------------
-# One batched pull (identical geography/year) instead of three sequential ones:
-#   P004001/P004003          -> % hispanic
-#   P010001 + P0100{04,11,16,17,18,19} -> % black (total vs. any-part-black)
-#   H002001/H002005          -> % rural
-.black_sub <- c('P010004', 'P010011', 'P010016', 'P010017', 'P010018', 'P010019')
+# (These variables are no longer in the primary model specification; kept
+# consistent for descriptives / future use.) One batched pull:
+#   P004003/P004001  -> % Hispanic, of TOTAL population
+#   P006003/P003001  -> % Black (alone or in combination), of TOTAL population.
+#                       (P010 was used before — wrongly: P010 is race for the
+#                       population 18 YEARS AND OVER, not total population.)
+#   H002005/H002001  -> % rural, of HOUSING UNITS (not persons — label carefully)
 dec <- tidycensus::get_decennial(geography = 'block group',
                                  state = 'TX', year = 2010,
                                  variables = c('P004001', 'P004003',
-                                               'P010001', .black_sub,
+                                               'P003001', 'P006003',
                                                'H002001', 'H002005'))
 dec <- dcast(data.table(dec), GEOID ~ variable, value.var = 'value')
 dec[, Perc_Hispanic := 100 * (P004003 / P004001)]
-dec[, Perc_Black    := 100 * (rowSums(.SD, na.rm = TRUE) / P010001), .SDcols = .black_sub]
+dec[, Perc_Black    := 100 * (P006003 / P003001)]
 dec[, Perc_Rural    := 100 * (H002005 / H002001)]
 block_demos <- dec[, .(GEOID, Perc_Hispanic, Perc_Black, Perc_Rural)]
 
@@ -88,7 +98,9 @@ acs_subject <- dcast(data.table(acs_subject), GEOID ~ variable, value.var = 'est
 # B25034_002..005 = built 1980 or later; B25034_001 = total housing units.
 # Median home value (B25077_001) and median year structure built (B25035_001)
 # are carried through to build_recurrent_panel.R (ln_home_value,
-# median_structure_age).
+# median_structure_age) -- vintage-suffixed _2010 here, with a _2020 companion
+# pulled below; the rest of the tract variables were dropped from the model
+# spec and stay 2010-only.
 .since1980 <- c(House_2005_Later = 'B25034_002', House_2000_2004 = 'B25034_003',
                 House_1990_1999 = 'B25034_004', House_1980_1989 = 'B25034_005')
 acs_detail <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
@@ -102,38 +114,59 @@ acs_detail[, Perc_Houses_Since1980 := 100 * rowSums(.SD, na.rm = TRUE) / House_T
 
 tract_demos <- merge(acs_subject,
                      acs_detail[, .(GEOID, Perc_Houses_Since1980,
-                                    Median_Home_Value, Median_Year_Structure_Built)],
+                                    Median_Home_Value_2010           = Median_Home_Value,
+                                    Median_Year_Structure_Built_2010 = Median_Year_Structure_Built)],
                      by = 'GEOID', all = TRUE)
 tx_tracts <- left_join(tx_tracts, tract_demos, by = 'GEOID')
 tx_tracts <- st_make_valid(st_transform(tx_tracts, st_crs(albersNA)))
 
-# --- Democratic vote share by precinct (not from census) -----------------------
-# https://dataverse.harvard.edu/dataverse/eda
-# https://geodata.lib.utexas.edu/catalog/princeton-ww72bg01w
-precincts <- st_read(spatial('princeton-ww72bg01w-geojson.json'), quiet = TRUE)
-precincts$COUNTY_VTD <- paste0('48', precincts$COUNTYFP10, '_', precincts$VTDST10)
-elections <- list.files(raw_input('precinct_votes'), full.names = TRUE)
-elects <- rbindlist(lapply(elections, read.dta), fill = T, use.names = T)
-elects$CFIPS <- paste0('48', formatC(elects$fips, width = 3, flag = '0'))
-elects$COUNTY_VTD <- paste(elects$CFIPS, elects$vtd, sep = '_')
+# --- Tract demographics, second vintage: 2016-2020 ACS 5-year ------------------
+# Same two model variables on the 2020 tract lines (tract boundaries changed
+# substantially in 2020, so this vintage needs its own geometry + overlay).
+# 2020+ cb files carry GEOID directly -- no GEO_ID prefix strip needed.
+tx_tracts20 <- tigris::tracts(state = 'TX', cb = TRUE, year = 2020)
+acs_2020 <- tidycensus::get_acs(geography = 'tract', survey = 'acs5',
+                                state = 'TX', year = 2020,
+                                variables = c(Median_Home_Value_2020           = 'B25077_001',
+                                              Median_Year_Structure_Built_2020 = 'B25035_001'))
+acs_2020 <- dcast(data.table(acs_2020), GEOID ~ variable, value.var = 'estimate')
+# The 2016-2020 files ZERO-code a median year built they cannot compute (the
+# 2006-2010 files delivered NA there). 0 is missingness, not a year: left in
+# place it gets area-weighted into absurd system medians (built ~100 AD), so
+# anything below the 1939 bottom code ("1939 or earlier") becomes NA. The panel
+# builder then falls back to the system's 2010 vintage where 2020 is all-NA.
+acs_2020[Median_Year_Structure_Built_2020 < 1939, Median_Year_Structure_Built_2020 := NA]
+tx_tracts20 <- left_join(tx_tracts20, acs_2020, by = 'GEOID')
+tx_tracts20 <- st_make_valid(st_transform(tx_tracts20, st_crs(albersNA)))
 
-elect_dt <- data.table(elects %>% dplyr::select(fips, COUNTY_VTD, contains('GOV'), contains('USP')))
+# --- Democratic vote share by VTD, biennial vintages 2012-2024 -----------------
+# TLC Capitol Data Portal comprehensive election dataset: every general
+# election 2012-2024 re-tabulated by the TLC onto the SINGLE 2024 VTD plan
+# (9,712 VTDs), so one geometry + one overlay covers all seven cycles.
+#   returns:   https://data.capitol.texas.gov/dataset/comprehensive-election-datasets-compressed-format
+#   shapefile: https://data.capitol.texas.gov/dataset/vtds  (VTDs_24PG)
+# Raw zip + extracted files live in bosquebox (input/vtd_elections_tlc/),
+# downloaded once -- additive-scrape convention, nothing re-fetched here.
+# (Replaces the static 2000s Harvard EDA / princeton-geojson average.)
+vtd_dir <- raw_input('vtd_elections_tlc')
+vtds <- st_read(file.path(vtd_dir, 'VTDs_24PG'), quiet = TRUE)
+vtds <- st_make_valid(st_transform(vtds, st_crs(albersNA)))
 
-elect_dt2 <- melt(elect_dt, id.vars = c('fips', 'COUNTY_VTD')) %>%
-  filter(grepl('dv$|tv$', variable)) %>%
-  mutate(YEAR = str_extract(variable, '[0-9]{4}')) %>%
-  mutate(variable = str_extract(variable, '(GOV|USP)_(tv|dv)')) %>%
-  filter(!is.na(value))
-
-elect_dt2 <- data.table(elect_dt2)
-dem_vote <- dcast(elect_dt2, COUNTY_VTD + fips + YEAR ~ variable, value.var = 'value') %>%
-  mutate(tv = ifelse(is.na(USP_tv), GOV_tv, USP_tv),
-         dv = ifelse(is.na(USP_dv), GOV_dv, USP_dv)) %>%
-  mutate(Perc_Dem = 100 * dv / tv)
-dem_vote_share <- dem_vote[, mean(Perc_Dem, na.rm = T), by = .(COUNTY_VTD)]
-setnames(dem_vote_share, 'V1', 'Perc_Dem_Vote_Share')
-precincts <- left_join(precincts, dem_vote_share)
-precincts <- st_make_valid(st_transform(precincts, st_crs(albersNA)))
+# Top-of-ticket Dem share per VTD per cycle: President in presidential years;
+# mean of Governor and U.S. Sen in midterms (the same statewide races the old
+# GOV/USP averaging used). Share = D votes / all votes cast in the race.
+vote_years <- seq(2012, 2024, by = 2)
+dem_by_year <- rbindlist(lapply(vote_years, function(y) {
+  ret <- fread(file.path(vtd_dir, sprintf('%d_General_Election_Returns.csv', y)))
+  races <- if ('President' %in% ret$Office) 'President' else c('Governor', 'U.S. Sen')
+  race_share <- ret[Office %in% races,
+                    .(Perc_Dem = 100 * sum(Votes[Party == 'D']) / sum(Votes)),
+                    by = .(vtdkeyvalue, Office)]
+  race_share[, .(YEAR = y, Perc_Dem = mean(Perc_Dem, na.rm = TRUE)), by = vtdkeyvalue]
+}))
+dem_wide <- dcast(dem_by_year, vtdkeyvalue ~ YEAR, value.var = 'Perc_Dem')
+setnames(dem_wide, as.character(vote_years), paste0('Perc_Dem_', vote_years))
+vtds <- left_join(vtds, dem_wide, by = c('VTDKEY' = 'vtdkeyvalue'))
 
 # --- Area-weighted aggregation to PWS service areas ----------------------------
 # One shared overlay (spatial_helpers::area_overlay) instead of three hand-rolled
@@ -152,9 +185,11 @@ pws_blocks_dt <- pws_weighted(tx_blocks, 'GEOID',
 pws_tracts_dt <- pws_weighted(tx_tracts, 'GEOID',
                               c('Perc_Bachelors', 'Med_Household_Income',
                                 'Perc_Houses_Since1980', 'Perc_Under_Poverty_Line',
-                                'Median_Home_Value', 'Median_Year_Structure_Built'))
-pws_vote_dt   <- pws_weighted(precincts, 'COUNTY_VTD', 'Perc_Dem_Vote_Share')
+                                'Median_Home_Value_2010', 'Median_Year_Structure_Built_2010'))
+pws_tracts20_dt <- pws_weighted(tx_tracts20, 'GEOID',
+                                c('Median_Home_Value_2020', 'Median_Year_Structure_Built_2020'))
+pws_vote_dt     <- pws_weighted(vtds, 'VTDKEY', paste0('Perc_Dem_', vote_years))
 
 pws_demos_dt <- Reduce(function(a, b) merge(a, b, by = 'PWS_ID'),
-                       list(pws_blocks_dt, pws_tracts_dt, pws_vote_dt))
+                       list(pws_blocks_dt, pws_tracts_dt, pws_tracts20_dt, pws_vote_dt))
 saveRDS(pws_demos_dt, committed('pws_demos_MR.RDS'))

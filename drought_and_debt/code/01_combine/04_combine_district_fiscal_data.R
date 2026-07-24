@@ -2,10 +2,13 @@
 # 04_combine_district_fiscal_data.R
 # -----------------------------------------------------------------------------
 # Merge the district audit table with the debt/issuance table (both keyed on
-# District_ID + FISCAL_YEAR) and add one-period lags of every fiscal variable.
-# District-name normalization already happens upstream in the assemble scripts,
-# so this stage only joins on District_ID and lags. (A large block of legacy
-# name-normalization code lived here commented-out; removed — see git history.)
+# District_ID + FISCAL_YEAR). District-name normalization already happens
+# upstream in the assemble scripts, so this stage only joins on District_ID.
+# NOTE: the one-period "_P1" lag columns this stage used to add were REMOVED
+# (2026-07-23): nothing consumed them — the panel builder time-aligns finances
+# itself with a rolling join on FISCAL YEAR ENDED (max 730-day staleness), which
+# is the correct previous-period logic. The output filename keeps its historical
+# "_and_lagged_" name to avoid churning three consumers.
 # =============================================================================
 
 # --- Shared config: paths, projection, window, helpers (idempotent) -----------
@@ -43,13 +46,6 @@ dedup_by_key <- function(dt, label) {
 audits <- dedup_by_key(audits, 'audits')
 debt   <- dedup_by_key(debt,   'debt')
 fin_dt <- merge(audits, debt, by = key_cols, all = TRUE)
-
-# One-period lag of every fiscal variable, within district, ordered by year.
-# Keys are unique after the dedup above, so shift() moves to the previous
-# available fiscal year for that district.
-fvars = names(fin_dt)[grep('TAX|FUND|REV|EXP|ISSUE|DEBT|PRINC|INTER|BONDS',toupper(names(fin_dt)))]
-newnames = paste0(fvars,'_P1')
-fin_dt = fin_dt[order(District_ID,FISCAL_YEAR),]
-fin_dt[,(newnames):=lapply(.SD,shift),by = .(District_ID),.SDcols = fvars]
+fin_dt <- fin_dt[order(District_ID, FISCAL_YEAR)]
 
 saveRDS(fin_dt, committed('combined_and_lagged_finances.RDS'))

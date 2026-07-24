@@ -66,6 +66,9 @@ N_HAZARD_INTERVALS <- 30     # RW1 baseline-hazard resolution (higher = finer, s
 # instead of refitting it. Model 1 depends only on panel_m1 (drought + controls),
 # so when just the fiscal subsample / denominator changed, its posterior -- carried
 # into Model 2 as priors -- is unchanged and the ~heavy full-sample fit is skippable.
+# The cached fit carries a fingerprint of the panel it was fit on; if the current
+# panel doesn't match (rebuilt inputs, changed window/spec), Model 1 is REFIT
+# despite this flag rather than silently seeding Model 2 with stale priors.
 if (!exists("REUSE_MODEL1_FIT")) REUSE_MODEL1_FIT <- FALSE
 
 # PC prior on each frailty SD: P(sigma > 1) = 0.01 (weakly informative on the
@@ -87,24 +90,16 @@ panel_m1[, cluster_key := fifelse(!is.na(District_ID),
 panel_m1[, cluster_idx := .GRP, by = cluster_key]
 panel_m2[, district_idx := .GRP, by = District_ID]
 
-# County frailty: a SECOND iid random effect, added on top of the district/system
-# frailty above, pooling systems that share a (primary) county. There is NO spatial
-# ICAR term -- the drought covariate (DSCI) absorbs the core spatial variance, so the
-# county frailty only soaks up residual county-level heterogeneity. CFIPS is attached
-# in build_recurrent_panel.R; guard the rare NA with a catch-all level.
-panel_m1[, county_key := fifelse(is.na(CFIPS), "NA", as.character(CFIPS))]
-panel_m1[, county_idx := .GRP, by = county_key]
-panel_m2[, county_key := fifelse(is.na(CFIPS), "NA", as.character(CFIPS))]
-panel_m2[, county_idx := .GRP, by = county_key]
+# (A county-level iid frailty used to sit on top of the district/system frailty;
+# it was REMOVED from the specification -- the drought covariate (DSCI) already
+# carries the spatial variation, so county membership shouldn't matter.)
 
 resp <- "inla.surv(time = tstop, event = event, truncation = tstart)"
 f_m1     <- 'f(cluster_idx, model = "iid", hyper = frailty_hyper)'
-f_cty1   <- 'f(county_idx,  model = "iid", hyper = frailty_hyper)'
-# Model 2's frailty priors (frailty_hyper_m2 for the district frailty,
-# frailty_hyper_cty2 for the county frailty) are set below: Model 1's matching
-# frailty posteriors when Model 1 was fit, else the same default PC prior.
+# Model 2's frailty prior (frailty_hyper_m2, the district frailty) is set below:
+# Model 1's matching frailty posterior when Model 1 was fit, else the same
+# default PC prior.
 f_dist   <- 'f(district_idx, model = "iid", hyper = frailty_hyper_m2)'
-f_cty2   <- 'f(county_idx,  model = "iid", hyper = frailty_hyper_cty2)'
 
 # --- slim_inla(): a reduced fit for reporting/sharing ------------------------
 # The full inla object is huge here because the Cox likelihood expands the panel
@@ -166,11 +161,11 @@ slim_inla <- function(fit) {
 }
 
 # =============================================================================
-# MODEL 1 (Bayesian) -- full sample; district/system + county frailties
+# MODEL 1 (Bayesian) -- full sample; district/system frailty
 # -----------------------------------------------------------------------------
 # The global model: shared_vars (drought + controls + the seller-restriction
-# network term) with TWO iid frailties -- district-or-system (f_m1) and county
-# (f_cty1). Fit on the full CWS sample; its posteriors seed Model 2's priors, and
+# network term) with ONE iid frailty -- district-or-system (f_m1).
+# Fit on the full CWS sample; its posteriors seed Model 2's priors, and
 # its coefficients are REPORTED IN THE APPENDIX (the main results are the Model 2
 # fiscal models). There is no held-out demographic/income variant -- those controls
 # were dropped from the specification entirely.
@@ -178,12 +173,47 @@ slim_inla <- function(fit) {
 model1_inla <- NULL
 if (FULL_SAMPLE_BAYES) {
   .m1_cache <- scratch("recurrent_coxinla_model1_full.RDS")
+  # Fingerprint of the panel Model 1 is fit on, stored on the saved fit (attr
+  # "panel_fp") so a cached fit can be verified against the CURRENT data, not
+  # just the current covariate spec. Cheap summaries only — enough to catch a
+  # rebuilt input, changed window, or changed specification.
+  .m1_fp <- list(n        = nrow(panel_m1),
+                 events   = sum(panel_m1$event),
+                 clusters = uniqueN(panel_m1$cluster_idx),
+                 vars     = sort(shared_vars),
+                 window   = as.character(c(start_date, end_date)))
   if (REUSE_MODEL1_FIT && file.exists(.m1_cache)) {
     message("Reusing cached full-sample Model 1 fit (REUSE_MODEL1_FIT=TRUE): ", .m1_cache)
     model1_inla <- readRDS(.m1_cache)
-  } else {
+    .fp_cache <- attr(model1_inla, "panel_fp", exact = TRUE)
+    if (is.null(.fp_cache)) {
+      warning("Cached Model 1 fit carries no panel fingerprint (saved before ",
+              "fingerprinting was added), so it cannot be verified against the ",
+              "current panel. Reusing it anyway; refit once with ",
+              "REUSE_MODEL1_FIT=FALSE to stamp it.")
+    } else if (!identical(.fp_cache[names(.m1_fp)], .m1_fp)) {
+      .fp_diff <- names(.m1_fp)[!mapply(identical, .m1_fp, .fp_cache[names(.m1_fp)])]
+      message("Cached Model 1 fit was fit on a DIFFERENT panel (fingerprint ",
+              "mismatch on: ", paste(.fp_diff, collapse = ", "),
+              ") — refitting Model 1 despite REUSE_MODEL1_FIT=TRUE.")
+      model1_inla <- NULL
+    }
+    # Spec backstop for legacy (unfingerprinted) fits: the cached fit must carry
+    # the CURRENT shared covariates, or the prior transfer below would silently
+    # hand any missing one a default prior. (Fingerprinted fits already proved
+    # this via vars above.)
+    if (!is.null(model1_inla)) {
+      .m1_missing <- setdiff(shared_vars, rownames(model1_inla$summary.fixed))
+      if (length(.m1_missing)) {
+        stop("Cached Model 1 fit lacks covariate(s): ", paste(.m1_missing, collapse = ", "),
+             " — the specification changed since it was fit. ",
+             "Rerun with REUSE_MODEL1_FIT=FALSE to refit Model 1 first.")
+      }
+    }
+  }
+  if (is.null(model1_inla)) {
     form1 <- as.formula(paste(resp, "~",
-      paste(c(shared_vars, f_m1, f_cty1), collapse = " + ")))
+      paste(c(shared_vars, f_m1), collapse = " + ")))
     message("Fitting Bayesian Model 1 (full sample) -- this is the heavy one...")
     model1_inla <- inla(
       form1, family = "coxph", data = as.list(panel_m1),
@@ -193,7 +223,8 @@ if (FULL_SAMPLE_BAYES) {
     )
     cat("\n============== MODEL 1 (INLA): full sample ==============\n")
     print(summary(model1_inla))
-    saveRDS(model1_inla, scratch("recurrent_coxinla_model1_full.RDS"))
+    attr(model1_inla, "panel_fp") <- .m1_fp
+    saveRDS(model1_inla, .m1_cache)
     # Slim copy goes to output/ (git-tracked) so it can be shared via GitHub.
     saveRDS(slim_inla(model1_inla), output("recurrent_coxinla_model1_full_slim.RDS"))
   }
@@ -206,9 +237,9 @@ if (FULL_SAMPLE_BAYES) {
 # Each uses that covariate's own non-missing rows. A companion JOINT model then
 # enters all fiscal predictors together (on the rows where all are observed) for
 # comparison. Model 1's posteriors are carried into Model 2 as priors on BOTH the
-# shared fixed effects (each covariate's mean + precision) AND the three
-# hyperparameters -- the district/system-frailty precision, the county-frailty
-# precision, and the RW1 baseline-hazard precision. Every fiscal term gets a
+# shared fixed effects (each covariate's mean + precision) AND the two
+# hyperparameters -- the district/system-frailty precision and the RW1
+# baseline-hazard precision. Every fiscal term gets a
 # weakly-informative prior (sd = 1 on the log-hazard scale). If Model 1 was not
 # fit, fall back to vague/default priors throughout.
 # =============================================================================
@@ -217,6 +248,10 @@ if (!is.null(model1_inla)) {
   #     a weakly-informative default (mean 0, sd 1) for the as-yet-unseen fiscal term.
   sf1 <- model1_inla$summary.fixed
   sf1 <- sf1[rownames(sf1) %in% shared_vars, ]
+  if (!all(shared_vars %in% rownames(sf1)))
+    stop("Model 1 fit does not carry shared covariate(s): ",
+         paste(setdiff(shared_vars, rownames(sf1)), collapse = ", "),
+         " — they would silently get a default prior. Refit Model 1 (REUSE_MODEL1_FIT=FALSE).")
   prior_mean <- as.list(setNames(sf1[["mean"]], rownames(sf1)))
   prior_prec <- as.list(setNames(1 / sf1[["sd"]]^2, rownames(sf1)))
   prior_mean$default <- 0; prior_prec$default <- 1       # weakly-informative on the fiscal term (sd = 1, log-hazard scale)
@@ -239,10 +274,8 @@ if (!is.null(model1_inla)) {
   }
   # Model 1's district/system frailty sits on cluster_idx; Model 2's is the same
   # iid structure on district_idx, so its precision inherits Model 1's cluster-
-  # frailty posterior. The county frailty (county_idx) has the same name in both,
-  # so its precision transfers directly.
-  frailty_hyper_m2   <- list(prec = int_prior("cluster_idx"))
-  frailty_hyper_cty2 <- list(prec = int_prior("county_idx"))
+  # frailty posterior.
+  frailty_hyper_m2 <- list(prec = int_prior("cluster_idx"))
   hazard_ctrl_m2   <- modifyList(hazard_ctrl,
                                  list(hyper = list(prec = int_prior("baseline.hazard"))))
   warm_start <- NULL   # no cross-structure mode restart; the control.fixed / hyper priors carry Model 1
@@ -251,7 +284,6 @@ if (!is.null(model1_inla)) {
 } else {
   control_fixed      <- list(mean = 0, prec = 0.001)
   frailty_hyper_m2   <- frailty_hyper    # default PC prior on the district frailty
-  frailty_hyper_cty2 <- frailty_hyper    # default PC prior on the county frailty
   hazard_ctrl_m2     <- hazard_ctrl      # default RW1 baseline-hazard prior
   warm_start <- NULL
   message("Fitting Bayesian fiscal models with default vague priors (Model 1 not fit).")
@@ -264,9 +296,8 @@ if (!is.null(model1_inla)) {
 fit_fiscal_inla <- function(vs) {
   d <- panel_m2[complete.cases(panel_m2[, ..vs])]
   d[, district_idx := .GRP, by = District_ID]           # reindex within subsample
-  d[, county_idx   := .GRP, by = county_key]            # reindex county within subsample
   form <- as.formula(paste(resp, "~",
-    paste(c(shared_vars, vs, f_dist, f_cty2), collapse = " + ")))
+    paste(c(shared_vars, vs, f_dist), collapse = " + ")))
   inla(form, family = "coxph", data = as.list(d),
        control.hazard = hazard_ctrl_m2, control.inla = inla_ctrl,
        control.fixed = control_fixed, control.mode = warm_start,

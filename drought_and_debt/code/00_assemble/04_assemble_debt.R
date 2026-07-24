@@ -11,8 +11,9 @@ suppressPackageStartupMessages({
 })
 
 .out <- committed('district_debt_issuances.RDS')
-if (reuse_prior(.out)) {
-  message("RESCRAPE=FALSE: reusing existing ", basename(.out), " (skipping debt XML parse).")
+if (reuse_prior(.out) && !isTRUE(REPROCESS)) {
+  message("RESCRAPE=FALSE: reusing existing ", basename(.out),
+          " (skipping debt XML parse; set REPROCESS=TRUE to re-run it).")
 } else {
 
 # TBRB "Debt Outstanding by Local Government" (Socrata dataset dyv5-3bjd), read

@@ -81,8 +81,17 @@ au_uni <- au_uni[!is.na(key) & key != ""]
 # fiscal year, then larger numeric ID.
 di <- as.data.table(load_latest_district_list()); di[, District_ID := as.character(District_ID)]
 pws_ids <- unique(di[!is.na(PWS_ID) & PWS_ID != "", District_ID])
+# A district that dissolved BEFORE the analysis window and reconstituted under a
+# new ID keeps its name, so both IDs share a canon key and trip a false REVIEW.
+# The defunct shell can never appear in the panel; drop it from the candidate set
+# so the name resolves cleanly to the current ID. (Dissolved IDs with no Ended
+# date are kept -- those still need a human look.)
+defunct_pre_window <- di[Status == "DELETED/DISSOLVED" &
+                         !is.na(as.Date(Ended, "%m/%d/%Y")) &
+                         as.Date(Ended, "%m/%d/%Y") < start_date, District_ID]
 id_lastfy <- au[!is.na(FY), .(lastfy = max(FY)), by = District_ID]
 ik <- unique(au_uni[, .(key, District_ID)])
+ik <- ik[!District_ID %in% defunct_pre_window]
 ik <- merge(ik, id_lastfy, by = "District_ID", all.x = TRUE)
 ik[, haspws := District_ID %in% pws_ids]
 ik[, idnum := suppressWarnings(as.integer(District_ID))]
@@ -133,6 +142,15 @@ seed <- gov[status == "matched", .(GovernmentName, District_ID, audit_name, raw_
              tbrb_prin_med_M = round(tbrb_prin_med / 1e6, 2), confidence)]
 unmatched <- gov[status != "matched", .(GovernmentName, key,
              tbrb_yrs, tbrb_prin_med_M = round(tbrb_prin_med / 1e6, 2))]
+# Carry forward hand-added MANUAL rows from the committed crosswalk (TBRB
+# sub-entity names the matcher can't produce) so promoting a regenerated seed
+# never silently drops them.
+cw_path <- committed("tbrb_district_crosswalk.csv")
+if (file.exists(cw_path)) {
+  manual <- fread(cw_path, colClasses = list(character = "District_ID"))[confidence == "MANUAL"]
+  manual <- manual[!GovernmentName %in% seed$GovernmentName]
+  if (nrow(manual)) seed <- rbind(seed, manual, fill = TRUE)
+}
 fwrite(seed, scratch("tbrb_crosswalk_seed.csv"))
 fwrite(unmatched, scratch("tbrb_crosswalk_unmatched.csv"))
 

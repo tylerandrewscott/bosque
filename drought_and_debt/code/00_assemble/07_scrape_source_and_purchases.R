@@ -31,6 +31,22 @@
 #   input/pws_purchase_edges.RDS  -- Buyer, Seller (both trimmed PWS ids),
 #                                    Seller_Name. One row per buyer->seller edge.
 #
+# RESCRAPE POLICY (config.R; same semantics as scripts 05/06): the cheap bulk
+# DashMain pull always runs (it refreshes source codes and discovers new
+# systems), but the expensive per-system widget loop is incremental:
+#   RESCRAPE = FALSE -> fetch ONLY systems missing from the committed
+#                       pws_source.RDS or whose prior query failed
+#                       (emergency_source NA = failed; re-queued, mirroring
+#                       06's Fetch_OK).
+#   RESCRAPE = TRUE  -> re-fetch every system.
+# Either way the prior outputs are merged UNDER the fresh rows at write time:
+# re-fetched systems get fresh values (including their purchase edges, which
+# are REPLACED per buyer), systems not fetched this run — top-up skips, DWV
+# dropouts, failed queries — keep their prior rows/edges. A rescrape never
+# discards previously collected data. Periodic checkpoints go to gitignored
+# scratch files, NEVER to the committed outputs; an interrupted run resumes
+# from them under either policy.
+#
 # Consumed by 02_model/build_recurrent_panel.R:
 #   * source_surface / purchases_water / emergency_source join into the
 #     time-invariant controls (§3).
@@ -106,40 +122,115 @@ if (!exists("REQ_PAUSE"))  REQ_PAUSE  <- 0.35   # base seconds between requests
 if (!exists("REQ_JITTER")) REQ_JITTER <- 0.25   # + runif(0, REQ_JITTER) per request
 pace <- function() Sys.sleep(REQ_PAUSE + runif(1, 0, REQ_JITTER))
 
-edge_list <- vector("list", nrow(systems))
-emg       <- integer(nrow(systems))
-message(sprintf("Scraping DashPurchases + DashSourceWater over %d systems (two widgets each -- the slow step; pace ~%.2f-%.2fs/request)...",
-                nrow(systems), REQ_PAUSE, REQ_PAUSE + REQ_JITTER))
-for (i in seq_len(nrow(systems))) {
-  tin <- systems$TINWSYS_IS_NUMBER[i]
-  n0  <- formatC(trimws(systems$NUMBER0[i]), width = -12)
-  # (a) buys-from edges
-  pu <- tryCatch(dwv_widget(ses, "DashPurchases", tin, n0), error = function(e) data.table())
-  if (nrow(pu) && "SELLERWSNUMBER" %in% names(pu))
-    edge_list[[i]] <- data.table(
-      Buyer       = trimws(systems$NUMBER0[i]),
-      Seller      = trimws(pu$SELLERWSNUMBER),
-      Seller_Name = if ("SELLERWS" %in% names(pu)) pu$SELLERWS else NA_character_)
+# --- Prior outputs + resume/top-up bookkeeping (see RESCRAPE POLICY, header) ---
+.src_out   <- committed("pws_source.RDS")
+.edge_out  <- committed("pws_purchase_edges.RDS")
+prev_src   <- if (file.exists(.src_out))  as.data.table(readRDS(.src_out))  else NULL
+prev_edges <- if (file.exists(.edge_out)) as.data.table(readRDS(.edge_out)) else NULL
+
+emg_progress_file  <- scratch("source_purchases_progress.csv")
+edge_progress_file <- scratch("source_purchases_edges_progress.csv")
+resume_emg <- if (file.exists(emg_progress_file))
+  fread(emg_progress_file, colClasses = list(character = "PWS_ID")) else
+  data.table(PWS_ID = character(0), emergency_source = integer(0), Fetch_OK = logical(0))
+resume_emg <- resume_emg[Fetch_OK %in% TRUE]        # failed rows are re-queued
+resume_edges <- if (file.exists(edge_progress_file))
+  fread(edge_progress_file, colClasses = list(character = c("Buyer", "Seller", "Seller_Name"))) else
+  data.table(Buyer = character(0), Seller = character(0), Seller_Name = character(0))
+resume_edges <- resume_edges[Buyer %in% resume_emg$PWS_ID]
+
+# "Done" = successfully fetched in an interrupted run (always resumed), plus —
+# under RESCRAPE = FALSE only — systems whose committed emergency_source is
+# non-NA (NA marks a failed prior query, so those are re-queued).
+done_ids <- resume_emg$PWS_ID
+if (!RESCRAPE && !is.null(prev_src))
+  done_ids <- union(done_ids, prev_src[!is.na(emergency_source), PWS_ID])
+todo <- systems[!(trimws(NUMBER0) %in% done_ids)]
+
+# emergency_source: NA = query FAILED (kept NA downstream, never coerced to 0);
+# 0/1 = queried fine. A system counts as fetched only if BOTH widget queries
+# succeeded; anything less is re-queued on the next run (each call already gets
+# in-run retries).
+edge_list <- vector("list", nrow(todo))
+emg       <- rep(NA_integer_, nrow(todo))
+ok_vec    <- rep(FALSE, nrow(todo))
+message(sprintf("RESCRAPE=%s: %d systems already done; scraping DashPurchases + DashSourceWater over %d of %d systems (two widgets each -- the slow step; pace ~%.2f-%.2fs/request)...",
+                RESCRAPE, length(done_ids), nrow(todo), nrow(systems),
+                REQ_PAUSE, REQ_PAUSE + REQ_JITTER))
+checkpoint <- function() {
+  ck <- data.table(PWS_ID = trimws(todo$NUMBER0),
+                   emergency_source = emg, Fetch_OK = ok_vec)[Fetch_OK %in% TRUE]
+  fwrite(rbindlist(list(resume_emg, ck), use.names = TRUE), emg_progress_file)
+  fwrite(rbindlist(c(list(resume_edges), edge_list), use.names = TRUE, fill = TRUE),
+         edge_progress_file)
+}
+for (i in seq_len(nrow(todo))) {
+  tin <- todo$TINWSYS_IS_NUMBER[i]
+  n0  <- formatC(trimws(todo$NUMBER0[i]), width = -12)
+  # (a) buys-from edges (NULL = query failed after retries; edges unknowable)
+  pu <- dwv_widget_retry(ses, "DashPurchases", tin, n0)
   pace()                                          # gap before the second widget
-  # (b) emergency source / interconnect flag
-  sw <- tryCatch(dwv_widget(ses, "DashSourceWater", tin, n0), error = function(e) data.table())
-  if (nrow(sw) && all(c("TYPE_CODE", "AVAILABILITY_CODE") %in% names(sw)))
-    emg[i] <- as.integer(any(trimws(sw$TYPE_CODE) %in% SRC_SUPPLY_TYPES &
-                             trimws(sw$AVAILABILITY_CODE) == EMERGENCY_AVAIL))
-  if (i %% 200 == 0) message(sprintf("  %d/%d systems", i, nrow(systems)))
+  # (b) emergency source / interconnect flag (NULL = failed)
+  sw <- dwv_widget_retry(ses, "DashSourceWater", tin, n0)
+  if (!is.null(pu) && !is.null(sw)) {
+    ok_vec[i] <- TRUE
+    emg[i] <- if (nrow(sw) && all(c("TYPE_CODE", "AVAILABILITY_CODE") %in% names(sw)))
+      as.integer(any(trimws(sw$TYPE_CODE) %in% SRC_SUPPLY_TYPES &
+                     trimws(sw$AVAILABILITY_CODE) == EMERGENCY_AVAIL)) else 0L
+    if (nrow(pu) && "SELLERWSNUMBER" %in% names(pu))
+      edge_list[[i]] <- data.table(
+        Buyer       = trimws(todo$NUMBER0[i]),
+        Seller      = trimws(pu$SELLERWSNUMBER),
+        Seller_Name = if ("SELLERWS" %in% names(pu)) pu$SELLERWS else NA_character_)
+  }
+  if (i %% 200 == 0) {
+    message(sprintf("  %d/%d systems", i, nrow(todo)))
+    checkpoint()                                  # periodic checkpoint (scratch)
+  }
   pace()                                          # gap before the next system
 }
-systems[, emergency_source := emg]
+fail_ct <- sum(!ok_vec)
+if (fail_ct) warning(sprintf(
+  "%d system(s) had a failed DashPurchases/DashSourceWater query after retries: their prior values (if any) are kept and they are re-queued on the next run.",
+  fail_ct))
 
-edges <- unique(rbindlist(edge_list, use.names = TRUE, fill = TRUE)[
-  !is.na(Seller) & nzchar(Seller) & Seller != Buyer])
+# Everything successfully fetched: this run + the resumed checkpoint. These are
+# the systems whose values (and purchase edges) get REPLACED by fresh data.
+run_emg <- rbindlist(list(
+  resume_emg[, .(PWS_ID, emergency_source)],
+  data.table(PWS_ID = trimws(todo$NUMBER0), emergency_source = emg)[ok_vec]),
+  use.names = TRUE)
+ok_ids <- run_emg$PWS_ID
+
+# Attach emergency_source to the source table: fresh value where fetched OK,
+# prior committed value otherwise, NA if never successfully queried (the
+# panel's complete-case gate drops those systems honestly; NA is NOT coerced
+# to 0, which would fabricate a "no emergency source" answer).
+emg_map <- unique(rbindlist(list(
+  run_emg,
+  if (!is.null(prev_src)) prev_src[, .(PWS_ID, emergency_source)] else NULL),
+  use.names = TRUE), by = "PWS_ID")
+src <- merge(src, emg_map, by = "PWS_ID", all.x = TRUE)
+# Retain prior rows for systems no longer on the DWV active list (fresh first).
+if (!is.null(prev_src))
+  src <- unique(rbindlist(list(src, prev_src), use.names = TRUE, fill = TRUE), by = "PWS_ID")
+
+# Edges: fresh edges for fetched-OK buyers replace their prior edges; prior
+# edges survive for every other buyer.
+fresh_edges <- rbindlist(c(list(resume_edges), edge_list), use.names = TRUE, fill = TRUE)
+if (!is.null(prev_edges))
+  fresh_edges <- rbindlist(list(fresh_edges, prev_edges[!(Buyer %in% ok_ids)]),
+                           use.names = TRUE, fill = TRUE)
+edges <- unique(fresh_edges[!is.na(Seller) & nzchar(Seller) & Seller != Buyer])
+
 message(sprintf("Purchase edges: %s edges, %d distinct buyers, %d distinct sellers. Emergency-source systems: %d.",
                 format(nrow(edges), big.mark = ","), uniqueN(edges$Buyer),
-                uniqueN(edges$Seller), sum(emg)))
+                uniqueN(edges$Seller), sum(src$emergency_source, na.rm = TRUE)))
 
-# Attach emergency_source to the source table; write both outputs.
-src <- merge(src, systems[, .(PWS_ID, emergency_source)], by = "PWS_ID", all.x = TRUE)
-src[is.na(emergency_source), emergency_source := 0L]
 saveRDS(src,   committed("pws_source.RDS"))
 saveRDS(edges, committed("pws_purchase_edges.RDS"))
 message("Wrote ", committed("pws_source.RDS"), " and ", committed("pws_purchase_edges.RDS"))
+# Committed outputs written: clear the scratch checkpoints so the next run
+# starts clean.
+for (f in c(emg_progress_file, edge_progress_file))
+  if (file.exists(f)) invisible(file.remove(f))

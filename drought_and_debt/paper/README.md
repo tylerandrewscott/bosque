@@ -21,18 +21,14 @@ updates itself.
    ```
 2. **Render the paper** (bakes the fresh numbers in):
    ```
-   quarto render drought_and_debt/paper/manuscript.qmd        # -> manuscript.md and manuscript.docx
+   quarto render drought_and_debt/paper/manuscript.qmd --to markdown   # -> manuscript.md
+   quarto render drought_and_debt/paper/manuscript.qmd --to docx       # -> manuscript.docx (optional)
    ```
    Change a model spec → rerun step 1 → re-render → the paper's numbers follow.
 3. **Share with co-authors:** open `manuscript.md`, copy it, and paste into a
    Google Doc (Docs converts Markdown natively; enable *Tools → Preferences →
    Enable Markdown*). Or import `manuscript.docx`. Pull their edits back with
    Docs' **Download → Markdown** and diff against `manuscript.qmd`.
-
-> **Quarto is not yet installed on this machine.** Install it once:
-> `brew install quarto` (or download from <https://quarto.org/docs/get-started/>).
-> Until then, the R layer can be exercised with `knitr::knit("manuscript.qmd")`
-> from this directory, which executes the same inline code and chunks.
 
 ## Helper API (used inside `manuscript.qmd`)
 
@@ -66,7 +62,8 @@ reference it with `` `r fact("your_key")` ``.
 
 Blocks marked `<!-- STALE (step 2): ... -->` in `manuscript.qmd` describe the
 **old** model and must be rewritten for the current spec (weekly 2010–2025, DSCI,
-two iid frailties — district/system + county, no spatial/ICAR — repeated events,
+one iid frailty — district/system; the county frailty was removed 2026-07-24, no
+spatial/ICAR — time-varying yearly service connections (SDWIS), repeated events,
 730-day/FY-end-date audit rule, wholesaler control; demographics, consumption,
 operating ratio, and the debt-service-tax interaction dropped). The wiring and
 tables are already current; only the surrounding narrative needs updating.

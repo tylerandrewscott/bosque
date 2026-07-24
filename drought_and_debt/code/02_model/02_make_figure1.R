@@ -2,14 +2,13 @@
 # 02_make_figure1.R  —  descriptive figures
 # -----------------------------------------------------------------------------
 # Figure 1 (output/figure1.png):
-#   A. weekly DSCI for the counties anchoring the five biggest TX metros,
-#      from the committed county-level dsci_measures.RDS. (The original panel
-#      plotted UNL *urban-area* series; the committed drought file is county-
-#      level, so the metro-anchor counties are the equivalent view.)
-#   B. statewide % of land area in drought category D0-D4, from the UNL state
-#      statistics API. The series is cached to input/statewide_drought_area.RDS
-#      and re-fetched only when RESCRAPE=TRUE (or no cache exists), so the
-#      figure rebuilds offline.
+#   A (bottom): weekly frequency of mandatory water-use restriction events
+#      (every M1/M2/M3 notice, the recurrent event set), binned by week to
+#      align with the drought series above.
+#   B (top): statewide % of land area in drought category D0-D4, from the UNL
+#      state statistics API. The series is cached to input/statewide_drought_area.RDS
+#      and re-fetched ONLY when no cache exists or the cache does not cover the
+#      analysis window, so default runs rebuild offline.
 # Figure 2 (output/figure2.png): timing of first mandatory water-use
 #   restriction adoption, split by district linkage (the fiscal subsample).
 # =============================================================================
@@ -26,31 +25,34 @@ suppressPackageStartupMessages({
   library(gridExtra)
 })
 
-# --- Figure 1A: average drought severity across the sample's districts --------
-# A single line: mean DSCI over time across the study's district-linked systems'
-# districts. Built from the same weekly drought grid and crosswalk that feed the
-# model panel, so this descriptive line describes the analysis sample. DSCI is
-# averaged within each district-week (over its systems), then across districts.
-dw <- as.data.table(readRDS(committed('pws_drought_weekly.RDS')))
-xw <- data.table(readRDS(committed('id_crosswalk.RDS')))[!is.na(PWS_ID)]
-dw[, date := ymd(DroughtDate)]
-dw <- dw[!is.na(date) & date >= start_date & date <= end_date]
-dw[, DSCI := as.numeric(DSCI)]
-dw <- xw[, .(District_ID, PWS_ID)][dw, on = 'PWS_ID', nomatch = 0]
-dist_week <- dw[, .(DSCI = mean(DSCI, na.rm = TRUE)), by = .(District_ID, date)]
-avg_dsci  <- dist_week[, .(DSCI = mean(DSCI, na.rm = TRUE)), by = date]
-setorder(avg_dsci, date)
+# --- Figure 1A: weekly frequency of mandatory restriction events --------------
+# Bottom panel mirrors the top panel's weekly x-axis: a frequency plot of
+# mandatory (STAGE M1/M2/M3) restriction notices binned by week. This is a
+# recurrent-events model, so EVERY distinct (PWS_ID, notice-date) event counts,
+# not just each system's first — the exact event set the model panel consumes
+# (mandatory_restriction_events, shared with build_recurrent_panel.R), so the
+# event timing lines up week-for-week against the drought conditions above.
+# Restricted to the FOCAL SAMPLE: district-linked systems (present in
+# id_crosswalk.RDS = the sampled districts). Figure 2 keeps the two-series split.
+events <- mandatory_restriction_events(start_date, end_date)
+xw <- data.table(readRDS(committed('id_crosswalk.RDS')))
+events <- events[PWS_ID %in% xw$PWS_ID]
 
 year_span <- paste(year(start_date), 'to', year(end_date))
-figure1A <- ggplot(data = avg_dsci, aes(x = date, y = DSCI)) +
-  geom_path() +
-  scale_y_continuous(name = 'severity-coverage index') +
+figure1A <- ggplot(data = events, aes(x = event_date)) +
+  geom_freqpoly(binwidth = 7) +
+  scale_y_continuous(name = '# of restriction events', expand = c(0, 0)) +
   theme_bw() +
-  ggtitle(paste0('Average district drought conditions, ', year_span)) +
-  scale_x_date(expand = c(0, 0), name = 'Weekly drought status')
+  theme(text = element_text(family = 'Times'), axis.title = element_text(size = 12)) +
+  ggtitle(paste0('Mandatory restriction events by week, water districts, ', year_span)) +
+  scale_x_date(expand = c(0, 0), name = 'Week',
+               limits = c(start_date, end_date))
 
 # --- Figure 1B: statewide % area in drought (UNL state statistics) ------------
-# Committed cache first; hit the live API only when RESCRAPE=TRUE or no cache.
+# Committed cache first; the historical series never changes, so hit the live
+# API ONLY when the cache is absent or does not cover the analysis window
+# (i.e. the window was extended). NOT keyed on RESCRAPE: a default model-only
+# run must stay offline and must not rewrite the committed input.
 .statewide_cache <- committed('statewide_drought_area.RDS')
 .unl_url <- paste0(
   'https://usdmdataservices.unl.edu/api/StateStatistics/',
@@ -60,9 +62,15 @@ figure1A <- ggplot(data = avg_dsci, aes(x = date, y = DSCI)) +
   '&enddate=', format(end_date, '%m/%d/%Y'),
   '&statisticsType=1')
 dcols <- c('D0', 'D1', 'D2', 'D3', 'D4')
-if (file.exists(.statewide_cache) && !isTRUE(RESCRAPE)) {
+.cache_covers <- FALSE
+if (file.exists(.statewide_cache)) {
   txc <- readRDS(.statewide_cache)
-} else {
+  .rng <- suppressWarnings(range(ymd(txc$ValidStart), na.rm = TRUE))
+  .cache_covers <- !anyNA(.rng) && .rng[1] <= start_date + 7 && .rng[2] >= end_date - 7
+  if (!.cache_covers)
+    message('Cached statewide drought series does not cover the analysis window; refetching.')
+}
+if (!.cache_covers) {
   # The UNL endpoint serves CSV by default (its JSON variant now lowercases
   # the field names), so fread() it. Validate the schema BEFORE caching: a
   # 200-status response in an unexpected format (e.g. the endpoint switching
@@ -109,7 +117,11 @@ figure1B <- ggplot(data = txc, aes(x = ValidStart)) +
         axis.title = element_text(size = 12),
         legend.background = element_rect(fill = alpha('white', 0.5))) +
   ggtitle(paste0('Statewide (TX) drought conditions, ', year_span)) +
-  scale_fill_identity(labels = c('D4', 'D3-D4', 'D2-D4', 'D1-D4', 'D0-D4'),
+  # breaks= is REQUIRED here: without it scale_fill_identity sorts the breaks
+  # alphabetically by hex string, so the labels land on the wrong ribbons.
+  # rev(rib_cols) puts the darkest band (D4) first, matching the label order.
+  scale_fill_identity(breaks = rev(rib_cols),
+                      labels = c('D4', 'D3-D4', 'D2-D4', 'D1-D4', 'D0-D4'),
                       guide = 'legend', name = 'Category')
 
 grob <- grid.arrange(figure1B, figure1A, ncol = 1)
