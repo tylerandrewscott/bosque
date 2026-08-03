@@ -14,9 +14,15 @@
 #   * The remaining system controls are TIME-INVARIANT, so they are summarised
 #     once per SYSTEM (de-duplicated by PWS_ID) -- summarising them over weekly
 #     rows would just weight each system by how long it is observed.
-# Every system control is reported TWICE -- once for the global (Model 1) sample
-# and once for the district-linked (Model 2) subsample -- as two sub-rows per
-# variable, tagged in the "sample" column.
+# Outcome/drought and every system control are reported TWICE -- once for the
+# global (Model 1) sample and once for the district-linked (Model 2) subsample
+# -- as two sub-rows per variable, tagged in the "sample" column. The paper
+# splits on that column: the main body shows the district sample, the appendix
+# the global sample. Drought is reported as the raw DSCI (its model scale). The
+# continuous controls enter the models as z-scores; here they are back-transformed
+# to their NATURAL scale (via z_scale from the panel builder) so the table reads in
+# real units. Fiscal covariates are likewise un-standardized and then reported
+# UNTRANSFORMED ($ per connection) even though the models use z-scored asinh terms.
 # Each row reports N (non-missing), mean, sd, min, p25, median, p75, max; the
 # "unit" column names what one observation is.
 #
@@ -48,6 +54,24 @@ suppressPackageStartupMessages({
   library(knitr)
 })
 
+# --- Back-transform z-scored covariates to natural scale ---------------------
+# The model panels carry the continuous covariates as z-scores (build_recurrent_
+# panel.R standardizes them, storing each var's mean/sd in z_scale). The
+# descriptives report NATURAL scale, so undo the z-scoring row-exactly here:
+# x = z*sd + mean. Vars absent from z_scale (DSCI, the 0/1 flags) pass through
+# untouched. Correlations are scale-invariant, so those still read the
+# standardized panels directly below.
+destd <- function(dt) {
+  dt <- copy(dt)
+  for (v in names(z_scale)) if (v %in% names(dt)) {
+    ms <- z_scale[[v]]
+    dt[, (v) := get(v) * ms[["sd"]] + ms[["mean"]]]
+  }
+  dt[]
+}
+panel_m1_nat <- destd(panel_m1)
+panel_m2_nat <- destd(panel_m2)
+
 # --- Pretty labels (kept in sync with 03_model_results_table.R) --------------
 term_labels <- c(
   event              = "Mandatory restriction (event)",
@@ -66,7 +90,13 @@ term_labels <- c(
   debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
   debt_rev_per_conn  = "Revenue debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
-  revenue_per_conn   = "Revenue per connection (asinh)"
+  revenue_per_conn   = "Revenue per connection (asinh)",
+  # Untransformed ($ per connection) versions, reported in the descriptives
+  # table; the models use the asinh-transformed variables above.
+  debt_go_per_conn_raw  = "GO (tax) debt per connection ($)",
+  debt_rev_per_conn_raw = "Revenue debt per connection ($)",
+  fund_bal_per_conn_raw = "Fund balance per connection ($)",
+  revenue_per_conn_raw  = "Revenue per connection ($)"
 )
 
 # --- describe(): per-variable summary stats over a data.table ----------------
@@ -103,25 +133,35 @@ describe <- function(dt, vars, group_label, unit_label, sample_label) {
 # is TIME-VARYING, so it is summarised per system-week like drought. Every
 # system control gets TWO sub-rows: the global (Model 1) sample and the
 # district-linked (Model 2) subsample the fiscal models are fit on.
-systems_m1 <- unique(panel_m1, by = "PWS_ID")
-systems_m2 <- unique(panel_m2, by = "PWS_ID")
+systems_m1 <- unique(panel_m1_nat, by = "PWS_ID")
+systems_m2 <- unique(panel_m2_nat, by = "PWS_ID")
 static_ctrl <- setdiff(ctrl_vars, tv_ctrl_vars)
 GLOBAL  <- "Global (Model 1)"
 DIST    <- "District-only (Model 2)"
 
+# Fiscal covariates enter the models z-scored asinh; the table reports the
+# untransformed dollars-per-connection, recovered exactly by un-standardizing
+# (panel_m2_nat) then sinh().
+fiscal_raw <- panel_m2_nat[, lapply(.SD, sinh), .SDcols = fiscal_vars]
+setnames(fiscal_raw, paste0(fiscal_vars, "_raw"))
+
 pieces <- list(
   # Outcome + drought are per system-week (what the Cox likelihood integrates).
-  describe(panel_m1, c("event", "DSCI", "DSCI_100"),
+  # DSCI is reported on its raw natural scale (the scale it enters the models on).
+  describe(panel_m1_nat, c("event", "DSCI"),
            "Outcome & drought (system-week)", "system-week", GLOBAL),
+  describe(panel_m2_nat, c("event", "DSCI"),
+           "Outcome & drought (system-week)", "system-week", DIST),
   # System controls, each in both samples. tv_ctrl_vars vary by year, so they
-  # are summarised over system-weeks; the rest once per system.
-  describe(panel_m1, tv_ctrl_vars, "System controls", "system-week", GLOBAL),
-  describe(panel_m2, tv_ctrl_vars, "System controls", "system-week", DIST),
+  # are summarised over system-weeks; the rest once per system. Reported on the
+  # natural (un-standardized) scale via panel_*_nat.
+  describe(panel_m1_nat, tv_ctrl_vars, "System controls", "system-week", GLOBAL),
+  describe(panel_m2_nat, tv_ctrl_vars, "System controls", "system-week", DIST),
   describe(systems_m1, static_ctrl, "System controls", "system", GLOBAL),
   describe(systems_m2, static_ctrl, "System controls", "system", DIST),
   # Fiscal covariates: per district-year-linked system-week in the subsample.
   # Each is summarised on its own non-NA rows (matching how each model is fit).
-  describe(panel_m2, fiscal_vars,
+  describe(fiscal_raw, names(fiscal_raw),
            "Fiscal (district subsample, system-week)", "system-week", DIST)
 )
 desc <- rbindlist(pieces, use.names = TRUE)

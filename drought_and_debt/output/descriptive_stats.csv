@@ -1,7 +1,8 @@
 term,group,unit,sample,N,mean,sd,min,p25,median,p75,max,label
 event,Outcome & drought (system-week),system-week,Global (Model 1),2936640,0.00137980821619266,0.0371201402839743,0,0,0,0,1,Mandatory restriction (event)
-DSCI,Outcome & drought (system-week),system-week,Global (Model 1),2936640,126.955976505016,146.264341063839,0,0,80,211,500,"Drought severity (DSCI, 0-100)"
+event,Outcome & drought (system-week),system-week,District-only (Model 2),469690,0.000960207796631821,0.0309723722048834,0,0,0,0,1,Mandatory restriction (event)
 DSCI_100,Outcome & drought (system-week),system-week,Global (Model 1),2936640,1.26955976504996,1.46264341063828,0,0,0.8,2.11,5,Drought severity (DSCI/100)
+DSCI_100,Outcome & drought (system-week),system-week,District-only (Model 2),469690,0.973565711585264,1.36306011878464,0,0,0.19,1.58,5,Drought severity (DSCI/100)
 ln_connections,System controls,system-week,Global (Model 1),2936640,5.95770076100426,1.75113713176874,0.693147180559945,4.60517018598809,5.85793315448346,7.17472430983638,14.2381500058437,Log connections
 ln_connections,System controls,system-week,District-only (Model 2),469690,7.01888724207156,1.18037660599635,0.693147180559945,6.43133108193348,7.19743535409659,7.72577144158795,11.5472495940142,Log connections
 storage_per_conn_g,System controls,system,Global (Model 1),3648,6.81894128270503,0.762495983074914,0,6.37911553137198,6.77770344779932,7.2174346722222,13.813407081386,Storage per connection (asinh gal)
@@ -20,7 +21,7 @@ median_structure_age,System controls,system-week,Global (Model 1),2936640,31.936
 median_structure_age,System controls,system-week,District-only (Model 2),469690,26.5325976503265,9.5493144501297,6,19.3937164936933,26.428513199219,33.0000000000002,71,Median structure age (yrs)
 perc_dem_vote,System controls,system-week,Global (Model 1),2936640,26.5441458221582,16.9791231804399,0,15.2416467040577,20.4200908101617,32.7252177352924,98.8100467015033,% Dem. vote share
 perc_dem_vote,System controls,system-week,District-only (Model 2),469690,39.171414323196,20.7011509209607,4.4853500761035,21.4864174651024,36.0260584712136,53.9754553730202,95.3951213779251,% Dem. vote share
-debt_go_per_conn,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417745,6.83286637119387,4.45727935261077,0,0,9.00241713306938,10.0030139491076,15.9746101179496,GO (tax) debt per connection (asinh)
-debt_rev_per_conn,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417745,1.02407063420879,2.71165107026174,0,0,0,0,12.8710559092589,Revenue debt per connection (asinh)
-fund_bal_per_conn,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469690,6.67327813390651,3.2452197329741,0,6.76625859397749,7.94876698331508,8.57283222203731,13.4907047366384,Fund balance per connection (asinh)
-revenue_per_conn,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469690,7.72747720246268,1.57246663175149,0,7.4671761631549,7.88434114845565,8.29049786398213,13.8955409245461,Revenue per connection (asinh)
+debt_go_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417745,19317.6712482135,129848.202554124,0,0,4061.34686346864,11046.4762700206,4331666.66666667,GO (tax) debt per connection ($)
+debt_rev_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417745,571.531008849346,5706.11050092011,0,0,0,0,194445.797807552,Revenue debt per connection ($)
+fund_bal_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469690,2932.80109264541,11620.9924998525,0,434.028450595925,1416.04022038567,2643.03988603989,361333.833333333,Fund balance per connection ($)
+revenue_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469690,2827.59973986869,13335.7789125589,0,874.829190056135,1327.68728755948,1992.90892250695,541659.981949459,Revenue per connection ($)

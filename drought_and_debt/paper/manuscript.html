@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Tradeoffs Across Fiscal Capacity and Environmental Crisis Management</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="manuscript_files/libs/clipboard/clipboard.min.js"></script>
+<script src="manuscript_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="manuscript_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="manuscript_files/libs/quarto-html/popper.min.js"></script>
+<script src="manuscript_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="manuscript_files/libs/quarto-html/anchor.min.js"></script>
+<link href="manuscript_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="manuscript_files/libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="manuscript_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="manuscript_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="manuscript_files/libs/bootstrap/bootstrap-138a6193a3bd40baf1e627da441a4734.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#case-background" id="toc-case-background" class="nav-link active" data-scroll-target="#case-background"><strong>3. CASE BACKGROUND</strong></a></li>
+  <li><a href="#methods-and-materials" id="toc-methods-and-materials" class="nav-link" data-scroll-target="#methods-and-materials"><strong>4. METHODS AND MATERIALS</strong></a>
+  <ul class="collapse">
+  <li><a href="#sample-special-water-districts-in-texas" id="toc-sample-special-water-districts-in-texas" class="nav-link" data-scroll-target="#sample-special-water-districts-in-texas"><strong>4.1 Sample: Special Water Districts in Texas</strong></a></li>
+  <li><a href="#outcome-measure-mandatory-water-use-restrictions" id="toc-outcome-measure-mandatory-water-use-restrictions" class="nav-link" data-scroll-target="#outcome-measure-mandatory-water-use-restrictions"><strong>4.2 Outcome Measure: Mandatory Water Use Restrictions</strong></a></li>
+  <li><a href="#crisis-measure-drought-conditions" id="toc-crisis-measure-drought-conditions" class="nav-link" data-scroll-target="#crisis-measure-drought-conditions"><strong>4.3 Crisis Measure: Drought Conditions</strong></a></li>
+  <li><a href="#section" id="toc-section" class="nav-link" data-scroll-target="#section"></a></li>
+  <li><a href="#explanatory-variables-fiscal-capacity-measures" id="toc-explanatory-variables-fiscal-capacity-measures" class="nav-link" data-scroll-target="#explanatory-variables-fiscal-capacity-measures"><strong>4.4 Explanatory Variables: Fiscal Capacity Measures</strong></a></li>
+  <li><a href="#control-variables" id="toc-control-variables" class="nav-link" data-scroll-target="#control-variables"><strong>4.5 Control Variables</strong></a></li>
+  <li><a href="#model" id="toc-model" class="nav-link" data-scroll-target="#model"><strong>4.6 Model</strong></a></li>
+  </ul></li>
+  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results"><strong>5. RESULTS</strong></a></li>
+  <li><a href="#discussion-and-conclusion" id="toc-discussion-and-conclusion" class="nav-link" data-scroll-target="#discussion-and-conclusion"><strong>6. DISCUSSION AND CONCLUSION</strong></a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><strong>7. REFERENCES</strong></a></li>
+  <li><a href="#section-1" id="toc-section-1" class="nav-link" data-scroll-target="#section-1"></a></li>
+  <li><a href="#appendix-a-model-specification-and-goodness-of-fit" id="toc-appendix-a-model-specification-and-goodness-of-fit" class="nav-link" data-scroll-target="#appendix-a-model-specification-and-goodness-of-fit"><strong>APPENDIX A: MODEL SPECIFICATION AND GOODNESS-OF-FIT</strong></a></li>
+  <li><a href="#appendix-b-tabular-results" id="toc-appendix-b-tabular-results" class="nav-link" data-scroll-target="#appendix-b-tabular-results"><strong>APPENDIX B: TABULAR RESULTS</strong></a></li>
+  <li><a href="#appendix-c-predictor-correlations" id="toc-appendix-c-predictor-correlations" class="nav-link" data-scroll-target="#appendix-c-predictor-correlations"><strong>APPENDIX C: PREDICTOR CORRELATIONS</strong></a></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="manuscript.docx"><i class="bi bi-file-word"></i>MS Word</a></li></ul></div></nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Tradeoffs Across Fiscal Capacity and Environmental Crisis Management</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- =====================================================================
+     WORKFLOW NOTE (delete before submission)
+     - This .qmd is the SOURCE of truth. Render to manuscript.md / .docx:
+         quarto render paper/manuscript.qmd
+     - Every number comes from output/*.csv via the _setup.R helpers, e.g.
+         632   scalar prose fact
+         -0.00 (95% CrI: -0.04, 0.04) coefficient + 95% CrI
+         1.47 (95% CrI: 1.43, 1.51)      hazard ratio + 95% CrI
+     - Tables are generated by chunks calling results_table() etc.
+     - Prose was rewritten (step 2, 2026-07) for the CURRENT spec: weekly
+       2010-2025, DSCI, ONE iid frailty (district/system; county frailty
+       REMOVED 2026-07-24; no ICAR/BYM), time-varying yearly service
+       connections (SDWIS, pre-2013 backfilled from 2013),
+       repeated events, 730-day/FY-end-date audit rule, wholesaler control,
+       dropped demographics/consumption/operating-ratio/debt-service-tax.
+       No <!-- STALE (step 2) -->
+<p>blocks remain. - REMAINING before submission: Table 1’s “% of total population” cells and the global sample’s distinct-adopter count are still [–] (need a fact in 05_paper_facts.R); bibliography has a few now-uncited entries (KBDI, BYM, ICAR sources) that can be pruned. ===================================================================== –&gt;</p>
+<p><strong>Tradeoffs Across Fiscal Capacity and Environmental Crisis Management</strong></p>
+<section id="abstract" class="level4">
+<h4 class="anchored" data-anchor-id="abstract"><strong>Abstract</strong></h4>
+<p>The safety, reliability, and equity of public service provision often depend on how and when public managers respond to disruptive events. When crises warrant service reductions, providers potentially face competing pressures, such as the need to limit consumption while still funding critical operations and fulfilling financial obligations. This paper uses the case of water use restrictions adopted by water utilities under severe drought conditions to examine how fiscal capacity relates to emergency response. The political economy of local water services in the United States requires individual community water systems to consider both environmental sustainability and fiscal sustainability goals. During an environmental crisis, such as an extreme drought, these goals may be competing and there are tradeoffs between the conservation of water and fiscal solvency. Using a multilevel Cox proportional hazards model for repeated events, we relate the adoption and timing of mandatory water-use restrictions to the financial characteristics of special water districts in the state of Texas during periods of severe drought. Preliminary results suggest that water utilities prioritize environmental management and follow their drought management plans even when faced with limited financial resources. Ultimately, both high-resource and low-resource water districts adopt timing drought restrictions.</p>
+<p>*All data and materials needed for replication are available upon request</p>
+<ol type="1">
+<li><h1 id="introduction"><strong>INTRODUCTION</strong></h1></li>
+</ol>
+<p>The ability of public managers and other service providers to respond to disruptive events and changing service pressures is key for ensuring the safe, reliable, and equitable provision of public goods and services <a href="https://paperpile.com/c/kCIXNA/Arld+WDY9+qOF8">(Hood 1991; Boin and van Eeten 2013; Comfort 2005)</a>. Studies have shown that institutional constraints and political incentives attenuate when and how local utilities innovate, conserve resources, and respond to environmental and regulatory pressures <a href="https://paperpile.com/c/kCIXNA/irGCF+Z2h3+ioyIM+HiQr">(Teodoro 2009; Konisky and Teodoro 2016; Mullin and Rubado 2017; Teodoro, Zhang, and Switzer 2018)</a>. However, public administrators do not operate solely in the realm of political economy–public service delivery choices are also driven by practical constraints such budget limitations and the ability to access and deploy financing tools <a href="https://paperpile.com/c/kCIXNA/mHWGa">(Scott, Moldogaziev, and Greer 2018)</a>.</p>
+<p><br>
+This paper considers the tension between fiscal capacity and emergency management in public service delivery, focusing on the case of drinking water provision under severe drought conditions. Capital intensity is a major implementation challenge for water service delivery. Providers typically finance major capital investments with tax- and/or revenue-backed bond issues. Providers are then reliant upon incoming service fees or property taxes both to conduct ongoing operations and maintenance and to pay off creditors. In the case of a drought, this creates tension between the need to cut back on water use to preserve dwindling supplies and the need to maintain sufficient inflow of funds, which has sometimes been referred to as a “conservation conundrum” <a href="https://paperpile.com/c/kCIXNA/21t5O">(Beecher 2010)</a>. Thus, water providers’ lack of fiscal capacity is a potential inhibitor of crisis management. To test hypotheses relating to these barriers, we use a multilevel Cox proportional hazards model for repeated events that models the adoption of water use restrictions by special water districts in Texas on a weekly basis from 2010 to 2025. Controlling for environmental conditions and institutional attributes, we find mixed evidence about the link between providers’ fiscal capacity and how they respond to water supply crises: ADD RESULTS HERE.</p>
+<ol start="2" type="1">
+<li><h1 id="crisis-management-as-a-public-management-and-public-finance-problem"><strong>CRISIS MANAGEMENT AS A PUBLIC MANAGEMENT AND PUBLIC FINANCE PROBLEM</strong></h1></li>
+</ol>
+<p>The choices public managers face in times of crisis are commonly situated at the nexus of problem conditions, institutional capacity, technical capacity and political interests <a href="https://paperpile.com/c/kCIXNA/ioyIM+HiQr+N3h7">(Mullin and Rubado 2017; Teodoro et al.&nbsp;2018; Giordono et al. 2021)</a>. For instance, in the case of water service delivery, mandatory restrictions on service consumption can alleviate a supply problem, but create controversy and erode political capital. In this framing, problem condition refers to water supplies and drought severity, institutional capacity is the ability to implement preferred actions, technical capacity is the response capacity of the infrastructure system itself (e.g., storage, interconnections, etc.), and political interests refer to the preferences of interest groups and service recipients who might favor or oppose a given course of action. As an example of how these factors intersect, Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> analyze time-to-adoption for around 300 water utilities that adopted a mandatory water use restriction between 2010 and 2013 during a severe drought in Texas and find that problem conditions and institutional/technical capacity outweigh political concerns as key drivers of adoption.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<p><br>
+In this paper, we extend this crisis management framework (problem conditions, institutional capacity, technical capacity, political considerations) by incorporating a fifth conceptual driver of manager decision-making: <em>fiscal capacity</em>.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> Fiscal capacity is the ability of a public service provider to extract revenues and fulfill service obligations, while meeting financial commitments. In other words, it is the ability to access funds necessary to operate, take necessary actions, and pay off debts. Fiscal capacity–or lack thereof–has been shown to drive a variety of public management decisions including consolidation <a href="https://paperpile.com/c/kCIXNA/zTeJ">(Mughan 2019)</a>, special district creation <a href="https://paperpile.com/c/kCIXNA/nNqY+CUFr">(Eger 2006; Mullin 2010)</a>, public-private partnerships <a href="https://paperpile.com/c/kCIXNA/0Xhp">(Tan and Zhao 2019)</a>, and contracting <a href="https://paperpile.com/c/kCIXNA/vItT">(Brown and Potoski 2003)</a>.</p>
+<p><br>
+However, outside of a voluminous literature on actual fiscal crises, the role of fiscal constraints in shaping service provision management during a crisis has not been extensively considered. Financial barriers and fiscal constraints are recognized as a key factor in local government’s <em>disaster response</em> <a href="https://paperpile.com/c/kCIXNA/N7AB+pcKj/?prefix=e.g.%2C,">(e.g., Hildreth 2009; Simo and Bies 2007)</a>, but disaster response and <em>crisis management</em> are different concepts. Crisis management is defined as “ a systematic attempt by organizational members… to avert crises or to effectively manage those that do occur” <a href="https://paperpile.com/c/kCIXNA/F0wc/?locator=68">(Pearson and Clair 1998, 68)</a>. That is, crisis management encompasses not just post-disaster response but also the decisions public managers make to recognize, assess, and respond to emerging problems <a href="https://paperpile.com/c/kCIXNA/Cwsc">(Boin et al. 2016)</a>. In the case of drought, for instance, crisis management thus refers not just to what utilities do when water runs out but also how they respond to dwindling supplies and potential shortfalls.</p>
+<p><br>
+We expect that the role of fiscal capacity in shaping crisis management decisions is particularly pronounced for service delivery tasks such as drinking water provision, which has highly specialized and capital-intensive infrastructure requirements <a href="https://paperpile.com/c/kCIXNA/kR0Qi">(Mullin 2009)</a>. Drinking water providers rely on a combination of tax revenue, service fees, and debt issuance to fund ongoing operations and maintenance and finance new capital projects. When revenues are tied to water consumption, as is common with a user-fees and charges revenue model, then conservation policies adopted during a drought or other supply crisis that reduce money coming can come into conflict with a provider’s need to fund service provision and pay off creditors. Thus, we hypothesize that providers with lower, or more strained, fiscal capacity will be slower and less likely to adopt water use restrictions that reduce revenue; conversely, utilities with higher fiscal capacity will be better positioned to be more risk averse in crisis management and adopt water use restrictions more quickly, all else equal.</p>
+</section>
+<section id="case-background" class="level1">
+<h1><strong>3. CASE BACKGROUND</strong></h1>
+<p>We test the link between fiscal capacity and crisis management behavior using public water restriction notices and yearly financial records obtained for special water districts in Texas from 2010 to 2025. Special water districts in Texas offer several advantages for testing the relationship between financial capacity and water restrictions. First, district-level water service provision in Texas is highly fragmented, producing a large sample size. Over the 2010- 2025 observation period, we observe 632 special water districts acting as retail drinking water suppliers.<br>
+Second, the simpler administrative structure of special water districts, relative to city-owned water utilities nested within a general purpose government, offers a cleaner financial comparison. General-purpose local governments typically set up their water utilities as independent proprietary funds, but during emergencies they may be able to transfer general funds to the water utility fund. The fungibility of general funds make organizational debt levels and fiscal capacity difficult to compare across all government types. Cities also have more complex debt service obligations, some of which may fall under the water utility fund and some which may not.</p>
+<p><br>
+Third, special water districts are highly active in credit markets. In the early 20th century, the Texas Constitution authorized a variety of water districts to have unlimited bond indebtedness to meet demand through a variety of services such as supply, storage, and water quality improvement for agricultural lands, new developments, and industry <a href="https://paperpile.com/c/kCIXNA/hXnyr+x1ePr">(Allen and Oliver 2009; TCEQ 2018)</a>. The Texas Water Development Board (TWDB) has also offered grants and loans for ongoing development of water infrastructure and for water-quality improvement <a href="https://paperpile.com/c/kCIXNA/DErvu">(TWDB 2018b)</a>. For example, the 2013 State Water Implementation Fund for Texas (SWIFT) and the 2001 State Water Implementation Revenue Fund for Texas (SWIRFT) provide communities with low-interest loans, extended repayment terms, deferral of loan repayments, and incremental repurchase terms for projects with state ownership <a href="https://paperpile.com/c/kCIXNA/mayM">(TWDB 2018c)</a>. Authorized by the SDWA, the Drinking Water State Revolving Fund (DWSRF) Loan Program offers assistance to water utilities that need to respond to unanticipated, drought-related reduction in adequate water supply <a href="https://paperpile.com/c/kCIXNA/8HPn4">(TWDB 2018a)</a>. Further, the Texas Water Development Fund provides loans to water suppliers for efforts to improve aspects relating to water supply, such as conservation and water quality enhancement <a href="https://paperpile.com/c/kCIXNA/mayM">(TWDB 2018c)</a>.</p>
+<p><br>
+Fourth, water providers in Texas frequently have to manage drought-driven water supply crises. In light of this persistent threat, the TWDB requires all community water systems to develop a drought contingency plan (DCP). A DCP identifies key indicators used to monitor drought and related water availability threats, benchmarks used to set system status, and steps that will be taken under different status designations. Retail water systems with more than 3,300 connections are required to submit their plan to the TCEQ for review; retail water systems with fewer than 3,300 service connections are required to prepare and adopt a DCP, but only need to provide the plan to the TCEQ upon request <a href="https://paperpile.com/c/kCIXNA/9wAXh">(TCEQ 2019a)</a>. When droughts hit and trigger a response stage, retail water suppliers must report DCP implementation within five business days of enactment <a href="https://paperpile.com/c/kCIXNA/hJHlz">(TCEQ 2000)</a>. These restrictions can be voluntary (asking customers to limit water use) or mandatory, with obligatory restrictions falling into three categories: mild (e.g., calendar restrictions on outdoor watering), moderate (e.g., only handheld outdoor water usage), or severe (e.g., all outdoor water usage prohibited).</p>
+</section>
+<section id="methods-and-materials" class="level1">
+<h1><strong>4. METHODS AND MATERIALS</strong></h1>
+<section id="sample-special-water-districts-in-texas" class="level2">
+<h2 class="anchored" data-anchor-id="sample-special-water-districts-in-texas"><strong>4.1 Sample: Special Water Districts in Texas</strong></h2>
+<p>There are many different types of special water districts in Texas. Water district types that we include in our focal sample are municipal utility districts (MUD), water control and improvement districts (WCID), special utility districts (SUD); fresh water supply districts (FWSD).<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> While there are other classifications of water districts in Texas that sometimes operate as retail water providers, MUDs, SUDSs, WCIDs, and FWSDs are the most common and have similar institutional characteristics.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> Because these special districts generally operate at a neighborhood scale and almost always act as a drinking water provider in communities they serve, these units present a strong alignment between the community water system under regulation and the overarching institution responsible for financing and operations. Likewise, these districts generally share a consistent administrative leadership structure. The Texas Water Code requires each district to be governed by a board of directors. While there are certain limited circumstances where directors can be appointed (e..g, newly formed districts, vacancies), generally district residents directly elect board members (Texas Water Code § 49.051). Given the purpose of this analysis, this consistent administrative structure is useful for holding political incentives (roughly) constant and delving into the role of fiscal capacity. Thus, although the role of administrative structure (e.g., between municipalities, special districts, and private operators) in shaping crisis response is an important ongoing research agenda in its own right, we test hypotheses concerning water districts that differ in economic fortunes but which generally share a similar administrative design. Further, to account for potential unobserved differences between MUDs, WCIDs, SUDs, and FWSDs, we additionally use fixed effects for district type in all models.</p>
+<p><br>
+Counting the total population of community water systems (CWS)<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> in Texas is a fluid number–over time systems activate and deactivate, consolidate with or split from other CWSs, and move into different regulatory categories. For our analysis, we focus on CWSs that fit four criteria: (1) owned by a municipal utility district (MUD), water control and improvement district (WCID), special utility district (SUD); or fresh water supply district (FWSD); (2) active through the entirety of the observation period January 1, 2010 to December 31, 2025; (3) GIS data available showing service territory extent, which is necessary to compute demographic profiles and related data for each system; (4) an observed financial audit within two years prior to the start of the drought period. We identify 632 special water districts<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a> that fit these criteria (Table 1), administering 662 community water systems in total. Additionally, for fitting a global model that generates priors for the district-specific models, we draw upon a broader sample of 3,648 CWSs of all ownership types that were active during the observation period and for which service-territory GIS data are available.</p>
+<p><em>Table 1: Comparison of counts and data availability between sample frame and total population of community water system in Texas</em></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Sample</th>
+<th># in sample</th>
+<th># of adopters in sample (% of sample)</th>
+<th>Water use restrictions</th>
+<th>Operations data</th>
+<th>Debt data</th>
+<th>Budget data</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">All community water systems in Texas</td>
+<td>3,648</td>
+<td>[–]</td>
+<td>x</td>
+<td>x</td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Special Water Districts (MUDs, FWSDs, SUDs, WCIDs)<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a></td>
+<td>632</td>
+<td>31% of districts</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="outcome-measure-mandatory-water-use-restrictions" class="level2">
+<h2 class="anchored" data-anchor-id="outcome-measure-mandatory-water-use-restrictions"><strong>4.2 Outcome Measure: Mandatory Water Use Restrictions</strong></h2>
+<p>The core outcome measure used in this analysis is CWS’ adoption of mandatory water use restrictions in response to drought. DCPs can also involve other interventions aside from mandatory restrictions, such as encouraging conservation with pricing strategies such as drought-specific surcharges. However, while drought pricing strategies represent an additional conservation measure that may be used in conjunction with mandatory restrictions, there are several additional factors that affect pricing-based curtailment including the rate structure (as opposed to level), rate awareness, and metering details <a href="https://paperpile.com/c/kCIXNA/U9QE">(Tiger, Hughes, and Eskaf 2014)</a>. Moreover, the Public Utility Commission of Texas plays a role in approving retail water rates, meaning that individual providers do not always have full control of this mechanism.<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a> Restriction notice data were combined from several records: a historical spreadsheet provided by TWDB, webscraping archived versions of TWDB’s old drought notice postings webpage from the Internet Archive, and webscraping the modern TWDB drought notice page (<a href="https://www.tceq.texas.gov/drinkingwater/trot/droughtw.html" class="uri">https://www.tceq.texas.gov/drinkingwater/trot/droughtw.html</a>).<br>
+We observe when a CWS notifies TWDB of a new restriction issuance, but not when a given restriction is rescinded. Some water districts adopted restrictions multiple times within the observation period. We treat each new mandatory restriction notice as a new restriction, and thus model restriction adoption by CWSs as a repeated events model. Across the 632 districts in the sample, 31% adopt at least one restriction during the observation period and 15% adopt at least two restrictions; the maximum number of restrictions adopted is 18.</p>
+</section>
+<section id="crisis-measure-drought-conditions" class="level2">
+<h2 class="anchored" data-anchor-id="crisis-measure-drought-conditions"><strong>4.3 Crisis Measure: Drought Conditions</strong></h2>
+<p>The ~15 year observation period encompasses three water supply periods: (1) a severe drought lasting from mid 2010 to mid 2015 <a href="https://paperpile.com/c/kCIXNA/XWFs/?prefix=see">(see NIDIS 2019)</a>; (2) a period of normal precipitation from mid 2015 to mid 2021; and (3) a second severe drought period from mid-2021 to mid-2025 (we extend the modeling to the end of 2025). The US National Drought Mitigation Center’s (NDMC) Drought Severity and Coverage Index (DSCI) <a href="https://paperpile.com/c/kCIXNA/EhikS">(NDMC 2019)</a> categorizes drought conditions by county into five categories: ‘abnormally dry’ (D0), found at the onset or end of a drought) and four stages of actual drought ranging from prospective water shortages (D1) to a water shortage emergency (D4). These values are converted into a DSCI severity score where the percentage of area in each level is multiplied by 1 (D0), 2 (D1), 3 (D2), 4 (D3) or 5 (D4) and the values are summed. The lowest possible value is 0 (0% area in drought) and the highest possible value is 500 (100% area in D4 level drought).<br>
+Not all water use restrictions are issued for drought response. For instance, a utility might experience equipment failure or source contamination that warrants a temporary restriction. But comparing the frequency distribution of restriction notices to changing DSCI severity measures demonstrates a correspondence between restriction notices and drought conditions (Figure 1). Panel A in Figure 1 shows the average weekly DSCI by water district in the sample; Panel B shows the adoption of water use restrictions by the sampled water districts over this same time period. <img src="../output/figure1.png" id="fig-drought" class="img-fluid" alt="Weekly DSCI and restriction adoption in Texas, 2010-2025"> <em>Figure 1. Weekly Measures of the Drought Severity and Coverage Index in Texas, 2010-2025</em></p>
+</section>
+<section id="section" class="level2">
+<h2 class="anchored" data-anchor-id="section"></h2>
+</section>
+<section id="explanatory-variables-fiscal-capacity-measures" class="level2">
+<h2 class="anchored" data-anchor-id="explanatory-variables-fiscal-capacity-measures"><strong>4.4 Explanatory Variables: Fiscal Capacity Measures</strong></h2>
+<p>The concept of fiscal capacity has been operationalized in the literature using many different financial measures (Levine et al.&nbsp;2012). Central to the definitional challenge are the tradeoffs that occur between revenue and expenditure decisions along with the intertemporal shifting of those tradeoffs by issuing debt. In the water district context this means tradeoffs between delivering water services (service-level) to customers while maintaining cash on hand for operations (short-term) and making debt payments (long-term solvency). We focus on three core fiscal capacity measures: (1) debt per-connection; (2) revenue per-connection;<a href="#fn9" class="footnote-ref" id="fnref9" role="doc-noteref"><sup>9</sup></a> (3) fund balance (i.e., cash on hand) per-connection. If a provider is over-leveraged with a high level of debt outstanding, has less of a revenue cushion, or has fewer funds on hand that can be a short-term substitute for temporary cut-backs, water use restrictions that cut back on revenues can impact short-term or long-term solvency.<a href="#fn10" class="footnote-ref" id="fnref10" role="doc-noteref"><sup>10</sup></a><br>
+Texas water districts are required to file an annual financial audit report with the TCEQ that details basic financial attributes–namely, revenue, expenditures, and assets.<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a> A separate agency, the Texas Bond Review Board (TBRB), maintains bond debt records for all public entities in the state. Because utilities have access to different revenue sources, we measure debt by pledge type as two separate variables: general-obligation (tax-backed) debt and revenue-backed debt. TBRB does not record data using the same district identification codes as TCEQ. We match debt records to the other data sources using string matching to district names, combined with a good deal of hand cleaning to make the names match appropriately. We exclude districts that are not able to be matched to audit data.<br>
+To account for both the wide-tailed distribution of financial values (e.g., some districts have a lot of debt) and the presence of zero (no debt) or negative (negative fund balance) values in the data, we apply an inverse hyperbolic sine (IHS) transformation to these variables <a href="https://paperpile.com/c/kCIXNA/nqsM">(Burbidge et al.&nbsp;1988)</a>. The IHS transformation approximates a logarithmic transformation, but does not perform identically. When using the IHS transformation for explanatory variables, elasticity estimates can differ (versus logarithmic transformation) but nonetheless produce substantively consistent results–for large positive values the differences between the two are negligible <a href="https://paperpile.com/c/kCIXNA/7hzT">(Bellemare and Wichman 2019)</a>. Thus, we compute financial ratios in raw dollar amounts rather than first scaling into thousands or millions.<a href="#fn12" class="footnote-ref" id="fnref12" role="doc-noteref"><sup>12</sup></a></p>
+</section>
+<section id="control-variables" class="level2">
+<h2 class="anchored" data-anchor-id="control-variables"><strong>4.5 Control Variables</strong></h2>
+<p>We control for system characteristics such as size, water source type, storage and production systems, and service context impact drought response <a href="https://paperpile.com/c/kCIXNA/ioyIM">(Mullin and Rubado 2017)</a>. As a measure of utility size, we use the number of service connections a system has; a service connection is a home or business to which the utility provides water services.<a href="#fn13" class="footnote-ref" id="fnref13" role="doc-noteref"><sup>13</sup></a> Residential water use is shown to differ by home value (in reflection of lot and building size) and structure age <a href="https://paperpile.com/c/kCIXNA/wd6W+Gyj0+ClVe">(Hogue and Pincetl 2014; Quesnel et al.&nbsp;2020; Chang et al. 2017)</a><a href="#fn14" class="footnote-ref" id="fnref14" role="doc-noteref"><sup>14</sup></a> so we further control for median home value and median structure age within each district using American Community Survey (ACS) census tract data overlaid on district boundaries.<a href="#fn15" class="footnote-ref" id="fnref15" role="doc-noteref"><sup>15</sup></a> We then control for a set of attributes reflecting how each district sources its water: binary indicators for primary reliance on surface water or groundwater (<em>primary_surface_water</em>), whether a system sells water to other systems (<em>wholesaler</em>), and purchases its primary source water (<em>primary_purchaser</em>). Further, we control for each system’s water storage capacity, standardized into a gallons-per-connection measure (<em>storage_per_ connection_g</em>), whether the CWS has an emergency interconnection with another CWS–both measures of reserve water capacity.<a href="#fn16" class="footnote-ref" id="fnref16" role="doc-noteref"><sup>16</sup></a> Finally, since districts are governed by elected boards, we control for local political environment using Democratic Party vote share % in the most recent prior U.S. House of Representatives district election (again overlaying water district and house district boundaries) (<em>Dem._vote_share_%</em>). The explanatory and control variables, summarized at the level of district-week observations and prior to IHS transformations, are shown in Table 2; corresponding summary statistics for the full statewide sample of community water systems used in the global model are reported in Appendix B (Table B2):<br>
+<em>Table 2: Summary statistics for model predictors and outcome variable, water-district sample</em><a href="#fn17" class="footnote-ref" id="fnref17" role="doc-noteref"><sup>17</sup></a></p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 24%">
+<col style="width: 8%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 7%">
+<col style="width: 4%">
+<col style="width: 6%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Group</th>
+<th style="text-align: left;">Variable</th>
+<th style="text-align: left;">Unit</th>
+<th style="text-align: right;">N</th>
+<th style="text-align: right;">Mean</th>
+<th style="text-align: right;">SD</th>
+<th style="text-align: right;">Min</th>
+<th style="text-align: right;">Median</th>
+<th style="text-align: right;">Max</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Outcome &amp; drought (system-week)</td>
+<td style="text-align: left;">Mandatory restriction (event)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Outcome &amp; drought (system-week)</td>
+<td style="text-align: left;">Drought severity (DSCI/100)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">0.97</td>
+<td style="text-align: right;">1.36</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.19</td>
+<td style="text-align: right;">5.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Log connections</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">7.02</td>
+<td style="text-align: right;">1.18</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">7.20</td>
+<td style="text-align: right;">11.55</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Storage per connection (asinh gal)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">662</td>
+<td style="text-align: right;">6.86</td>
+<td style="text-align: right;">0.73</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">6.83</td>
+<td style="text-align: right;">13.81</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Surface water (vs ground)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">662</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.49</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Purchases water (primary)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">662</td>
+<td style="text-align: right;">0.35</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Emergency source/interconnect</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">662</td>
+<td style="text-align: right;">0.57</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Wholesaler (sells water)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">662</td>
+<td style="text-align: right;">0.63</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Log median home value</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">11.96</td>
+<td style="text-align: right;">0.47</td>
+<td style="text-align: right;">10.29</td>
+<td style="text-align: right;">11.95</td>
+<td style="text-align: right;">14.37</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Median structure age (yrs)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">26.53</td>
+<td style="text-align: right;">9.55</td>
+<td style="text-align: right;">6.00</td>
+<td style="text-align: right;">26.43</td>
+<td style="text-align: right;">71.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">% Dem. vote share</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">39.17</td>
+<td style="text-align: right;">20.70</td>
+<td style="text-align: right;">4.49</td>
+<td style="text-align: right;">36.03</td>
+<td style="text-align: right;">95.40</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Fiscal (district subsample, system-week)</td>
+<td style="text-align: left;">GO (tax) debt per connection (<span class="math inline">\()   |system-week | 417,745| 19,317.67| 129,848.20|  0.00| 4,061.35| 4,331,666.67|
+|Fiscal (district subsample, system-week) |Revenue debt per connection (\)</span>)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">417,745</td>
+<td style="text-align: right;">571.53</td>
+<td style="text-align: right;">5,706.11</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">194,445.80</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Fiscal (district subsample, system-week)</td>
+<td style="text-align: left;">Fund balance per connection (<span class="math inline">\()    |system-week | 469,690|  2,932.80|  11,620.99|  0.00| 1,416.04|   361,333.83|
+|Fiscal (district subsample, system-week) |Revenue per connection (\)</span>)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">469,690</td>
+<td style="text-align: right;">2,827.60</td>
+<td style="text-align: right;">13,335.78</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1,327.69</td>
+<td style="text-align: right;">541,659.98</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="model" class="level2">
+<h2 class="anchored" data-anchor-id="model"><strong>4.6 Model</strong></h2>
+<p>We treat the outcome measure–mandatory restriction adoption–as a repeated event potentially occurring on a weekly basis (corresponding to weekly drought records) from 2010 through 2025. We use a Cox proportional hazards modeling framework with time varying data including drought conditions and financial indicators <a href="https://paperpile.com/c/kCIXNA/7Y2MM">(Therneau and Grambsch 2013)</a>.<a href="#fn18" class="footnote-ref" id="fnref18" role="doc-noteref"><sup>18</sup></a> Weekly observations are clustered at the district level, entering the model as an independent (iid) Gaussian random effect, or <em>frailty</em>. We do not include an explicit spatial smoother or a county-level term—the drought covariate absorbs the core spatial variation across the state. A district-week observation is coded as having a restriction adoption event if TCEQ received notification during that week, right inclusive. Restriction adoption is then regressed on the variables described above. The explanatory fiscal variables and control variables are assigned to weekly district observations based upon last observed status at the start of the time period. For instance, <em>debt-per-service connection</em> is the ratio of debt to service connections observed in the most recently submitted financial audit <em>prior</em> to a given week (limited to a two-year preceding window.<a href="#fn19" class="footnote-ref" id="fnref19" role="doc-noteref"><sup>19</sup></a> Finally, we also fit a lag term for restrictions adopted by the system from which the focal CWS purchases water; if a seller has adopted a restriction within the last 4 weekly periods, this variable is coded as 1 for all systems that purchase from that system, and otherwise 0.<br>
+The model itself uses Bayesian estimation, specifically the integrated nested Laplacian approximation (INLA) estimation method for hierarchical Bayesian models (<a href="http://inla.org">inla.org</a>). Model results are in the form of posterior density estimates–we show 95% credible intervals for each coefficient that span the 0.025 to 0.975 quantile values of the posterior density estimate. Unlike with a traditional confidence interval, the interpretation of a credible interval is straightforward: given the data we observe, we estimate that there is a 0.95 probability that the “actual” parameter value falls within this interval. For model priors, we start by fitting a global model, without special district fiscal records, for all CWSs in the state over the observation period. We then use the hyperparameter estimates (e.g., for the baseline hazard estimate, the district-level frailty term, and global predictors) as informative priors for the district-only model with explanatory variables of interest. For variables that do not have an informative prior (and for the initial global model), we use penalized complexity (PC) priors <a href="https://paperpile.com/c/kCIXNA/ppDd">(Martins et al. 2014)</a> that impose realistic bounds and (as the name implies) penalizes deviations from the base model (i.e., favors zero or null estimates) unless the data are strongly indicative to avoid overfitting. All modeling was conducted using the INLA package in R <a href="https://paperpile.com/c/kCIXNA/DOMKC">(Lindgren and Rue 2015)</a> and all code and materials are publicly available at the authors’ github repository LINK REDACTED.</p>
+</section>
+</section>
+<section id="results" class="level1">
+<h1><strong>5. RESULTS</strong></h1>
+<p>Before discussing the results, it is helpful to briefly review how our model results are interpreted. Each parameter estimate acts additively on the log-hazard of restriction adoption: a negative parameter indicates that adoption is less likely to occur, and a positive parameter indicates that adoption is more likely to occur. For continuous covariates that are log- or IHS-transformed, exponentiating a parameter β yields the <em>hazard ratio</em>—the predicted multiplicative change in the weekly adoption hazard associated with a one-unit change in <em>ln(x)</em> or <em>ihs(x)</em>. Figure 4 (with full tabular detail in Table 3) reports estimates for four specifications, each fit to the special-district subsample: revenue per connection alone, fund balance per connection alone, a debt model entering general-obligation (tax-backed) and revenue-backed debt per connection as separate covariates, and a joint model entering all four fiscal measures together—each alongside the full set of controls. Every specification carries the same environmental, institutional, and socio-demographic controls, and each draws informative priors on those shared effects from the global Model 1 fit estimated on the full sample of Texas community water systems (reported in Appendix B, Table B1).</p>
+<p>The environmental and operational controls behave consistently across all four specifications and largely as expected. Worsening drought conditions sharply accelerate adoption: a 100-point increase in the Drought Severity and Coverage Index multiplies the weekly adoption hazard by 1.47 (95% CrI: 1.43, 1.51). The single strongest predictor is network exposure to restriction—when the system a district purchases water from has itself adopted a restriction within the prior four weeks, the adoption hazard rises steeply (hazard ratio 5.72 (95% CrI: 5.18, 6.33)), evidence that restrictions propagate downstream through wholesale supply relationships. Larger districts adopt more quickly (log connections, 0.24 (95% CrI: 0.19, 0.28)), as do districts that rely primarily on surface water rather than groundwater (1.45 (95% CrI: 1.24, 1.67)). Conversely, districts that purchase rather than self-source their primary water supply are slower to adopt (-0.94 (95% CrI: -1.15, -0.73)). Storage capacity per connection, holding an emergency interconnection, and wholesaler status are each not credibly different from zero. Socio-demographic and political covariates exhibit limited correspondence with the adoption rate. Districts in higher-value housing markets adopt somewhat faster (log median home value, 0.99 (95% CrI: 0.84, 1.14)), whereas median structure age (0.02 (95% CrI: 0.01, 0.03)) and local Democratic vote share (-0.00 (95% CrI: -0.01, 0.00)) are not credibly different from zero.</p>
+<p>Limited differentiation by socio-demographic indicators is in keeping with the results of Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a>, whose study of ~300 medium size systems (over 3,300 service connections) of all ownership types similar finds little evidence of political economy as a driver of restriction decisions. One important difference between our findings and Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> is that we find that reliance on groundwater–as opposed to surface water–predicts a decrease in the rate of adoption for water districts in our sample. While the state of Texas has sought in recent decades to more vigorously manage groundwater reserves <a href="https://paperpile.com/c/kCIXNA/FFqWB/?prefix=e.g.%2C">(e.g., Harden 2016)</a>, groundwater usage is not strongly constrained, and the 2011-2014 drought resulted in significant groundwater depletion <a href="https://paperpile.com/c/kCIXNA/jB4yY/?prefix=e.g.%2C">(e.g., Postel 2014)</a>. Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> focus on restriction-adopting systems with &gt; 3,300 service connections, observing no difference in adoption behavior by water source type. The primary reason for the divergent results is that few systems with &gt; 3,300 service connections rely primarily on groundwater (~21% of active systems &gt; 3,300 service connections), while smaller systems rely heavily on groundwater (77% of active systems &lt; 3,300 service connections). Controlling for size and comparing across source types, it appears that groundwater sources allow districts to push the costs of drought into the future, rather than be forced to cut back in the short term.<br>
+Turning to the fiscal-capacity hypotheses of central interest, the four specifications enter revenue and fund balance each on their own, the two debt measures as separate covariates in a shared debt model, and then all four together (each alongside the full set of controls). On the log-hazard scale, the estimates are: general-obligation (tax-backed) debt per connection, -0.00 (95% CrI: -0.04, 0.04); revenue-backed debt per connection, -0.03 (95% CrI: -0.09, 0.03); fund balance per connection, -0.06 (95% CrI: -0.10, -0.01); and revenue per connection, 0.03 (95% CrI: -0.03, 0.10). In the joint model entering all four fiscal measures simultaneously, the revenue association is 0.14 (95% CrI: 0.01, 0.27). <!-- TODO (debt split, 2026-07): write the fiscal-capacity interpretation for the REFIT models. Debt is now two separate predictors -- GO / tax-backed vs revenue-backed, entered together in ONE debt model (the GO-only and REV-only fits were dropped) -- and dropping the audit BONDS-OUTSTANDING fallback plus the split changes the complete-case samples, so every fiscal estimate above is re-pulled live from output/model_estimates.csv and NO verdict is asserted here yet. The prior draft (single combined-debt spec) reported only revenue per connection as credibly nonzero, with combined debt and fund balance null; re-establish which measures are credibly associated -- and in particular whether GO and revenue-backed debt behave differently -- before restating conclusions. --> <img src="../output/model_credible_intervals.png" id="fig-results" class="img-fluid" alt="r CI_LABEL credible intervals for model linear covariates"></p>
+<p><em>Figure 4: 95% credible intervals for model linear covariates (posterior mean and 95% credible interval on the hazard-ratio scale)</em></p>
+<p><em>Table 3: Bayesian recurring-events Cox models — posterior mean and 95% credible interval (log-hazard scale), one column per model fit. Bold = 95% credible interval excludes zero; blank = term not included in that model. The bottom block reports the random-effect precision terms as standard deviations (posterior median and 95% CrI).</em></p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 19%">
+<col style="width: 19%">
+<col style="width: 19%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Term</th>
+<th style="text-align: center;">Revenue / conn.</th>
+<th style="text-align: center;">Fund bal. / conn.</th>
+<th style="text-align: center;">Debt (GO &amp; Rev.)</th>
+<th style="text-align: center;">All fiscal (joint)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Drought severity (DSCI/100)</td>
+<td style="text-align: center;"><strong>0.38</strong><br><strong>[0.35, 0.41]</strong></td>
+<td style="text-align: center;"><strong>0.38</strong><br><strong>[0.35, 0.41]</strong></td>
+<td style="text-align: center;"><strong>0.38</strong><br><strong>[0.36, 0.41]</strong></td>
+<td style="text-align: center;"><strong>0.38</strong><br><strong>[0.36, 0.41]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Seller under restriction</td>
+<td style="text-align: center;"><strong>1.75</strong><br><strong>[1.66, 1.85]</strong></td>
+<td style="text-align: center;"><strong>1.75</strong><br><strong>[1.66, 1.85]</strong></td>
+<td style="text-align: center;"><strong>1.74</strong><br><strong>[1.64, 1.84]</strong></td>
+<td style="text-align: center;"><strong>1.74</strong><br><strong>[1.64, 1.84]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Log connections</td>
+<td style="text-align: center;"><strong>0.25</strong><br><strong>[0.20, 0.29]</strong></td>
+<td style="text-align: center;"><strong>0.24</strong><br><strong>[0.20, 0.29]</strong></td>
+<td style="text-align: center;"><strong>0.24</strong><br><strong>[0.19, 0.28]</strong></td>
+<td style="text-align: center;"><strong>0.24</strong><br><strong>[0.19, 0.29]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Storage per connection (asinh gal)</td>
+<td style="text-align: center;">0.00<br>[-0.08, 0.09]</td>
+<td style="text-align: center;">0.00<br>[-0.08, 0.09]</td>
+<td style="text-align: center;">0.02<br>[-0.06, 0.11]</td>
+<td style="text-align: center;">0.03<br>[-0.06, 0.11]</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Surface water (vs ground)</td>
+<td style="text-align: center;"><strong>1.51</strong><br><strong>[1.30, 1.71]</strong></td>
+<td style="text-align: center;"><strong>1.48</strong><br><strong>[1.28, 1.69]</strong></td>
+<td style="text-align: center;"><strong>1.45</strong><br><strong>[1.24, 1.67]</strong></td>
+<td style="text-align: center;"><strong>1.45</strong><br><strong>[1.24, 1.66]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Purchases water (primary)</td>
+<td style="text-align: center;"><strong>-0.92</strong><br><strong>[-1.12, -0.71]</strong></td>
+<td style="text-align: center;"><strong>-0.91</strong><br><strong>[-1.12, -0.71]</strong></td>
+<td style="text-align: center;"><strong>-0.94</strong><br><strong>[-1.15, -0.73]</strong></td>
+<td style="text-align: center;"><strong>-0.94</strong><br><strong>[-1.15, -0.73]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Emergency source/interconnect</td>
+<td style="text-align: center;"><strong>-0.37</strong><br><strong>[-0.52, -0.22]</strong></td>
+<td style="text-align: center;"><strong>-0.35</strong><br><strong>[-0.51, -0.20]</strong></td>
+<td style="text-align: center;"><strong>-0.38</strong><br><strong>[-0.53, -0.22]</strong></td>
+<td style="text-align: center;"><strong>-0.37</strong><br><strong>[-0.53, -0.22]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Wholesaler (sells water)</td>
+<td style="text-align: center;"><strong>-0.41</strong><br><strong>[-0.57, -0.25]</strong></td>
+<td style="text-align: center;"><strong>-0.39</strong><br><strong>[-0.55, -0.23]</strong></td>
+<td style="text-align: center;"><strong>-0.41</strong><br><strong>[-0.57, -0.24]</strong></td>
+<td style="text-align: center;"><strong>-0.40</strong><br><strong>[-0.56, -0.23]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Log median home value</td>
+<td style="text-align: center;"><strong>0.96</strong><br><strong>[0.82, 1.11]</strong></td>
+<td style="text-align: center;"><strong>0.99</strong><br><strong>[0.84, 1.14]</strong></td>
+<td style="text-align: center;"><strong>0.99</strong><br><strong>[0.84, 1.14]</strong></td>
+<td style="text-align: center;"><strong>0.99</strong><br><strong>[0.84, 1.14]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Median structure age (yrs)</td>
+<td style="text-align: center;"><strong>0.02</strong><br><strong>[0.01, 0.02]</strong></td>
+<td style="text-align: center;"><strong>0.02</strong><br><strong>[0.01, 0.02]</strong></td>
+<td style="text-align: center;"><strong>0.02</strong><br><strong>[0.01, 0.03]</strong></td>
+<td style="text-align: center;"><strong>0.02</strong><br><strong>[0.01, 0.03]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">% Dem. vote share</td>
+<td style="text-align: center;">-0.00<br>[-0.01, 0.00]</td>
+<td style="text-align: center;">-0.00<br>[-0.00, 0.00]</td>
+<td style="text-align: center;">-0.00<br>[-0.01, 0.00]</td>
+<td style="text-align: center;">-0.00<br>[-0.01, 0.00]</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Revenue per connection (asinh)</td>
+<td style="text-align: center;">0.03<br>[-0.03, 0.10]</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"><strong>0.14</strong><br><strong>[0.01, 0.27]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Fund balance per connection (asinh)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"><strong>-0.06</strong><br><strong>[-0.10, -0.01]</strong></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">-0.07<br>[-0.14, 0.00]</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">GO (tax) debt per connection (asinh)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">-0.00<br>[-0.04, 0.04]</td>
+<td style="text-align: center;">0.01<br>[-0.03, 0.05]</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Revenue debt per connection (asinh)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">-0.03<br>[-0.09, 0.03]</td>
+<td style="text-align: center;">-0.03<br>[-0.09, 0.03]</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Random effects (posterior SD)</strong></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Frailty SD (district/system)</td>
+<td style="text-align: center;">1.41<br>[1.34, 1.48]</td>
+<td style="text-align: center;">1.40<br>[1.33, 1.48]</td>
+<td style="text-align: center;">1.41<br>[1.34, 1.49]</td>
+<td style="text-align: center;">1.41<br>[1.34, 1.49]</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Baseline-hazard SD (RW1)</td>
+<td style="text-align: center;">2.76<br>[2.21, 3.44]</td>
+<td style="text-align: center;">2.76<br>[2.22, 3.44]</td>
+<td style="text-align: center;">2.73<br>[2.18, 3.42]</td>
+<td style="text-align: center;">2.73<br>[2.18, 3.42]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="discussion-and-conclusion" class="level1">
+<h1><strong>6. DISCUSSION AND CONCLUSION</strong></h1>
+<p>This paper analyzes how fiscal capacity influences how water supply districts in Texas have responded to severe drought in recent years. Our findings suggest that whereas most political-economic indicators have ambivalent relationships with water-restriction adoption, one dimension of fiscal capacity is credibly related to how quickly suppliers act. Districts with greater revenue per connection adopt mandatory water-use restrictions more rapidly, even after controlling for system infrastructure, service demographics, and unobserved district heterogeneity. <!-- STALE (debt split, 2026-07): the fiscal verdict below predates splitting debt into GO / tax-backed vs revenue-backed and dropping the audit BONDS-OUTSTANDING fallback; refit and rewrite before restating -- in particular, "leverage" is now two measures whose effects may differ.
+By contrast, we find no credible relationship between the pace of adoption and either debt or fund balance per connection. These results provide partial support for the argument that fiscal capacity shapes emergency response, while suggesting that it is the revenue side of the ledger—the resources most immediately curtailed by a conservation-driven demand reduction—rather than leverage or liquidity that most clearly conditions crisis-management behavior.
+--> Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> show that physical capacity such as storage and system interconnections are key predictors of drought response behavior and likely hem in politically minded choice-making. While the idea that having a financial cushion and fiscal flexibility enables more proactive crisis response–or conversely, that having more limited revenue and significant debt obligations shapes managerial choices–is intuitive, the results found in this study provide evidence to support this argument and cast light on the importance of fiscal capacity in shaping provider behavior. Going forward, a more detailed study of revenue-generating activities of water districts, including their use of property taxes and strategies for revenue diversification, could enable a more detailed perspective.<br>
+These findings complement and extend upon recent work focusing specifically on the political economy of drought response by painting a more nuanced picture of hazard response by public service providers. Since all units in this analysis are public water districts, one additional consideration not addressed is the differential pressures that public providers face relative to private sector counterparts. Namely, Teodoro et al. <a href="https://paperpile.com/c/kCIXNA/HiQr/?noauthor=1">(2018)</a> find evidence that privatized systems are better able to exert water usage cutbacks during droughts, theorizing in turn that management decisions by public water agencies are influenced by a desire to mitigate political blowback.<br>
+In a larger context of service delivery from public vs.&nbsp;private entities, Konisky and Teodoro <a href="https://paperpile.com/c/kCIXNA/Z2h3/?noauthor=1">(2016)</a> show that higher level governments (i.e., state regulators) exercise firmer control and tolerate less laxness in regulating private entities relative to public operators. In the context of our analysis, both factors likely indicate that public water districts are likely less prone overall to adopting usage restrictions. First, because adopting restrictions will incur political blowback private operators do not face <a href="https://paperpile.com/c/kCIXNA/HiQr">(Teodoro, Zhang, and Switzer 2018)</a>, and second because public providers perhaps have more leeway in skirting state regulator guidance, groundwater pumping restrictions, and other institutional mandates <a href="https://paperpile.com/c/kCIXNA/Z2h3">(Konisky and Teodoro 2016)</a>. One interesting question for future work in this regard is the “publicness” <a href="https://paperpile.com/c/kCIXNA/1mSD+SWHu">(Bozeman and Bretschneider 1994; Moulton 2009)</a> of special water districts. Given that MUDs, for instance, are developer initiated and often operate at a neighborhood scale <a href="https://paperpile.com/c/kCIXNA/aqRl">(Galvan 2006)</a>, political incentives and state oversight likely function a bit differently than in the context of municipalities or other large-scale providers.<br>
+Finally, although the focus of this study has been on special districts that have a limited scale and scope of operations, the financial challenges of crisis management are by no means unique to these organizations. Citizens and politicians expect public services to be delivered efficiently, equally, and with regularity, demands which make it difficult for providers to also be flexible and adaptive <a href="https://paperpile.com/c/kCIXNA/yjVvh">(Duit 2016)</a>. This challenge is particularly pronounced for critical infrastructure tasks. For instance, water providers are expected to provide safe water on demand, which requires consistent, high levels of investment in operations and maintenance. This investment creates financial obligations and a need for regular revenue generation, which can in turn make it difficult to pivot or adapt in the face of a variety of challenges.<br>
+The ability of public organizations to respond in times of crises is an important component of public administration, and this is especially true in the context of core public services such as water management. The evidence presented above that debt service obligations influence the decision to introduce mandatory water restrictions demonstrates a link between debt management and core public service delivery. Given that both debt management and water provision are complex public management decisions that have political consequences, these findings provide managers with evidence that fiscal capacity is an important component of making organizations resilient to crises. If local managers want to avoid the political challenging situation of introducing mandatory water restrictions, they should consider the long-term fiscal health of their organizations.<br>
+While we show that fiscal capacity is a key factor in how water districts respond to drought, this case just one instance of the countless risks and hazards to which political leaders and public administrators must respond. We expect that our findings are most readily generalizable to other smaller scale, limited service providers in capital intensive sectors. States such as Colorado and Florida also make use of special districts as development vehicles <a href="https://paperpile.com/c/kCIXNA/MKFe+Fdt0">(Scutelnicu 2014; Carter, Deslatte, and Scott 2018)</a>. Similar to districts in Texas, these districts typically operate at a neighborhood-type scale and rely upon property taxes and/or service revenue to pay of capital investments <a href="https://paperpile.com/c/kCIXNA/Fdt0">(Carter, Deslatte, and Scott 2018)</a>. In contrast, larger municipal water systems (the City of Houston provides water to 2.2 million people while the largest service population in our sample of special water districts is around 110,826 <a href="https://paperpile.com/c/kCIXNA/ryyH">(EPA 2018)</a>) also have access to more complex fund structures and additional revenue streams. Future work to understand how fiscal capacity influences crisis management for larger scale providers (both large, general purpose municipal governments and regional-scale public and private entities common in energy services <a href="https://paperpile.com/c/kCIXNA/BNw2+BThG/?prefix=e.g.%2C,">(e.g., DHS 2019b, [a] 2019)</a>) will help to develop cross-scale and cross-service implications.</p>
+</section>
+<section id="references" class="level1">
+<h1><strong>7. REFERENCES</strong></h1>
+<p><a href="http://paperpile.com/b/kCIXNA/dxAb">Allard, Scott W. 2008. <em>Out of Reach: Place, Poverty, and the New American Welfare State</em>. New Haven, CT: Yale University Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/hXnyr">Allen, Joe B., and D. Oliver. 2009. “Texas Municipal Utility Districts: An Infrastructure Financing System.” Vol. 13. Allen Boone Humphreys LLP.</a> <a href="http://www.performanceurbanplanning.com/files/MUDInfrastructureFinancingSystem.pdf" class="uri">http://www.performanceurbanplanning.com/files/MUDInfrastructureFinancingSystem.pdf</a><a href="http://paperpile.com/b/kCIXNA/hXnyr">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/21t5O">Beecher, Janice A. 2010. “The Conservation Conundrum: How Declining Demand Affects Water Utilities.” <em>Journal - American Water Works Association</em> 102 (2): 78–80.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/AJSVk">Besag, Julian, Jeremy York, and Annie Mollié. 1991. “Bayesian Image Restoration, with Two Applications in Spatial Statistics.” <em>Annals of the Institute of Statistical Mathematics</em> 43 (1): 1–20.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/x7PZN">Blangiardo, Marta, and Michela Cameletti. 2015. <em>Spatial and Spatio-Temporal Bayesian Models with R-INLA</em>. Hoboken, NJ: Wiley.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/WDY9">Boin, Arjen, and Michel J. G. van Eeten. 2013. “The Resilient Organization.” <em>Public Management Review</em> 15 (3): 429–45.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/Cwsc">Boin, Arjen, Paul ‘t Hart, Eric Stern, and Bengt Sundelius. 2016. <em>The Politics of Crisis Management: Public Leadership under Pressure</em>. Cambridge University Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/Nsrrp">Box-Steffensmeier, J. M., and B. S. Jones. 2004. <em>Event History Modeling: A Guide for Social Scientists</em>. New York, NY: Cambridge University Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/1mSD">Bozeman, Barry, and Stuart Bretschneider. 1994. “The ‘Publicness Puzzle’ in Organization Theory: A Test of Alternative Explanations of Differences between Public and Private Organizations.” <em>Journal of Public Administration Research and Theory</em> 4 (2): 197–224.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/OsIy">Brewer, Gene A. 2003. “Building Social Capital: Civic Attitudes and Behavior of Public Servants.” <em>Journal of Public Administration Research and Theory</em> 13 (1): 5–26.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/vItT">Brown, Trevor L., and Matthew Potoski. 2003. “Transaction Costs and Institutional Explanations for Government Service Production Decisions.” <em>Journal of Public Administration Research and Theory</em> 13 (4): 441–68.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/iUvN">Bullock, Justin B., Robert A. Greer, and Laurence J. O’Toole. 2019. “Managing Risks in Public Organizations: A Conceptual Foundation and Research Agenda.” <em>Perspectives on Public Management and Governance</em> 2 (1): 75–87.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/YnigS">Capeci, John. 1991. “Credit Risk, Credit Ratings, and Municipal Bond Yields: A Panel Study.” <em>National Tax Journal</em> 44 (4): 41–56.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/GxiG">Carr, Jered B. 2006. “Local Government Autonomy and State Reliance on Special District Governments: A Reassessment.” <em>Political Research Quarterly</em> 59 (3): 481–92.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/Fdt0">Carter, David P., Aaron Deslatte, and Tyler A. Scott. 2018. “The Formation and Administration of Multipurpose Development Districts: Private Interests Through Public Institutions.” <em>Perspectives on Public Management and Governance</em> 2 (1): 57–74.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/vUIzc">“Climate Prediction Center - Monitoring &amp; Data: Drought Monitoring.” 2019. 2019.</a> <a href="https://www.cpc.ncep.noaa.gov/products/monitoring_and_data/drought.shtml" class="uri">https://www.cpc.ncep.noaa.gov/products/monitoring_and_data/drought.shtml</a><a href="http://paperpile.com/b/kCIXNA/vUIzc">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/qOF8">Comfort, L. K. 2005. “Risk, Security, and Disaster Management.” <em>Annu. Rev.&nbsp;Polit. Sci.</em></a> <a href="https://www.annualreviews.org/doi/abs/10.1146/annurev.polisci.8.081404.075608" class="uri">https://www.annualreviews.org/doi/abs/10.1146/annurev.polisci.8.081404.075608</a><a href="http://paperpile.com/b/kCIXNA/qOF8">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/BThG">DHS. 2019a. “Electric Retail Service Territories.” <em>Homeland Infrastructure Foundation-Level Data (HIFLD)</em>.</a> <a href="https://hifld-geoplatform.opendata.arcgis.com/datasets/c4fd0b01c2544a2f83440dab292f0980_0" class="uri">https://hifld-geoplatform.opendata.arcgis.com/datasets/c4fd0b01c2544a2f83440dab292f0980_0</a><a href="http://paperpile.com/b/kCIXNA/BThG">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/BNw2">———. 2019b. “Natural Gas Service Territories.” <em>Homeland Infrastructure Foundation-Level Data (HIFLD)</em>.</a> <a href="https://hifld-geoplatform.opendata.arcgis.com/datasets/natural-gas-service-territories" class="uri">https://hifld-geoplatform.opendata.arcgis.com/datasets/natural-gas-service-territories</a><a href="http://paperpile.com/b/kCIXNA/BNw2">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/CB6k">Downs, George W., and David M. Rocke. 1984. “Theories of Budgetary Decisionmaking and Revenue Decline.” <em>Policy Sciences</em> 16 (4): 329–47.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/yjVvh">Duit, Andreas. 2016. “Resilience Thinking: Lessons for Public Administration.” <em>Public Administration</em> 94 (2): 364–80.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/nNqY">Eger, Robert J. 2006. “Casting Light on Shadow Government: A Typological Approach.” <em>Journal of Public Administration Research and Theory</em> 16 (1): 125–37.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/ryyH">EPA. 2018. “Safe Drinking Water Information System (SDWIS).”</a> <a href="https://www3.epa.gov/enviro/facts/sdwis/search.html" class="uri">https://www3.epa.gov/enviro/facts/sdwis/search.html</a><a href="http://paperpile.com/b/kCIXNA/ryyH">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/aqRl">Galvan, Sara C. 2006. “Wrestling with MUDs to Pin down the Truth about Special Districts.” <em>Fordham Law Review</em> 75: 3041–80.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/tdtx2">Gelman, Andrew, and Jennifer Hill. 2006. <em>Data Analysis Using Regression and Multilevel/Hierarchical Models</em>. New York, NY: Cambridge University Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/2Rx1">Hallegatte, Stéphane, and Jun Rentschler. 2015. “Risk Management for development—Assessing Obstacles and Prioritizing Action.” <em>Risk Analysis: An Official Publication of the Society for Risk Analysis</em> 35 (2): 193–210.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/FFqWB">Harden, John D. 2016. “For Years, the Houston Area Has Been Losing Ground.” <em>Houston Chronicle</em>, May 28, 2016.</a> <a href="http://www.houstonchronicle.com/news/houston-texas/houston/article/For-years-the-Houston-area-has-been-losing-ground-7951625.php" class="uri">http://www.houstonchronicle.com/news/houston-texas/houston/article/For-years-the-Houston-area-has-been-losing-ground-7951625.php</a><a href="http://paperpile.com/b/kCIXNA/FFqWB">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/bceFo">Hastie, Trevor, and R. Tibshirani. 2004. “Generalized Additive Models.” In <em>Encyclopedia of Statistical Sciences</em>. Hoboken, NJ: Wiley.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/KC1H2">Held, Leonhard, Birgit Schrödle, and Håvard Rue. 2010. “Posterior and Cross-Validatory Predictive Checks: A Comparison of MCMC and INLA.” In <em>Statistical Modelling and Regression Structures</em>, edited by Thomas Kneib and Gerhard Tutz, 91–110. Heidelberg, Germany: Physica-Verlag HD.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/N7AB">Hildreth, W. B. Artley. 2009. “The Financial Logistics of Disaster: The Case of Hurricane Katrina.” <em>Public Performance &amp; Management Review</em> 32 (3): 400–436.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/g7diG">Hodges, James S. 2014. <em>Richly Parameterized Linear Models Additive, Time Series, and Spatial Models Using Random Effects</em>. Boca Raton, FL: CRC Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/1FiS1">Holford, T. R. 1980. “The Analysis of Rates and of Survivorship Using Log-Linear Models.” <em>Biometrics</em> 36 (2): 299–305.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/Arld">Hood, Christopher. 1991. “A Public Management For All Seasons?” <em>Public Administration</em> 69 (1): 3–19.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/UPmf">Justice, Jonathan. 2009. “Coping with Fiscal Stress.” <em>Background Paper Prepared for Navigating the Fiscal Crisis: Tested Strategies for Local Leaders. Alliance for Innovation and International City/County Management Association. [Online]. Available at Http://icma. org/Documents/Document/Document/300882 [Retrieved 5/30/2010]</em>.</a> <a href="http://www2.osc.state.ny.us/localgov/fiscalmonitoring/pdf/navigatingfiscalstress.pdf" class="uri">http://www2.osc.state.ny.us/localgov/fiscalmonitoring/pdf/navigatingfiscalstress.pdf</a><a href="http://paperpile.com/b/kCIXNA/UPmf">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/2Uxw">Kennedy, Merrit. 2016. “Lead-Laced Water In Flint: A Step-By-Step Look At The Makings Of A Crisis.” <em>NPR</em>, April 20, 2016.</a> <a href="https://www.npr.org/sections/thetwo-way/2016/04/20/465545378/lead-laced-water-in-flint-a-step-by-step-look-at-the-makings-of-a-crisis" class="uri">https://www.npr.org/sections/thetwo-way/2016/04/20/465545378/lead-laced-water-in-flint-a-step-by-step-look-at-the-makings-of-a-crisis</a><a href="http://paperpile.com/b/kCIXNA/2Uxw">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/Z2h3">Konisky, David M., and Manuel P. Teodoro. 2016. “When Governments Regulate Governments.” <em>American Journal of Political Science</em> 60 (3): 559–74.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/aBBmN">Laird, Nan, and Donald Olivier. 1981. “Covariance Analysis of Censored Survival Data Using Log-Linear Analysis Techniques.” <em>Journal of the American Statistical Association</em> 76 (374): 231–40.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/HjCBS">LCV. 2016. “Legislative Scorecard.” July 27, 2016.</a> <a href="http://scorecard.lcv.org/" class="uri">http://scorecard.lcv.org/</a><a href="http://paperpile.com/b/kCIXNA/HjCBS">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/6HLKY">Lee, Duncan. 2011. “A Comparison of Conditional Autoregressive Models Used in Bayesian Disease Mapping.” <em>Spatial and Spatio-Temporal Epidemiology</em> 2 (2): 79–89.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/1AgG">Levine, Charles H. 1979. “More on Cutback Management: Hard Questions for Hard Times.” <em>Public Administration Review</em>. https://doi.org/</a><a href="http://dx.doi.org/10.2307/3110475">10.2307/3110475</a><a href="http://paperpile.com/b/kCIXNA/1AgG">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/VWQU">Lewis, Jeffrey B., Keith Poole, Howard Rosenthal, Adam Boche, Aaron Rudkin, and Luke Sonnet. 2018. “Voteview: Congressional Roll-Call Votes Database (2018).” <em>URl: Https://voteview. Com</em>.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/EQnY">Lewis, Paul G., Doris Marie Provine, Monica W. Varsanyi, and Scott H. Decker. 2013. “Why Do (Some) City Police Departments Enforce Federal Immigration Law? Political, Demographic, and Organizational Influences on Local Choices.” <em>Journal of Public Administration Research and Theory</em> 23 (1): 1–25.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/DOMKC">Lindgren, Finn, and Håvard Rue. 2015. “Bayesian Spatial Modelling with R-INLA.” <em>Journal of Statistical Software</em> 63 (19): 25.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/ZGElZ">Marlowe, Justin. 2005. “Fiscal Slack and Counter-Cyclical Expenditure Stabilization: A First Look at the Local Level.” <em>Public Budgeting and Finance</em> 25 (3): 48–72.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/PtEjI">Martino, Sara, Rupali Akerkar, and Håvard Rue. 2011. “Approximate Bayesian Inference for Survival Models.” <em>Scandinavian Journal of Statistics, Theory and Applications</em> 38 (3): 514–28.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/jRt3">Masten, Susan J., Simon H. Davies, and Shawn P. Mcelmurry. 2016. “Flint Water Crisis: What Happened and Why?” <em>Journal - American Water Works Association</em> 108 (12): 22–34.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/SWHu">Moulton, Stephanie. 2009. “Putting Together the Publicness Puzzle: A Framework for Realized Publicness.” <em>Public Administration Review</em> 69 (5): 889–900.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/zTeJ">Mughan, Siân. 2019. “When Do Municipal Consolidations Reduce Government Expenditures? Evidence on the Role of Local Involvement.” <em>Public Administration Review</em> 79 (2): 180–92.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/kR0Qi">Mullin, Megan. 2009. <em>Governing the Tap: Special District Governance and the New Local Politics of Water</em>. Cambridge, MA: MIT Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/CUFr">———. 2010. “Special Districts versus Contracts: Complements or Substitutes.” In <em>Self-Organizing Federalism: Collaborative Mechanisms to Mitigate Institutional Collective Action Dilemmas</em>, edited by Richard C. Feiock and John T. Scholz, 142–60. New York, NY: Cambridge University Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/ioyIM">Mullin, Megan, and Meghan E. Rubado. 2017. “Local Response to Water Crisis: Explaining Variation in Usage Restrictions During a Texas Drought.” <em>Urban Affairs Review</em> 53 (4): 752–74.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/m0Y3">National Public Radio. 2015. “Everything You Need to Know About the Texas Drought,” 2015.</a> <a href="http://stateimpact.npr.org/texas/topic/drought/" class="uri">http://stateimpact.npr.org/texas/topic/drought/</a><a href="http://paperpile.com/b/kCIXNA/m0Y3">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/EhikS">NDMC. 2019. “Drought Severity and Coverage Index.” United States Drought Monitor. 2019.</a> <a href="https://droughtmonitor.unl.edu/AboutUSDM/AbouttheData/DSCI.aspx" class="uri">https://droughtmonitor.unl.edu/AboutUSDM/AbouttheData/DSCI.aspx</a><a href="http://paperpile.com/b/kCIXNA/EhikS">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/F0wc">Pearson, Christine M., and Judith A. Clair. 1998. “Reframing Crisis Management.” <em>Academy of Management Review</em> 23 (1): 59–76.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/jB4yY">Postel, Sandra. 2014. “Drought Hastens Groundwater Depletion in the Texas Panhandle.” National Geographic Society Newsroom. July 24, 2014.</a> <a href="https://blog.nationalgeographic.org/2014/07/24/drought-hastens-groundwater-depletion-in-the-texas-panhandle/" class="uri">https://blog.nationalgeographic.org/2014/07/24/drought-hastens-groundwater-depletion-in-the-texas-panhandle/</a><a href="http://paperpile.com/b/kCIXNA/jB4yY">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/YWvqi">Quiring, Steven, John W. Nielsen-Gammon, Raghavan Srinivasan, Travis Miller, and Balaji Narasimhan. 2007. “Drought Monitoring Index for Texas.” RF- 468511. Texas A&amp;M Research Foundation.</a> <a href="http://www.twdb.texas.gov/publications/reports/contracted_reports/doc/2005483028_drought_index.pdf" class="uri">http://www.twdb.texas.gov/publications/reports/contracted_reports/doc/2005483028_drought_index.pdf</a><a href="http://paperpile.com/b/kCIXNA/YWvqi">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/z8EtD">Rue, Håvard, and Leonhard Held. 2005. <em>Gaussian Markov Random Fields: Theory and Applications</em>. Boca Raton, FL: CRC Press.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/dKGvd">Rue, Håvard, Sara Martino, and Nicolas Chopin. 2009. “Approximate Bayesian Inference for Latent Gaussian Models by Using Integrated Nested Laplace Approximations.” <em>Journal of the Royal Statistical Society. Series B, Statistical Methodology</em> 71 (2): 319–92.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/A2KyZ">Rue, Håvard, Andrea Riebler, Sigrunn H. Sørbye, Janine B. Illian, Daniel P. Simpson, and Finn K. Lindgren. 2017. “Bayesian Computing with INLA: A Review.” <em>Annual Review of Statistics and Its Application</em> 4 (1): 395–421.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/Ffm3">Scorsone, Eric A., and Christina Plerhoples. 2010. “Fiscal Stress and Cutback Management Amongst State and Local Governments: What Have We Learned and What Remains to Be Learned?” <em>State and Local Government Review</em> 42 (2): 176–87.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/mHWGa">Scott, Tyler A., Tima Moldogaziev, and Robert A. Greer. 2018. “Drink What You Can Pay for: Financing Infrastructure in a Fragmented Water System.” <em>Urban Studies</em> 55 (13): 2821–37.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/MKFe">Scutelnicu, Gina. 2014. “Special Districts As Institutional Choices For Service Delivery: Views Of Public Officials On The Performance Of Community Development Districts In Florida.” <em>Public Administration Quarterly</em> 38 (3): 284–316.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/pcKj">Simo, Gloria, and Angela L. Bies. 2007. “The Role of Nonprofits in Disaster Response: An Expanded Model of Cross-Sector Collaboration.” <em>Public Administration Review</em> 67: 125–42.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/c3pl">Switzer, David, and Manuel P. Teodoro. 2017. “The Color of Drinking Water: Class, Race, Ethnicity, and Safe Drinking Water Act Compliance.” <em>Journal - American Water Works Association</em> 109 (December): 40–45.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/0Xhp">Tan, Jie, and Jerry Zhirong Zhao. 2019. “The Rise of Public–Private Partnerships in China: An Effective Financing Approach for Infrastructure Investment?” <em>Public Administration Review</em> 15 (April): 40.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/RDa5I">Taylor, Benjamin M., and Peter J. Diggle. 2014. “INLA or MCMC? A Tutorial and Comparative Evaluation for Spatial Prediction in Log-Gaussian Cox Processes.” <em>Journal of Statistical Computation and Simulation</em> 84 (10): 2266–84.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/hJHlz">TCEQ. 2000. “Chapter 288 - Water Conservation Plans, Drought Contingency Plans, Guidelines and Requirements.”</a> [https://texreg.sos.state.tx.us/public/readtac<span class="math inline">\(ext.ViewTAC?tac\_view=4\&amp;ti=30\&amp;pt=1\&amp;ch=288](https://texreg.sos.state.tx.us/public/readtac\)</span>ext.ViewTAC?tac_view=4&amp;ti=30&amp;pt=1&amp;ch=288)<a href="http://paperpile.com/b/kCIXNA/hJHlz">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/x1ePr">———. 2018. “Drought Contingency Plans.” January 9, 2018.</a> <a href="https://www.tceq.texas.gov/permitting/water_rights/wr_technical-resources/contingency.html" class="uri">https://www.tceq.texas.gov/permitting/water_rights/wr_technical-resources/contingency.html</a><a href="http://paperpile.com/b/kCIXNA/x1ePr">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/9wAXh">———. 2019a. “Drought Contingency Plans.” 2019.</a> <a href="https://www.tceq.texas.gov/permitting/water_rights/wr_technical-resources/contingency.html" class="uri">https://www.tceq.texas.gov/permitting/water_rights/wr_technical-resources/contingency.html</a><a href="http://paperpile.com/b/kCIXNA/9wAXh">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/YiUyF">———. 2019b. “Public Water Supply System Search.” Texas Drinking Water Watch. 2019.</a> <a href="https://dww2.tceq.texas.gov/DWW/" class="uri">https://dww2.tceq.texas.gov/DWW/</a><a href="http://paperpile.com/b/kCIXNA/YiUyF">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/JEIO">———. 2019c. “Water Districts.” Texas Commission on Environmental Quality. 2019.</a> <a href="https://www.tceq.texas.gov/waterdistricts" class="uri">https://www.tceq.texas.gov/waterdistricts</a><a href="http://paperpile.com/b/kCIXNA/JEIO">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/irGCF">Teodoro, Manuel P. 2009. “Contingent Professionalism: Bureaucratic Mobility and the Adoption of Water Conservation Rates.” <em>Journal of Public Administration Research and Theory</em> 20 (2): 437–59.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/79Ka">Teodoro, Manuel P., Mellie Haider, and David Switzer. 2018. “U.S. Environmental Policy Implementation on Tribal Lands: Trust, Neglect, and Justice.” <em>Policy Studies Journal</em> 46 (1): 37–59.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/erVlb">Teodoro, Manuel P., and David Switzer. 2016. “Drinking from the Talent Pool: A Resource Endowment Theory of Human Capital and Agency Performance.” <em>Public Administration Review</em> 76 (4): 564–75.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/HiQr">Teodoro, Manuel P., Youlang Zhang, and David Switzer. 2018. “Political Decoupling: Private Implementation of Public Policy.” <em>Policy Studies Journal</em>. https://doi.org/</a><a href="http://dx.doi.org/10.1111/psj.12287">10.1111/psj.12287</a><a href="http://paperpile.com/b/kCIXNA/HiQr">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/gLZo6">Texas Weather Connection. 2019. “Keetch-Byram Drought Index (KBDI).” 2019.</a> <a href="https://twc.tamu.edu/kbdi" class="uri">https://twc.tamu.edu/kbdi</a><a href="http://paperpile.com/b/kCIXNA/gLZo6">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/7Y2MM">Therneau, Terry M., and Patricia M. Grambsch. 2013. <em>Modeling Survival Data: Extending the Cox Model</em>. Berlin, Germany: Springer Science &amp; Business Media.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/U9QE">Tiger, Mary, Jeff Hughes, and Shadi Eskaf. 2014. “Designing Water Rate Structures for Conservation &amp; Revenue Stability.” <em>University of North Carolina Environmental Finance Center and Sierra Club, Lone Star Chapter: Chapel Hill, NC, USA</em>.</a> <a href="https://efc.sog.unc.edu/sites/www.efc.sog.unc.edu/files/Texas%20Rate%20Report%202014%20Final_0.pdf" class="uri">https://efc.sog.unc.edu/sites/www.efc.sog.unc.edu/files/Texas%20Rate%20Report%202014%20Final_0.pdf</a><a href="http://paperpile.com/b/kCIXNA/U9QE">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/8HPn4">TWDB. 2018a. “Drinking Water State Revolving Fund (DWSRF).”</a> <a href="http://www.twdb.texas.gov/publications/shells/DWSRF.pdf?d=7792.199999996228" class="uri">http://www.twdb.texas.gov/publications/shells/DWSRF.pdf?d=7792.199999996228</a><a href="http://paperpile.com/b/kCIXNA/8HPn4">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/DErvu">———. 2018b. “Drought in Texas.” 2018.</a> <a href="https://waterdatafortexas.org/drought" class="uri">https://waterdatafortexas.org/drought</a><a href="http://paperpile.com/b/kCIXNA/DErvu">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/mayM">———. 2018c. “Disaster Recovery Response Emergency Relief and Urgent Need Funding Clean and Drinking Water State Revolving Funds.”</a> <a href="http://www.twdb.texas.gov/publications/shells/Disaster_Recovery_Response.pdf?d=360438.59999999404" class="uri">http://www.twdb.texas.gov/publications/shells/Disaster_Recovery_Response.pdf?d=360438.59999999404</a><a href="http://paperpile.com/b/kCIXNA/mayM">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/0bUTH">U.S. Census Bureau. 2012. “2010 Census Urban and Rural Classification and Urban Area Criteria.” U.S. Census Bureau Geography. September 1, 2012.</a> <a href="https://www.census.gov/geo/reference/ua/urban-rural-2010.html" class="uri">https://www.census.gov/geo/reference/ua/urban-rural-2010.html</a><a href="http://paperpile.com/b/kCIXNA/0bUTH">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/5xpaa">———. 2019. “American Community Survey (ACS).” 2019.</a> <a href="https://www.census.gov/programs-surveys/acs/" class="uri">https://www.census.gov/programs-surveys/acs/</a><a href="http://paperpile.com/b/kCIXNA/5xpaa">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/3XXjG">U.S. Drought Monitor. 2019. 2019.</a> <a href="https://droughtmonitor.unl.edu/" class="uri">https://droughtmonitor.unl.edu/</a><a href="http://paperpile.com/b/kCIXNA/3XXjG">.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/a4uR">Vehtari, Aki, Andrew Gelman, and Jonah Gabry. 2017. “Practical Bayesian Model Evaluation Using Leave-One-out Cross-Validation and WAIC.” <em>Statistics and Computing</em> 27 (5): 1413–32.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/XlSF7">Whitehead, John. 1980. “Fitting Cox’s Regression Model to Survival Data Using GLIM.” <em>Journal of the Royal Statistical Society. Series C, Applied Statistics</em> 29 (3): 268–75.</a><br>
+<a href="http://paperpile.com/b/kCIXNA/EFRtm">Zargar, Amin, Rehan Sadiq, Bahman Naser, and Faisal I. Khan. 2011. “A Review of Drought Indices.” <em>Environmental Review</em> 19 (December): 333–49.</a></p>
+</section>
+<section id="section-1" class="level1">
+<h1></h1>
+</section>
+<section id="appendix-a-model-specification-and-goodness-of-fit" class="level1">
+<h1><strong>APPENDIX A: MODEL SPECIFICATION AND GOODNESS-OF-FIT</strong></h1>
+<p>We estimate a Bayesian recurring-events Cox proportional hazards model using the integrated nested Laplace approximation (INLA) <a href="https://paperpile.com/c/kCIXNA/dKGvd">(Rue, Martino, and Chopin 2009)</a>. This appendix records the specification in more detail and reports goodness-of-fit statistics for the fitted models.</p>
+<p>The data are organized as a counting process: each community water system contributes a sequence of weekly <code>(start, stop]</code> risk intervals spanning the observation window (2010 through 2025). An interval is coded as an event if the system notified TCEQ of a new mandatory restriction during that week. Because a system can adopt restrictions more than once, intervals are <em>not</em> reset after an event—the process continues across events in the Andersen-Gill fashion, so the model captures repeated adoptions rather than only time-to-first-adoption. Time-varying covariates update at their natural frequencies: drought severity and the wholesale-seller restriction lag from week to week, service connections yearly (EPA SDWIS annual counts, with pre-2013 weeks carrying the earliest 2013 snapshot), and the fiscal covariates whenever a newer qualifying audit becomes available (footnote 19). Financial values are always matched to the most recent <em>preceding</em> audit, so that we do not capture post-restriction financial impact in predicting adoption.</p>
+<p>INLA represents the Cox likelihood through its equivalent Poisson formulation with a piecewise-constant baseline hazard. We model the log baseline hazard as a first-order random walk (RW1) over 30 intervals of risk time <a href="https://paperpile.com/c/kCIXNA/z8EtD">(Rue and Held 2005)</a>, which smooths the baseline hazard across adjacent intervals while letting the data determine its overall shape. We likewise control for unobserved system-level heterogeneity with an independent (iid) Gaussian random effect, or <em>frailty</em> term <a href="https://paperpile.com/c/kCIXNA/7Y2MM/?prefix=see">(see Therneau and Grambsch 2013)</a>, which groups observations by water district (or by PWS in the global model for systems not district-affiliated).</p>
+<p>We first fit the global model, without fiscal predictors, on the entire sample of Texas community water systems. This model uses PC priors throughout. We then use the posterior hyperparameter precision estimates from this model for the control variables, system-level frailty terms, and RW1 baseline hazard term as informative priors for the district level models. There are four district-level models, one each for revenue, fund balance, and debt, and then a combined model with all three. Each fit uses its own covariates’ complete cases.</p>
+<p>We summarize model fit with the deviance information criterion (DIC) and the Watanabe-Akaike information criterion (WAIC), both adaptations of the Akaike information criterion for hierarchical Bayesian models for which lower values indicate better expected out-of-sample predictive performance <a href="https://paperpile.com/c/kCIXNA/a4uR">(Vehtari, Gelman, and Gabry 2017)</a>. Table A1 reports these statistics for the global model and the fiscal specifications, alongside two restricted null models that carry only the RW1 baseline hazard and the shared frailty term (no covariates): Model 0A, fit on the full sample as the reference for the global Model 1, and Model 0B, fit on the district subsample as the reference for the fiscal models.</p>
+<p><em>Table A1: Goodness-of-fit (DIC and WAIC) for the null reference models, the global model, and the fiscal specifications</em></p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">DIC</th>
+<th style="text-align: right;">WAIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Model 0A (null, full sample)</td>
+<td style="text-align: right;">50,738.9</td>
+<td style="text-align: right;">49,142.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Model 1 (global, full sample)</td>
+<td style="text-align: right;">47,951.9</td>
+<td style="text-align: right;">46,989.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Model 0B (null, district subsample)</td>
+<td style="text-align: right;">5,959.4</td>
+<td style="text-align: right;">5,839.3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Model 2A: revenue per connection</td>
+<td style="text-align: right;">5,623.0</td>
+<td style="text-align: right;">5,507.6</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Model 2B: fund balance per connection</td>
+<td style="text-align: right;">5,619.4</td>
+<td style="text-align: right;">5,508.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Model 2C: debt (GO &amp; revenue-backed)</td>
+<td style="text-align: right;">4,098.4</td>
+<td style="text-align: right;">4,000.7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Model 2D: all fiscal (joint)</td>
+<td style="text-align: right;">4,102.5</td>
+<td style="text-align: right;">4,002.7</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Figure A1 plots the estimated RW1 baseline hazard from the global Model 1—the posterior mean and 95% credible interval of the piecewise-constant baseline, exponentiated and expressed relative to the sample average (the RW1 is sum-to-zero constrained)—against the drought exposure faced by the risk set (mean DSCI across systems, by week). The baseline rises and falls with the state’s drought cycle, peaking in the 2011–2013 and 2022–2024 droughts, which is the time-varying adoption climate the flexible baseline is meant to absorb.</p>
+<div id="fig-baseline-hazard" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-baseline-hazard-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="../output/baseline_hazard_appendix.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-baseline-hazard-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Figure A1: Estimated RW1 baseline hazard (posterior mean and 95% credible interval, relative to the sample average) and weekly mean drought severity (DSCI) across sampled systems.
+</figcaption>
+</figure>
+</div>
+<p>Figure A2 maps the posterior mean of the shared frailty for the water-district clusters with boundary geometry. Positive (red) values mark districts whose systems adopt mandatory restrictions more often than their covariates predict; negative (blue) values mark less-frequent adopters. The frailties show no strong regional gradient—consistent with the drought covariate absorbing the dominant spatial variation—with elevated-frailty districts appearing in scattered pockets rather than concentrated in a single part of the state.</p>
+<div id="fig-frailty-map" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-frailty-map-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="../output/frailty_map_appendix.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-frailty-map-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Figure A2: Posterior mean district frailty (log-hazard scale) from the global Model 1, for districts with mapped boundaries.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="appendix-b-tabular-results" class="level1">
+<h1><strong>APPENDIX B: TABULAR RESULTS</strong></h1>
+<p><em>Table B1: Global Model 1 (full-sample, prior-setting fit) — posterior mean and 95% credible interval (log-hazard scale). Bold = 95% credible interval excludes zero. The bottom block reports the random-effect precision terms as standard deviations (posterior median and 95% CrI).</em></p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Term</th>
+<th style="text-align: center;">Estimate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Drought severity (DSCI/100)</td>
+<td style="text-align: center;"><strong>0.37</strong><br><strong>[0.34, 0.40]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Seller under restriction</td>
+<td style="text-align: center;"><strong>1.73</strong><br><strong>[1.63, 1.84]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Log connections</td>
+<td style="text-align: center;"><strong>0.23</strong><br><strong>[0.19, 0.28]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Storage per connection (asinh gal)</td>
+<td style="text-align: center;">0.04<br>[-0.05, 0.13]</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Surface water (vs ground)</td>
+<td style="text-align: center;"><strong>1.54</strong><br><strong>[1.30, 1.79]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Purchases water (primary)</td>
+<td style="text-align: center;"><strong>-0.88</strong><br><strong>[-1.12, -0.64]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Emergency source/interconnect</td>
+<td style="text-align: center;"><strong>-0.30</strong><br><strong>[-0.47, -0.13]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Wholesaler (sells water)</td>
+<td style="text-align: center;"><strong>-0.33</strong><br><strong>[-0.51, -0.15]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Log median home value</td>
+<td style="text-align: center;"><strong>1.03</strong><br><strong>[0.87, 1.19]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Median structure age (yrs)</td>
+<td style="text-align: center;"><strong>0.01</strong><br><strong>[0.00, 0.02]</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">% Dem. vote share</td>
+<td style="text-align: center;"><strong>-0.00</strong><br><strong>[-0.01, -0.00]</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Random effects (posterior SD)</strong></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Frailty SD (district/system)</td>
+<td style="text-align: center;">1.46<br>[1.38, 1.54]</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Baseline-hazard SD (RW1)</td>
+<td style="text-align: center;">2.57<br>[1.96, 3.41]</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p><em>Table B2: Summary statistics for the global (Model 1) sample of all community water systems. Drought severity is reported as DSCI/100, the scale on which it enters the models.</em></p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 29%">
+<col style="width: 10%">
+<col style="width: 8%">
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 4%">
+<col style="width: 5%">
+<col style="width: 5%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Group</th>
+<th style="text-align: left;">Variable</th>
+<th style="text-align: left;">Unit</th>
+<th style="text-align: right;">N</th>
+<th style="text-align: right;">Mean</th>
+<th style="text-align: right;">SD</th>
+<th style="text-align: right;">Min</th>
+<th style="text-align: right;">Median</th>
+<th style="text-align: right;">Max</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Outcome &amp; drought (system-week)</td>
+<td style="text-align: left;">Mandatory restriction (event)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">2,936,640</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Outcome &amp; drought (system-week)</td>
+<td style="text-align: left;">Drought severity (DSCI/100)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">2,936,640</td>
+<td style="text-align: right;">1.27</td>
+<td style="text-align: right;">1.46</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.80</td>
+<td style="text-align: right;">5.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Log connections</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">2,936,640</td>
+<td style="text-align: right;">5.96</td>
+<td style="text-align: right;">1.75</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">5.86</td>
+<td style="text-align: right;">14.24</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Storage per connection (asinh gal)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">3,648</td>
+<td style="text-align: right;">6.82</td>
+<td style="text-align: right;">0.76</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">6.78</td>
+<td style="text-align: right;">13.81</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Surface water (vs ground)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">3,648</td>
+<td style="text-align: right;">0.28</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Purchases water (primary)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">3,648</td>
+<td style="text-align: right;">0.22</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Emergency source/interconnect</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">3,648</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Wholesaler (sells water)</td>
+<td style="text-align: left;">system</td>
+<td style="text-align: right;">3,648</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Log median home value</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">2,936,640</td>
+<td style="text-align: right;">11.76</td>
+<td style="text-align: right;">0.52</td>
+<td style="text-align: right;">9.64</td>
+<td style="text-align: right;">11.72</td>
+<td style="text-align: right;">14.37</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">Median structure age (yrs)</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">2,936,640</td>
+<td style="text-align: right;">31.94</td>
+<td style="text-align: right;">11.24</td>
+<td style="text-align: right;">6.00</td>
+<td style="text-align: right;">31.07</td>
+<td style="text-align: right;">77.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">System controls</td>
+<td style="text-align: left;">% Dem. vote share</td>
+<td style="text-align: left;">system-week</td>
+<td style="text-align: right;">2,936,640</td>
+<td style="text-align: right;">26.54</td>
+<td style="text-align: right;">16.98</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">20.42</td>
+<td style="text-align: right;">98.81</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="appendix-c-predictor-correlations" class="level1">
+<h1><strong>APPENDIX C: PREDICTOR CORRELATIONS</strong></h1>
+<p>Figures C1 and C2 report pairwise Pearson correlations among the model predictors, computed over the same system-week observations each model is fit on (fiscal covariates on pairwise-complete cases).</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-appendixC-global" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-appendixC-global-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="manuscript_files/figure-html/fig-appendixC-global-1.png" class="img-fluid figure-img" width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-appendixC-global-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Figure C1: Pairwise Pearson correlations among the global-model (Model 1) predictors, over the system-week rows the model is fit on.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-appendixC-fiscal" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-appendixC-fiscal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="manuscript_files/figure-html/fig-appendixC-fiscal-1.png" class="img-fluid figure-img" width="864">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-appendixC-fiscal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Figure C2: Pairwise Pearson correlations among the fiscal-model (Model 2) predictors, over the district-subsample system-week rows.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>In Mullin and Rubado’s <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> analysis, many of the political-economic drivers theorized to affect utility decision-making were not evidenced in practice to drive significant differentiation in time-to-adoption. This is, of course, not evidence that such factors do not matter, but rather is more indicative of the complexity of the institutional environment under examination.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Because our paper is closely related to Mullin and Rubado’s <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> work, we wish to: (1) acknowledge the inspirational role their paper plays for this paper; and (2) clarify a few key similarities and differences. Both papers focus on the case of mandatory water use restrictions adopted in response to drought in the state of Texas. The Mullin and Rubado paper focuses on ~300 water systems which were observed to adopt a mandatory use restriction during the 2010- 2013 period. All of these systems have more than 3,300 service connections, and the systems have different ownership types (municipal, special district, and private). In contrast, our analysis concerns special water districts of all sizes in Texas starting in 2010 and extending to 2025 (632 districts enter the estimation sample). This allows us to take advantage of detailed special district financial records recorded by the state, while also incorporating many smaller systems with fewer than 3,300 service connections. We further focus on all observed districts, regardless of whether they adopt a mandatory restriction or not. Thus, we are able to model not just time-to-first-adoption of restriction-adopting systems, but whether, and how many times, systems adopt a restriction over the 2010 to 2025 period.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Each district type is governed by a distinct section of the Texas Water Code (TWC): Chapter 54 (MUDs), Chapter 51 (WCIDs), Chapter 65 (SUDs), and Chapter 53 (FWSDs).<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>The key similarities and differences between district types are as follows. First, MUDs, FWSDs, SUDs, and WCIDs are all independent government entities that can span county and/or municipal boundaries. FWSDs are most restricted in function, being largely limited to water and wastewater operations, while WCIDs and MUDs are the most expansive, with possible powers including a range of public services including street lighting, solid waste, road construction, and firefighting. Districts of all four types can issue bonds, but SUDs cannot levy taxes. Both tax and bond functions are subject to a variety of conditions depending on district type and financing mechanism (e.g., resident vote, TCEQ approval, etc.). In general, MUDs tend to be larger and/or more populated than WCIDs, as WCIDs with more than 30,000 residents and upwards of $50M in property value are eligible to convert to a MUD (which offers advantages such as the power to issue municipal bonds). Perhaps the most important thing to note is that a definitive taxonomy of district types is elusive, since even districts operating under the same Texas Water Code designation are formed and empowered in different ways. Two examples are that a MUD can either be a special law district, formed by a special act of the state legislature, or a general law district, formed by citizen petition to TCEQ, and that formation and approval rules for districts vary depending on whether a district has single county, multi-county, or municipality-spanning territory.<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>A CWS is a regulatory designation under the SDWA that refers to a public water system that provides water to a consistent population of 15 or more service connections or an average of 25 people year-round <a href="https://paperpile.com/c/kCIXNA/ryyH">(EPA 2018)</a>.<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p>This excludes 50 CWSs owned by other district forms, such as a River Authority or Irrigation District<a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p>There is not always a one-to-one relationship between a CWS and a special district. Our sample includes 632 total districts: 597 of these districts administer one CWS each. Another 35 districts combine to administer 104 CWSs in total.<a href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p>Further, Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> performed a detailed analysis of Drought Contingency Plans and restriction measures adopted in Texas during the 2010-2013 drought. They found that benchmarks, response stages, and implementation measures are highly varied and amorphous across systems. Thus, Mullin and Rubado <a href="https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1">(2017)</a> concluded that the most meaningful and coherent distinction is between systems with and without mandatory restrictions in place. All of these reasons suggest that a measure focusing on whether and when a mandatory restriction is adopted is an appropriate strategy.<a href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9"><p>Readers will note that this response might be conditional on the extent to which said revenue stems from property taxes or fixed-rate user fees, because tax-derived and fixed-rate funds are not conditional on water use. However, while we observe some districts which rely upon Enterprise Revenue alone (i.e., have no tax revenue), General Revenue as reported by each district to the state combines service fees and taxes, without itemizing the two sources. That said, having reviewed many district Annual Comprehensive Financial Reports (ACFRs), we are unaware of any case where a district derives <em>no</em> revenue from service fees. Thus, we are confident that while the proportion of district total revenue generated by user fees varies, a reduction in water use will monotonically reduce revenue-per-connection, all else equal (e.g., holding rate structure constant).<a href="#fnref9" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10"><p>A necessary caveat, however, is that debt payments are a function both of total debt outstanding and repayment schedule. Thus, we adjust for debt issuance dates (a process described in more detail below) to estimate each district’s debt burden on a year-to-year, rather than aggregate, basis.<a href="#fnref10" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn11"><p>Different districts use either solely general fund structures or a combination of general and enterprise fund structures. We combine both revenue categories, and likewise combine general and enterprise fund balances to capture any reserve funds available that can be drawn down for emergencies.<a href="#fnref11" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn12"><p>While system characteristics are observed at the CWS level, fiscal data are observed at the water district level. For the large majority of units in our analysis, these levels are one-and-the-same: a district operates one CWS. For the few districts which operate multiple CWSs, we disaggregate district-level financial data to individual CWSs based upon the proportion of service connections each CWS has out of all connections in the district. That is, each CWS is assumed to have revenue intake and debt obligations proportional to its share of the district’s total service population. Connections are measured on a yearly basis, allowing the proportional distribution of financial variables to change over time (for instance, in a case where a district has one mature CWS and another in the process of building out). We also exclude one set of districts which serve the Cinco Ranch Development because we are unable to tease out the relationship between debt held by the master district, Cinco MUD 1, and the 11 subsidiary districts which Cinco MUD 1 controls. Each individual district operates as a separate retail water utility, but Cinco MUD 1 operates a water treatment plant which services all 11 districts. Unlike cases where we observe a common financial audit shared across multiple systems operated by the same district, in the case of the Cinco MUDs we observe separate audits (and some separately held debt) for the master MUD and each subsidiary MUD. The problem for our analysis is that observed debt is highly concentrated with the master MUD–resulting in debt-per-connection estimates for Cinco MUD 1 which are 36 times greater than the median value (~$240k versus ~$6k).<a href="#fnref12" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn13"><p>We also tested the geographic service territory area as an alternative measure of utility size; results were not substantively different.<a href="#fnref13" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn14"><p>Although as shown by Quesnel et al. <a href="https://paperpile.com/c/kCIXNA/Gyj0/?noauthor=1">(2020)</a> these relationships are not necessarily generalizable in the sense that higher value or older homes always use more water (since use behavior is shaped by a variety of localized developmental and behavioral factors), home values and structure age are nonetheless potentially significant predictors of within-region variation.<a href="#fnref14" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn15"><p>To convert census tract measures to district estimates, we first compute proportional overlaps between water system service boundaries and census tracts. Then, we use these proportions to compute weighted sums (for ratio-based measures such as non-white population) or weighted averages (for central-tendency measures such as median income) for each water system. One issue with this approach, however, is that people are not evenly distributed across a census tract. In particular, in many cases we would expect a water district to have more people than indicated by a simple spatial overlap with a census tract because residents are concentrated where utility systems are located (and in other cases, a newly developed area next to a densely populated region might have fewer people than predicted by our spatial overlap method). To account for this, we weight count measures (total population, non-white population, and college-educated population) based upon the ratio of the predicted total population (using the census tract-district boundary overlap estimation method) to the stated total population recorded by the TWDB. For instance, if TWDB shows that a district has 2000 residents, but our spatial estimation method predicts only 1000 residents, then we multiply the estimated counts of total population, non-white population, and college-educated population by 2. While this does not change the resultant ratios in cases where a district overlaps only one census tract (since all values are multiplied by the same constant), it does shift values in cases where a district overlaps more than one tract since predicted counts from each tract are adjusted before summing and computing district-level ratios.<a href="#fnref15" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn16"><p>Unfortunately, there are many missing data points for storage capacity in state water system records. We observe storage for 70% of non-special district owned systems, and 55% of district-owned systems. For water districts specifically, 39% of districts which do adopt a water use restriction have an unobserved storage capacity, and 47% of non-adopting districts have an unobserved storage capacity. While storage capacity is not of focal interest for this analysis, it is nonetheless important as a control variable. The observed correlation between <em>total service connections</em> and <em>total storage capacity</em> for all community water systems in the state is very high, 0.90. Thus, we use a simple linear regression model to impute storage capacity based on a regression of <em>total storage capacity</em> on <em>total service connections</em>. In essence, this means that we assume unobserved storage capacity is equal to the mean capacity for systems conditional on utility size..<a href="#fnref16" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn17"><p><em>Data are summarized across all time intervals, such that there are repeated observations for each statistic since each district is observed at weekly intervals for several years. Drought severity is reported as DSCI/100 – the scale on which it enters the models – so that a one-unit change corresponds to moving up one drought-severity level. Fiscal variables are shown in untransformed dollars per connection; in the models they enter under an inverse hyperbolic sine (asinh) transformation.</em><a href="#fnref17" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn18"><p>A key assumption of the proportional hazard model–that the relative hazard rate between different groups in the sample remains constant over time <a href="https://paperpile.com/c/kCIXNA/EuQx">(Faraway et al. 2018)</a>–is evaluated in appendix A.<a href="#fnref18" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn19"><p>We match each district-week to the most recent audit whose fiscal year end date falls within a two-year (730-day) window prior to the observation week, rather than a strict one-year window. Under the current data this choice functions largely as a robustness margin: relaxing the window from 365 to 730 days changes the number of districts usable across the full time window only marginally, from 631 to 632. The few additional matches arise where a district changed its fiscal year and went more than twelve months without reporting, or where no audit was logged with TCEQ for a given year.<a href="#fnref19" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

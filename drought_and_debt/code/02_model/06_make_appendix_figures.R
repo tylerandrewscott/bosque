@@ -6,7 +6,7 @@
 # summary.random):
 #
 #   A (output/baseline_hazard_appendix.png)
-#      The estimated RW1 baseline hazard: posterior mean + 95% credible ribbon,
+#      The estimated RW1 baseline hazard: posterior mean + credible ribbon,
 #      drawn as the piecewise-constant step function INLA actually fits
 #      (N_HAZARD_INTERVALS knots on the week scale), overlaid on the panel's
 #      drought exposure (mean DSCI across the Model 1 risk set, by week) on a
@@ -108,9 +108,23 @@ bh <- as.data.table(m1$summary.random$baseline.hazard)
 setorder(bh, ID)
 bh[, `:=`(t0 = ID, t1 = shift(ID, type = "lead",
                               fill = as.numeric(end_date - start_date) / 7))]
+# Ribbon bounds at the configured CI_LEVEL (config.R). summary.random only
+# carries the quantiles requested at FIT time (the slim fits keep no
+# marginals.random to recompute from), so a fit predating a CI_LEVEL change
+# falls back to its stored 95% columns until the next refit.
+.qcol <- paste0(CI_PROBS, "quant")
+ribbon_lab <- CI_LABEL
+if (!all(.qcol %in% names(bh))) {
+  if (!all(c("0.025quant", "0.975quant") %in% names(bh)))
+    stop("Model 1 fit carries neither the ", CI_LABEL,
+         " nor the 95% baseline-hazard quantiles -- refit Model 1.")
+  warning("Model 1 fit predates CI_LEVEL = ", CI_LEVEL, "; drawing the ",
+          "baseline-hazard ribbon at its stored 95% level. Refit to update.")
+  .qcol <- c("0.025quant", "0.975quant"); ribbon_lab <- "95%"
+}
 bh[, `:=`(date0 = start_date + t0 * 7, date1 = start_date + t1 * 7,
           haz   = exp(mean),
-          lo    = exp(`0.025quant`), hi = exp(`0.975quant`))]
+          lo    = exp(get(.qcol[1])), hi = exp(get(.qcol[2])))]
 # Step-function coordinates: each interval contributes its start and end at the
 # same level, INTERLEAVED (start_k, end_k, start_{k+1}, ...) so ribbon + line
 # render the piecewise-constant estimate exactly. (A global sort on date would
@@ -128,7 +142,7 @@ figA <- ggplot() +
   geom_line(data = bh_step, aes(x = date, y = haz), colour = "grey15") +
   scale_x_date(name = "Week", expand = c(0, 0)) +
   scale_y_continuous(
-    name = "Relative baseline hazard (posterior mean, 95% CI)",
+    name = paste0("Relative baseline hazard (posterior mean, ", ribbon_lab, " CI)"),
     expand = expansion(mult = c(0, 0.02)),
     sec.axis = sec_axis(~ . / .k, name = "Mean DSCI across systems (0-500)")) +
   theme_bw() +

@@ -1,14 +1,14 @@
-term,label,model,mean,lower,upper
-DSCI_100,Drought severity (DSCI/100),Model 1 (global),0.366599468259527,0.337831482943535,0.395367453575519
-seller_restricted,Seller under restriction,Model 1 (global),1.73165014044059,1.62501379266889,1.83828648821228
-ln_connections,Log connections,Model 1 (global),0.234186600572679,0.186288339721322,0.282084861424036
-storage_per_conn_g,Storage per connection (asinh gal),Model 1 (global),0.0381945884065632,-0.0540979938422163,0.130487170655343
-source_surface,Surface water (vs ground),Model 1 (global),1.54259681572509,1.29528583395307,1.78990779749712
-purchases_water,Purchases water (primary),Model 1 (global),-0.878555820136833,-1.11951825828,-0.637593381993662
-emergency_source,Emergency source/interconnect,Model 1 (global),-0.300255863400855,-0.469162921925322,-0.131348804876387
-wholesaler,Wholesaler (sells water),Model 1 (global),-0.326619197622802,-0.506535068895782,-0.146703326349821
-ln_home_value,Log median home value,Model 1 (global),1.03069783821341,0.869812789283538,1.19158288714328
-median_structure_age,Median structure age (yrs),Model 1 (global),0.00958536377958224,0.00236569757238722,0.0168050299867773
-perc_dem_vote,% Dem. vote share,Model 1 (global),-0.00493938914263136,-0.00913600078539494,-0.000742777499867774
-sd_frailty,Frailty SD (district/system),Model 1 (global),1.46056005750608,1.38373057969286,1.54127416625676
-sd_baseline,Baseline-hazard SD (RW1),Model 1 (global),2.5709225408111,1.96462842108767,3.41057932884145
+term,label,model,mean,lower,upper,ci
+DSCI_100,Drought severity (DSCI/100),Model 1 (global),0.366599504693726,0.33783151965978,0.395367489727672,0.95
+seller_restricted,Seller under restriction,Model 1 (global),1.73165018268697,1.62501383956445,1.83828652580949,0.95
+ln_connections,Log connections,Model 1 (global),0.234186270111146,0.186288061073557,0.282084479148735,0.95
+storage_per_conn_g,Storage per connection (asinh gal),Model 1 (global),0.038194516873377,-0.054097952289444,0.130486986036198,0.95
+source_surface,Surface water (vs ground),Model 1 (global),1.54259543410611,1.29528476831293,1.78990609989928,0.95
+purchases_water,Purchases water (primary),Model 1 (global),-0.878555290068672,-1.11951740914221,-0.637593170995134,0.95
+emergency_source,Emergency source/interconnect,Model 1 (global),-0.300255623908538,-0.469162476209183,-0.131348771607893,0.95
+wholesaler,Wholesaler (sells water),Model 1 (global),-0.326618914316875,-0.506534571447442,-0.146703257186309,0.95
+ln_home_value,Log median home value,Model 1 (global),1.03069700182862,0.869812103611655,1.19158190004558,0.95
+median_structure_age,Median structure age (yrs),Model 1 (global),0.00958533914494259,0.00236567869789589,0.0168049995919893,0.95
+perc_dem_vote,% Dem. vote share,Model 1 (global),-0.00493939415985891,-0.0091360020489067,-0.00074278627081113,0.95
+sd_frailty,Frailty SD (district/system),Model 1 (global),1.46055981661858,1.38373213598487,1.54127582443555,0.95
+sd_baseline,Baseline-hazard SD (RW1),Model 1 (global),2.57092670498429,1.96458835907303,3.41062376261603,0.95

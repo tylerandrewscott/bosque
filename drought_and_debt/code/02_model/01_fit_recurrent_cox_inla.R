@@ -217,6 +217,7 @@ if (FULL_SAMPLE_BAYES) {
     message("Fitting Bayesian Model 1 (full sample) -- this is the heavy one...")
     model1_inla <- inla(
       form1, family = "coxph", data = as.list(panel_m1),
+      quantiles = c(CI_PROBS[1], 0.5, CI_PROBS[2]),
       control.hazard = hazard_ctrl, control.inla = inla_ctrl,
       control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
       num.threads = parallel::detectCores(), verbose = FALSE
@@ -233,9 +234,12 @@ if (FULL_SAMPLE_BAYES) {
 # =============================================================================
 # MODEL 2 (Bayesian) -- fiscal effects, Model 1 as prior
 # -----------------------------------------------------------------------------
-# The fiscal indicators are likely conflated, so each is fit in its own model.
-# Each uses that covariate's own non-missing rows. A companion JOINT model then
-# enters all fiscal predictors together (on the rows where all are observed) for
+# The fiscal indicators are likely conflated, so they are fit in separate
+# models: revenue per connection alone, fund balance alone, and a debt model
+# carrying the two pledge types (GO/tax-backed and revenue-backed) as SEPARATE
+# covariates in the same fit (not summed). Each fit uses its own covariates'
+# complete cases. A companion JOINT model then enters all four fiscal predictors
+# together (on the rows where all are observed) for
 # comparison. Model 1's posteriors are carried into Model 2 as priors on BOTH the
 # shared fixed effects (each covariate's mean + precision) AND the two
 # hyperparameters -- the district/system-frailty precision and the RW1
@@ -289,38 +293,114 @@ if (!is.null(model1_inla)) {
   message("Fitting Bayesian fiscal models with default vague priors (Model 1 not fit).")
 }
 
-# Fit one Model 2 given a vector of fiscal covariates. With a single element this
-# is the isolated per-covariate model; with all of `fiscal_vars` it is the joint
-# model. The subsample is the rows where EVERY requested covariate is observed
-# (complete cases), so the joint model runs on the intersection of coverage.
+# =============================================================================
+# MODELS 0A / 0B -- NULL (restricted) reference fits for the DIC/WAIC table
+# -----------------------------------------------------------------------------
+# Covariate-free versions of the two samples' models, carrying ONLY the RW1
+# baseline hazard and the shared frailty. Their DIC/WAIC anchor the manuscript's
+# goodness-of-fit table (Table A1) so the unrestricted models can be read
+# against a no-covariate baseline.
+#   * Model 0A: full CWS sample (panel_m1), district-or-system frailty, the
+#     same default PC priors as Model 1 -- the restricted Model 1.
+#   * Model 0B: district subsample (panel_m2), district frailty, the same
+#     Model-1-derived hyperpriors as the fiscal fits -- so its WAIC differs
+#     from theirs only through the covariates. NOTE: each fiscal fit runs on
+#     its own covariates' complete cases; 0B runs on the full district panel,
+#     so the comparison is exact only for near-complete fiscal coverage.
+# =============================================================================
+model0A_inla <- NULL
+if (FULL_SAMPLE_BAYES) {
+  .m0_cache <- scratch("recurrent_coxinla_model0_nulls.RDS")
+  # Same panel fingerprint as Model 1, minus the covariate spec (a null model
+  # has none), so a cached 0A survives spec-only changes but not data changes.
+  .m0_fp <- .m1_fp[setdiff(names(.m1_fp), "vars")]
+  if (REUSE_MODEL1_FIT && file.exists(.m0_cache)) {
+    .m0_old <- readRDS(.m0_cache)$global
+    if (!is.null(.m0_old) &&
+        identical(attr(.m0_old, "panel_fp", exact = TRUE), .m0_fp)) {
+      message("Reusing cached null Model 0A fit (REUSE_MODEL1_FIT=TRUE): ", .m0_cache)
+      model0A_inla <- .m0_old
+    } else {
+      message("Cached null Model 0A missing or fit on a different panel -- refitting.")
+    }
+  }
+  if (is.null(model0A_inla)) {
+    message("Fitting Bayesian Model 0A (null: baseline hazard + frailty, full sample)...")
+    model0A_inla <- inla(
+      as.formula(paste(resp, "~", f_m1)),
+      family = "coxph", data = as.list(panel_m1),
+      quantiles = c(CI_PROBS[1], 0.5, CI_PROBS[2]),
+      control.hazard = hazard_ctrl, control.inla = inla_ctrl,
+      control.compute = list(dic = TRUE, waic = TRUE),
+      num.threads = parallel::detectCores(), verbose = FALSE
+    )
+    cat("\n============== MODEL 0A (INLA): null, full sample ==============\n")
+    print(summary(model0A_inla))
+    attr(model0A_inla, "panel_fp") <- .m0_fp
+  }
+}
+
+message("Fitting Bayesian Model 0B (null: baseline hazard + frailty, district subsample)...")
+model0B_inla <- inla(
+  as.formula(paste(resp, "~", f_dist)),
+  family = "coxph", data = as.list(panel_m2),
+  quantiles = c(CI_PROBS[1], 0.5, CI_PROBS[2]),
+  control.hazard = hazard_ctrl_m2, control.inla = inla_ctrl,
+  control.compute = list(dic = TRUE, waic = TRUE),
+  num.threads = parallel::detectCores(), verbose = FALSE
+)
+cat("\n============== MODEL 0B (INLA): null, district subsample ==============\n")
+print(summary(model0B_inla))
+
+model0_nulls <- list(global = model0A_inla, district = model0B_inla)
+saveRDS(model0_nulls, scratch("recurrent_coxinla_model0_nulls.RDS"))
+saveRDS(lapply(model0_nulls, slim_inla),
+        output("recurrent_coxinla_model0_nulls_slim.RDS"))
+
+# Fit one Model 2 given a vector of fiscal covariates: a single covariate for
+# the isolated models, the GO + REV pair for the debt model, or all of
+# `fiscal_vars` for the joint model. The subsample is the rows where EVERY
+# requested covariate is observed (complete cases), so multi-covariate models
+# run on the intersection of coverage.
 fit_fiscal_inla <- function(vs) {
   d <- panel_m2[complete.cases(panel_m2[, ..vs])]
   d[, district_idx := .GRP, by = District_ID]           # reindex within subsample
   form <- as.formula(paste(resp, "~",
     paste(c(shared_vars, vs, f_dist), collapse = " + ")))
   inla(form, family = "coxph", data = as.list(d),
+       quantiles = c(CI_PROBS[1], 0.5, CI_PROBS[2]),
        control.hazard = hazard_ctrl_m2, control.inla = inla_ctrl,
        control.fixed = control_fixed, control.mode = warm_start,
        control.compute = list(dic = TRUE, waic = TRUE, config = TRUE),
        num.threads = parallel::detectCores(), verbose = FALSE)
 }
 
-model2_inla_by_fiscal <- setNames(vector("list", length(fiscal_vars)), fiscal_vars)
-for (v in fiscal_vars) {
-  message("  fitting fiscal model: ", v)
-  model2_inla_by_fiscal[[v]] <- fit_fiscal_inla(v)
-  cat(sprintf("\n====== MODEL 2 (INLA) [%s]: Model 1 as prior ======\n", v))
-  print(summary(model2_inla_by_fiscal[[v]]))
+# The presented model set (in order): revenue alone, fund balance alone, and a
+# debt model with GO and REV debt as separate covariates in the same fit. (The
+# GO-only and REV-only debt models were dropped from the specification.)
+fiscal_specs <- list(
+  revenue_per_conn  = "revenue_per_conn",
+  fund_bal_per_conn = "fund_bal_per_conn",
+  debt              = c("debt_go_per_conn", "debt_rev_per_conn")
+)
+model2_inla_by_fiscal <- setNames(vector("list", length(fiscal_specs)), names(fiscal_specs))
+for (nm in names(fiscal_specs)) {
+  vs <- fiscal_specs[[nm]]
+  message("  fitting fiscal model: ", paste(vs, collapse = " + "))
+  model2_inla_by_fiscal[[nm]] <- fit_fiscal_inla(vs)
+  cat(sprintf("\n====== MODEL 2 (INLA) [%s]: Model 1 as prior ======\n",
+              paste(vs, collapse = " + ")))
+  print(summary(model2_inla_by_fiscal[[nm]]))
 }
 saveRDS(model2_inla_by_fiscal, scratch("recurrent_coxinla_model2_by_fiscal.RDS"))
 saveRDS(lapply(model2_inla_by_fiscal, slim_inla),
         output("recurrent_coxinla_model2_by_fiscal_slim.RDS"))
 
 # --- Joint model: ALL fiscal predictors together -----------------------------
-# The per-covariate models above deliberately isolate each fiscal indicator. This
-# companion model enters every fiscal predictor at once (on the rows where ALL are
-# observed) so each effect is read net of the others, showing how much of a
-# single-covariate association survives conditioning on the rest.
+# The models above deliberately isolate the fiscal indicators (debt's two pledge
+# types aside). This fourth model enters every fiscal predictor at once (on the
+# rows where ALL are observed) so each effect is read net of the others, showing
+# how much of an isolated association survives conditioning on the rest.
 message("  fitting joint fiscal model: all fiscal predictors")
 model2_inla_all_fiscal <- fit_fiscal_inla(fiscal_vars)
 cat("\n====== MODEL 2 (INLA) [all fiscal predictors]: Model 1 as prior ======\n")
@@ -331,6 +411,7 @@ saveRDS(slim_inla(model2_inla_all_fiscal),
 
 message("Done. Full Bayesian models -> scratch/ (gitignored): ",
         if (FULL_SAMPLE_BAYES) "recurrent_coxinla_model1_full.RDS, " else "",
+        "recurrent_coxinla_model0_nulls.RDS, ",
         "recurrent_coxinla_model2_by_fiscal.RDS, ",
         "recurrent_coxinla_model2_all_fiscal.RDS. ",
         "Reduced *_slim.RDS copies -> output/ (git-tracked).")

@@ -4,21 +4,24 @@
 # Reporting for the Bayesian recurring-events Cox models fit in
 # 01_fit_recurrent_cox_inla.R. Reads the saved INLA objects and produces:
 #
-#   output/model_estimates.html   WIDE table: one column per individual model
-#                                 fit (Model 1, each isolated fiscal model, and
-#                                 the joint fiscal model). Each cell is the
+#   output/model_estimates.html   WIDE table: one column per fiscal model fit
+#                                 (revenue; fund balance; debt with GO and REV
+#                                 as separate covariates in one model; and the
+#                                 joint model with all four). Each cell is the
 #                                 posterior mean of the coefficient (log hazard
-#                                 ratio) with its 95% credible interval below.
+#                                 ratio) with its credible interval below;
+#                                 cells whose CrI excludes zero are bold.
 #                                 Shared controls appear in every column; a
 #                                 fiscal row is blank in any model that omits it.
 #   output/model_credible_intervals.png
 #                                 companion ggplot forest plot: each estimate is
-#                                 a line SEGMENT spanning its 95% CrI with the
+#                                 a line SEGMENT spanning its CrI with the
 #                                 posterior mean marked as a point.
 #   output/model_estimates.csv    the tidy estimate table behind both.
 #
-# INLA stores these directly in each fit's $summary.fixed (columns: mean, sd,
-# `0.025quant`, `0.5quant`, `0.975quant`, ...), so no refitting is needed here.
+# The interval level is CI_LEVEL from config.R (default 0.95). The bounds come
+# from each fit's summary quantile columns when they match, else are recomputed
+# from the saved posterior marginals -- so no refitting is needed here.
 #
 # Run from the drought_and_debt project root, after 01_fit_recurrent_cox_inla.R:
 #     source("code/02_model/03_model_results_table.R")
@@ -99,7 +102,7 @@ if (is.null(model1_inla) && is.null(model2_inla_by_fiscal) &&
 
 # --- Pretty labels for the model terms ---------------------------------------
 term_labels <- c(
-  DSCI_100           = "Drought severity (DSCI/100)",
+  DSCI               = "Drought severity (DSCI)",
   seller_restricted  = "Seller under restriction",
   ln_connections     = "Log connections",
   storage_per_conn_g = "Storage per connection (asinh gal)",
@@ -110,39 +113,65 @@ term_labels <- c(
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
   perc_dem_vote      = "% Dem. vote share",
+  revenue_per_conn   = "Revenue per connection (asinh)",
+  fund_bal_per_conn  = "Fund balance per connection (asinh)",
   debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
   debt_rev_per_conn  = "Revenue debt per connection (asinh)",
-  fund_bal_per_conn  = "Fund balance per connection (asinh)",
-  revenue_per_conn   = "Revenue per connection (asinh)",
   sd_frailty         = "Frailty SD (district/system)",
   sd_baseline        = "Baseline-hazard SD (RW1)"
 )
-# Top-to-bottom ordering in the plot / table (drought & controls, then fiscal,
-# then the random-effect hyperparameters).
+# Top-to-bottom ordering in the plot / table (drought & controls, then fiscal
+# in model-column order, then the random-effect hyperparameters).
 term_order  <- names(term_labels)
-fiscal_terms <- c("debt_go_per_conn", "debt_rev_per_conn",
-                  "fund_bal_per_conn", "revenue_per_conn")
+fiscal_terms <- c("revenue_per_conn", "fund_bal_per_conn",
+                  "debt_go_per_conn", "debt_rev_per_conn")
 hyper_terms  <- c("sd_frailty", "sd_baseline")
+
+# --- Credible-interval bounds at the configured CI_LEVEL (config.R) ----------
+# The saved summaries only carry quantile columns at the levels requested at
+# FIT time (e.g. `0.025quant`). When CI_LEVEL has changed since the fit, the
+# bounds are recomputed from the saved posterior marginals (the slim fits keep
+# $marginals.fixed / $marginals.hyperpar), so no refit is needed.
+qcol <- paste0(CI_PROBS, "quant")            # e.g. "0.025quant" "0.975quant"
+marg_q <- function(marglist, terms) {
+  missing_m <- setdiff(terms, names(marglist))
+  if (length(missing_m))
+    stop("Fit carries no ", qcol[1], "/", qcol[2], " summary columns and no ",
+         "stored marginals for: ", paste(missing_m, collapse = ", "),
+         " -- refit (01 passes the configured quantiles to inla()) or set ",
+         "CI_LEVEL back to the fit's level.")
+  if (!requireNamespace("INLA", quietly = TRUE))
+    stop("Recomputing the ", CI_LABEL, " CrI from the saved marginals needs ",
+         "the INLA package (or refit with this CI_LEVEL).")
+  vapply(marglist[terms], function(m) INLA::inla.qmarginal(CI_PROBS, m),
+         numeric(2))
+}
 
 # --- Pull the posterior summaries into one tidy table ------------------------
 # INLA's summary.fixed has one row per fixed effect; we keep the mean and the
-# 2.5% / 97.5% quantiles (the bounds of the 95% credible interval). Every column
-# of the report is one model fit, so we now extract EVERY term each fit carries
-# (the shared controls too, not just its fiscal covariate) so common effects can
-# be compared across all models.
+# CI_PROBS quantiles (the bounds of the CI_LEVEL credible interval). Every
+# column of the report is one model fit, so we now extract EVERY term each fit
+# carries (the shared controls too, not just its fiscal covariate) so common
+# effects can be compared across all models.
 tidy_all <- function(fit, col_label) {
   if (is.null(fit)) return(NULL)
   sf <- as.data.frame(fit$summary.fixed)
   sf$term <- rownames(sf)
   sf <- sf[sf$term %in% term_order, , drop = FALSE]
   if (!nrow(sf)) return(NULL)
+  if (all(qcol %in% colnames(sf))) {
+    lo <- sf[[qcol[1]]]; hi <- sf[[qcol[2]]]
+  } else {
+    q  <- marg_q(fit$marginals.fixed, sf$term)
+    lo <- q[1, ]; hi <- q[2, ]
+  }
   rbind(
     data.table(
       term  = sf$term,
       col   = col_label,
       mean  = sf$mean,
-      lower = sf[["0.025quant"]],
-      upper = sf[["0.975quant"]]
+      lower = lo,
+      upper = hi
     ),
     tidy_hyper(fit, col_label)
   )
@@ -152,7 +181,7 @@ tidy_all <- function(fit, col_label) {
 # Each fit's $summary.hyperpar carries the posterior of its PRECISION
 # hyperparameters: the shared frailty (cluster_idx in Model 1, district_idx in
 # Model 2) and the RW1 baseline hazard. Report both as STANDARD DEVIATIONS,
-# sd = prec^-1/2: a monotone transform, so the 95% CrI bounds are the inverted
+# sd = prec^-1/2: a monotone transform, so the CrI bounds are the inverted
 # opposite precision quantiles, and the point estimate is the posterior MEDIAN
 # (the mean does not transform; the median does). These fill the `mean` column
 # so the same cell/CSV machinery applies -- flagged in the table footnote.
@@ -163,27 +192,34 @@ tidy_hyper <- function(fit, col_label) {
   sh <- as.data.frame(fit$summary.hyperpar)
   sh <- sh[rownames(sh) %in% names(hyper_map), , drop = FALSE]
   if (!nrow(sh)) return(NULL)
+  if (all(qcol %in% colnames(sh))) {
+    p_lo <- sh[[qcol[1]]]; p_hi <- sh[[qcol[2]]]
+  } else {
+    q    <- marg_q(fit$marginals.hyperpar, rownames(sh))
+    p_lo <- q[1, ]; p_hi <- q[2, ]
+  }
   data.table(
     term  = unname(hyper_map[rownames(sh)]),
     col   = col_label,
     mean  = 1 / sqrt(sh[["0.5quant"]]),
-    lower = 1 / sqrt(sh[["0.975quant"]]),
-    upper = 1 / sqrt(sh[["0.025quant"]])
+    lower = 1 / sqrt(p_hi),
+    upper = 1 / sqrt(p_lo)
   )
 }
 
-# Short, single-line column headers for each isolated fiscal model.
-fiscal_short <- c(
-  debt_go_per_conn   = "GO debt / conn.",
-  debt_rev_per_conn  = "Rev. debt / conn.",
-  fund_bal_per_conn  = "Fund bal. / conn.",
-  revenue_per_conn   = "Revenue / conn."
+# Short, single-line column headers, one per fiscal model fit (keyed by the
+# fit-list names from 01_fit_recurrent_cox_inla.R's fiscal_specs). The debt
+# model carries GO and REV debt as separate covariates (two rows, one column).
+fiscal_cols <- c(
+  revenue_per_conn  = "Revenue / conn.",
+  fund_bal_per_conn = "Fund bal. / conn.",
+  debt              = "Debt (GO & Rev.)"
 )
 COL_JOINT <- "All fiscal (joint)"
 
-# Assemble the MAIN table columns left-to-right: one column per isolated fiscal
-# model (in fiscal_terms order), then the joint fiscal model. Model 1 (the global
-# fit) is NOT a main column -- it is reported in the appendix below.
+# Assemble the MAIN table columns left-to-right: revenue, fund balance, the
+# debt model (GO and REV as separate covariates), then the joint fiscal model.
+# Model 1 (the global fit) is NOT a main column -- it is reported in the appendix below.
 pieces <- list(); col_levels <- character(0)
 add_col <- function(fit, label) {
   p <- tidy_all(fit, label)
@@ -192,8 +228,8 @@ add_col <- function(fit, label) {
   col_levels <<- c(col_levels, label)
 }
 
-if (!is.null(model2_inla_by_fiscal))               # one isolated fiscal model per covariate
-  for (v in fiscal_terms) add_col(model2_inla_by_fiscal[[v]], unname(fiscal_short[v]))
+if (!is.null(model2_inla_by_fiscal))
+  for (nm in names(fiscal_cols)) add_col(model2_inla_by_fiscal[[nm]], unname(fiscal_cols[nm]))
 add_col(model2_inla_all_fiscal, COL_JOINT)         # joint model: shared controls + all fiscal
 
 all_est <- rbindlist(pieces, use.names = TRUE)
@@ -206,10 +242,14 @@ fmt <- function(x) formatC(x, format = "f", digits = 3)
 # =============================================================================
 # 1. HTML table -- wide: rows = terms, one column per model fit
 # =============================================================================
-# Each cell is the posterior mean with the 95% CrI beneath it (a <br> line
+# Each cell is the posterior mean with the CrI beneath it (a <br> line
 # break, so the table renders with escape = FALSE). Terms a model did not
-# include stay blank.
+# include stay blank. Cells whose CrI excludes zero are BOLD; the
+# hyperparameter rows are exempt (they are SDs, necessarily positive).
+all_est[, sig := !(as.character(term) %in% hyper_terms) &
+                 ((lower > 0 & upper > 0) | (lower < 0 & upper < 0))]
 all_est[, cell := paste0(fmt(mean), "<br>[", fmt(lower), ", ", fmt(upper), "]")]
+all_est[sig == TRUE, cell := paste0("<b>", cell, "</b>")]
 wide <- dcast(all_est, term ~ col, value.var = "cell", drop = c(TRUE, FALSE))
 wide <- wide[order(term)]
 
@@ -229,9 +269,14 @@ group_index <- setNames(block_runs$lengths, block_runs$values)
 
 html_path <- output("model_estimates.html")
 caption   <- paste0("Bayesian recurring-events Cox model: posterior mean of the ",
-                    "coefficient (log hazard ratio) with 95% credible interval, ",
-                    "one column per model fit")
+                    "coefficient (log hazard ratio) with ", CI_LABEL,
+                    " credible interval, one column per model fit")
 align <- c("l", rep("c", ncol(disp) - 1L))
+footnote_txt <- paste0("Each cell: posterior mean (top) and ", CI_LABEL,
+  " credible interval (bottom), on the coefficient / log-hazard-ratio scale. Bold = ",
+  CI_LABEL, " credible interval excludes zero. Blank = term not included in that model. ",
+  "Random-effect rows report the hyperparameter as a standard deviation (posterior median and ",
+  CI_LABEL, " CrI).")
 
 if (requireNamespace("kableExtra", quietly = TRUE)) {
   html_tbl <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
@@ -241,7 +286,7 @@ if (requireNamespace("kableExtra", quietly = TRUE)) {
     full_width = FALSE, position = "left")
   html_tbl <- kableExtra::pack_rows(html_tbl, index = group_index)
   html_tbl <- kableExtra::footnote(html_tbl, general_title = "",
-    general = "Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model. Random-effect rows report the hyperparameter as a standard deviation (posterior median and 95% CrI).")
+    general = footnote_txt)
   kableExtra::save_kable(html_tbl, file = html_path)
 } else {
   # kableExtra not installed -> plain but valid standalone HTML from knitr::kable.
@@ -254,7 +299,7 @@ if (requireNamespace("kableExtra", quietly = TRUE)) {
     "th{background:#f2f2f2;text-align:center}td{text-align:center}",
     "th:first-child,td:first-child{text-align:left}",
     "</style></head><body>", as.character(body),
-    "<p style='color:#555;font-size:90%'>Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Blank = term not included in that model. Random-effect rows report the hyperparameter as a standard deviation (posterior median and 95% CrI).</p>",
+    paste0("<p style='color:#555;font-size:90%'>", footnote_txt, "</p>"),
     "</body></html>"
   ), html_path)
 }
@@ -262,17 +307,18 @@ message("Wrote HTML table -> ", html_path)
 
 # Tidy long form behind the wide table (every term x every model fit).
 all_est[, label := unname(term_labels[as.character(term)])]
-fwrite(all_est[order(col, term), .(term, label, model = col, mean, lower, upper)],
+fwrite(all_est[order(col, term),
+               .(term, label, model = col, mean, lower, upper, ci = CI_LEVEL)],
        output("model_estimates.csv"))
 message("Wrote tidy estimates -> ", output("model_estimates.csv"))
 
 # =============================================================================
-# 2. Companion ggplot -- 95% credible intervals as line segments
+# 2. Companion ggplot -- credible intervals as line segments
 # =============================================================================
 # The wide table shows the shared controls in every column; the plot would be
 # unreadable with each control repeated across all models, so it keeps the
 # parsimonious view: each shared control once (from the joint fiscal model) and
-# each fiscal term from its isolated model and the joint model. Segment = 95% CrI,
+# each fiscal term from its own fiscal model and the joint model. Segment = CrI,
 # point = posterior mean, on the hazard-ratio scale (log x-axis) with a reference
 # line at HR = 1. A fiscal term appears twice (isolated vs joint), so dodge by group.
 # The random-effect hyperparameter rows are TABLE-ONLY (they are SDs, not
@@ -292,11 +338,13 @@ ci_plot <- ggplot(est, aes(y = label, colour = group)) +
   geom_segment(aes(x = hr_lower, xend = hr_upper, yend = label),
                linewidth = 0.7, position = dodge) +
   geom_point(aes(x = hr), size = 2, position = dodge) +
-  scale_x_continuous(trans = "log10", name = "Hazard ratio (95% credible interval)") +
+  scale_x_continuous(trans = "log10",
+                     name = paste0("Hazard ratio (", CI_LABEL, " credible interval)")) +
   scale_colour_tableau(name = NULL) +
   labs(y = NULL,
        title = "Bayesian recurring-events Cox model",
-       subtitle = "Posterior mean (point) and 95% credible interval (segment)") +
+       subtitle = paste0("Posterior mean (point) and ", CI_LABEL,
+                         " credible interval (segment)")) +
   theme_bw() +
   theme(legend.position = "bottom",
         panel.grid.minor = element_blank(),
@@ -323,12 +371,16 @@ if (!is.null(model1_inla)) {
 
   app_caption <- paste0("Appendix — Model 1, the global full-sample fit (drought, ",
     "controls, and the seller-restriction network term) whose posteriors seed the ",
-    "Model 2 priors. Posterior mean of the coefficient (log hazard ratio) with 95% ",
-    "credible interval; random-effect rows report the hyperparameter as a standard ",
-    "deviation (posterior median and 95% CrI).")
+    "Model 2 priors. Posterior mean of the coefficient (log hazard ratio) with ",
+    CI_LABEL, " credible interval; bold = ", CI_LABEL, " CrI excludes zero; ",
+    "random-effect rows report the hyperparameter as a standard deviation ",
+    "(posterior median and ", CI_LABEL, " CrI).")
+  app[, sig := !(as.character(term) %in% hyper_terms) &
+               ((lower > 0 & upper > 0) | (lower < 0 & upper < 0))]
+  app_cell <- paste0(fmt(app$mean), "<br>[", fmt(app$lower), ", ", fmt(app$upper), "]")
   app_disp <- data.frame(
     Term     = app$label,
-    Estimate = paste0(fmt(app$mean), "<br>[", fmt(app$lower), ", ", fmt(app$upper), "]"),
+    Estimate = ifelse(app$sig, paste0("<b>", app_cell, "</b>"), app_cell),
     check.names = FALSE)
   app_html <- output("model_estimates_appendix.html")
   if (requireNamespace("kableExtra", quietly = TRUE)) {
@@ -351,7 +403,7 @@ if (!is.null(model1_inla)) {
   }
   message("Wrote appendix HTML table -> ", app_html)
 
-  fwrite(app[, .(term, label, model = col, mean, lower, upper)],
+  fwrite(app[, .(term, label, model = col, mean, lower, upper, ci = CI_LEVEL)],
          output("model_estimates_appendix.csv"))
   message("Wrote appendix tidy estimates -> ", output("model_estimates_appendix.csv"))
 
@@ -366,9 +418,11 @@ if (!is.null(model1_inla)) {
     geom_segment(aes(x = hr_lower, xend = hr_upper, yend = label), linewidth = 0.7,
                  colour = "grey30") +
     geom_point(aes(x = hr), size = 2, colour = "grey30") +
-    scale_x_continuous(trans = "log10", name = "Hazard ratio (95% credible interval)") +
+    scale_x_continuous(trans = "log10",
+                       name = paste0("Hazard ratio (", CI_LABEL, " credible interval)")) +
     labs(y = NULL, title = "Appendix — Model 1 (global full-sample fit)",
-         subtitle = "Posterior mean (point) and 95% credible interval (segment)") +
+         subtitle = paste0("Posterior mean (point) and ", CI_LABEL,
+                           " credible interval (segment)")) +
     theme_bw() +
     theme(legend.position = "bottom", panel.grid.minor = element_blank(),
           plot.title = element_text(face = "bold"))

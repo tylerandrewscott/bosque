@@ -85,13 +85,24 @@ network_vars <- c("seller_restricted")
 # There is no held-out appendix control set: the demographic composition controls
 # (% rural / % Hispanic / % Black) and median household income were dropped from
 # the specification entirely, so shared_vars is the whole story.
-shared_vars <- c("DSCI_100", ctrl_vars, network_vars)
+# DSCI is the raw Drought Severity and Coverage Index (natural scale, NOT z-scored
+# and NOT the old DSCI/100); the continuous controls enter as z-scores (std_vars
+# below), while DSCI and the 0/1 flags stay on their natural scale.
+shared_vars <- c("DSCI", ctrl_vars, network_vars)
 # Core fiscal capacity measures (§4.4): debt outstanding split by pledge type --
 # GO/ad-valorem (tax-backed) and revenue-backed -- entered as two SEPARATE
 # predictors, plus fund-balance and revenue, all per connection.
 # (operating_ratio and debt_svc_tax were removed from the workflow.)
 fiscal_vars <- c("debt_go_per_conn", "debt_rev_per_conn",
                  "fund_bal_per_conn", "revenue_per_conn")
+# CONTINUOUS covariates standardized to z-scores (mean 0, sd 1) before fitting --
+# see §3b/§4. The 0/1 indicator flags (source_surface, purchases_water,
+# emergency_source, wholesaler, seller_restricted) and DSCI are deliberately
+# EXCLUDED and kept on their natural scale. std_vars are the shared continuous
+# controls (z-scored on panel_m1, inherited by panel_m2); the fiscal covariates
+# (fiscal_vars) are z-scored separately on panel_m2, their only panel.
+std_vars <- c("ln_connections", "storage_per_conn_g", "ln_home_value",
+              "median_structure_age", "perc_dem_vote")
 
 # =============================================================================
 # PANEL BUILD GUARD  (single source of truth for "is the panel current?")
@@ -104,10 +115,16 @@ fiscal_vars <- c("debt_go_per_conn", "debt_rev_per_conn",
 # cached panel, instead of it surviving reuse and failing later with `object not
 # found`. This one check lives with the builder, so consumers just source() this
 # file unconditionally instead of re-deriving -- and drifting on -- the staleness rule.
+# The z_scale check additionally invalidates any panel left over from BEFORE the
+# z-scoring change (or a session without z_scale): the standardized columns look
+# like ordinary numerics, so column-presence alone can't tell a z-scored panel from
+# a raw one -- requiring a z_scale that covers std_vars/fiscal_vars forces a rebuild
+# rather than silently reusing an unstandardized panel.
 # =============================================================================
 if (!exists("panel_m1") || !exists("panel_m2") ||
     !all(c("District_ID", shared_vars) %in% names(panel_m1)) ||
-    !all(fiscal_vars %in% names(panel_m2))) {
+    !all(fiscal_vars %in% names(panel_m2)) ||
+    !exists("z_scale") || !all(c(std_vars, fiscal_vars) %in% names(z_scale))) {
 
 # =============================================================================
 # 1. EVENTS -- distinct mandatory-restriction notices
@@ -370,6 +387,31 @@ message(sprintf("Model 1 panel (complete controls): %s rows, %d systems (%d dist
                 uniqueN(panel_m1[is.na(District_ID), PWS_ID])))
 
 # =============================================================================
+# 3b. STANDARDIZE THE CONTINUOUS CONTROLS TO Z-SCORES
+# -----------------------------------------------------------------------------
+# The continuous controls enter the model as z-scores (mean 0, sd 1) so the
+# weakly-informative N(0, sd=1) fixed-effect priors -- and the Model 1 -> Model 2
+# posterior-as-prior transfer -- mean the same thing across covariates instead of
+# being effectively tight on wide-range terms (e.g. ln_home_value ~11-13) and loose
+# on narrow ones. DSCI (the drought exposure) and the 0/1 flags are LEFT on their
+# natural scale. The scaling constants are computed ONCE here on panel_m1 (the full
+# sample) and stored in z_scale; panel_m2 is derived FROM panel_m1 in §4, so it
+# inherits these exact standardized values -- the shared covariates land on the SAME
+# scale in both fits, which the prior transfer requires. (The fiscal covariates
+# exist only in panel_m2 and are z-scored there, at the end of §4.)
+# =============================================================================
+z_scale <- list()
+for (v in std_vars) {
+  m <- mean(panel_m1[[v]], na.rm = TRUE)
+  s <- stats::sd(panel_m1[[v]], na.rm = TRUE)
+  if (!is.finite(s) || s == 0) s <- 1   # constant column: center only, never divide by 0
+  z_scale[[v]] <- c(mean = m, sd = s)
+  panel_m1[, (v) := (get(v) - m) / s]
+}
+message("Standardized continuous controls to z-scores (panel_m1 constants, shared with panel_m2): ",
+        paste(std_vars, collapse = ", "))
+
+# =============================================================================
 # 4. TIME-VARYING FINANCES + district-linked subsample (panel_m2)
 # =============================================================================
 
@@ -460,9 +502,10 @@ fin <- fin[, .(
 # financials. Implemented as a data.table rolling join: match fin$fy_end to the
 # week's date, rolling the last prior audit forward up to 730 days (roll = 730).
 # Weeks with no audit in the window get NA fiscal columns (has_audit NA) and drop.
-# The fiscal indicators are likely conflated, so each is fit in its OWN model; a
-# matched audit may still have an individual NA covariate, and each fit script
-# drops only the rows missing THAT covariate.
+# The fiscal indicators are likely conflated, so they are fit in separate models
+# (revenue alone, fund balance alone, GO + REV debt together); a matched audit
+# may still have an individual NA covariate, and each fit drops only the rows
+# missing ITS covariates.
 panel_m2 <- panel_m1[!is.na(District_ID)]               # district-linked subsample
 panel_m2[, week_date := analysis_start + tstart * 7]
 panel_m2 <- fin[panel_m2, on = .(District_ID, fy_end = week_date), roll = 730]
@@ -490,6 +533,23 @@ for (v in fiscal_vars) {
                   100 * sum(nz) / max(sum(ok), 1L),
                   uniqueN(panel_m2$District_ID[nz])))
 }
+
+# --- Standardize the fiscal covariates to z-scores (panel_m2 only) ------------
+# The fiscal covariates exist only in the district subsample, so their z-score
+# constants are computed here on panel_m2 (there is no panel_m1 version to share,
+# and each gets a default prior rather than a Model 1 transfer). Each is scaled on
+# its OWN non-NA rows -- exactly the rows its fiscal model is fit on. Done AFTER the
+# coverage/nonzero diagnostic above so that accounting reads on the raw asinh scale
+# (asinh(0)=0 marks a genuine $0). Extends the z_scale list built in §3b.
+for (v in fiscal_vars) {
+  m <- mean(panel_m2[[v]], na.rm = TRUE)
+  s <- stats::sd(panel_m2[[v]], na.rm = TRUE)
+  if (!is.finite(s) || s == 0) s <- 1
+  z_scale[[v]] <- c(mean = m, sd = s)
+  panel_m2[, (v) := (get(v) - m) / s]
+}
+message("Standardized fiscal covariates to z-scores (panel_m2 constants): ",
+        paste(fiscal_vars, collapse = ", "))
 
 } else {
   message("build_recurrent_panel.R: a current panel_m1/panel_m2 is already in ",

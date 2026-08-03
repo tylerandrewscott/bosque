@@ -134,6 +134,20 @@ start_date <- as.Date("2010-08-01")
 end_date   <- as.Date("2025-12-31")
 start_year <- as.integer(format(start_date, "%Y"))
 
+# --- Credible interval level --------------------------------------------------
+# ONE knob for every reported credible interval (model tables, forest plots,
+# appendix figures, manuscript prose): 0.95 for the conventional 95% CrI,
+# 0.89, or any level in (0, 1). No refit needed for the tables/plots --
+# 03_model_results_table.R recomputes the bounds from the saved posterior
+# marginals. Only the appendix baseline-hazard ribbon (06) needs fit-time
+# quantiles; after changing this it falls back to the fit's stored level with
+# a warning until the next explicit refit (01 passes CI_PROBS to inla()).
+if (!exists("CI_LEVEL")) {
+  CI_LEVEL <- 0.95
+}
+CI_PROBS <- round(c((1 - CI_LEVEL) / 2, 1 - (1 - CI_LEVEL) / 2), 6)  # e.g. 0.025 / 0.975
+CI_LABEL <- paste0(format(round(100 * CI_LEVEL, 2)), "%")            # e.g. "95%"
+
 # --- Map projection (Texas-centered Albers Equal Area, NAD83) -----------------
 # Defined once here; previously copy-pasted verbatim into ~9 scripts.
 albersNA <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
