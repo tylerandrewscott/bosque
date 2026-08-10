@@ -63,6 +63,11 @@ load_fit <- function(stem) {
 model1_inla            <- load_fit("recurrent_coxinla_model1_full")
 model2_inla_by_fiscal  <- load_fit("recurrent_coxinla_model2_by_fiscal")
 model2_inla_all_fiscal <- load_fit("recurrent_coxinla_model2_all_fiscal")
+# Sensitivity fits (fiscal models refit dropping districts with <100 SDWIS
+# service connections); optional -- the appendix report below is skipped if the
+# fit script has not produced them yet.
+model2_min100_by_fiscal  <- load_fit("recurrent_coxinla_model2_by_fiscal_min100")
+model2_min100_all_fiscal <- load_fit("recurrent_coxinla_model2_all_fiscal_min100")
 
 # Generation check: Model 2 consumes Model 1's posteriors as priors, so a
 # Model 1 fit file NEWER than the Model 2 fits means the table would mix fit
@@ -109,10 +114,9 @@ term_labels <- c(
   source_surface     = "Surface water (vs ground)",
   purchases_water    = "Purchases water (primary)",
   emergency_source   = "Emergency source/interconnect",
-  wholesaler         = "Wholesaler (sells water)",
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
-  perc_dem_vote      = "% Dem. vote share",
+  perc_rural         = "% Rural (urban/rural gradient)",
   revenue_per_conn   = "Revenue per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
   debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
@@ -217,143 +221,153 @@ fiscal_cols <- c(
 )
 COL_JOINT <- "All fiscal (joint)"
 
-# Assemble the MAIN table columns left-to-right: revenue, fund balance, the
-# debt model (GO and REV as separate covariates), then the joint fiscal model.
-# Model 1 (the global fit) is NOT a main column -- it is reported in the appendix below.
-pieces <- list(); col_levels <- character(0)
-add_col <- function(fit, label) {
-  p <- tidy_all(fit, label)
-  if (is.null(p)) return(invisible())
-  pieces[[length(pieces) + 1L]] <<- p
-  col_levels <<- c(col_levels, label)
-}
-
-if (!is.null(model2_inla_by_fiscal))
-  for (nm in names(fiscal_cols)) add_col(model2_inla_by_fiscal[[nm]], unname(fiscal_cols[nm]))
-add_col(model2_inla_all_fiscal, COL_JOINT)         # joint model: shared controls + all fiscal
-
-all_est <- rbindlist(pieces, use.names = TRUE)
-if (!nrow(all_est)) stop("No matching model terms found in the fitted objects.")
-all_est[, term := factor(term, levels = term_order)]
-all_est[, col  := factor(col,  levels = col_levels)]
-
 fmt <- function(x) formatC(x, format = "f", digits = 3)
 
-# =============================================================================
-# 1. HTML table -- wide: rows = terms, one column per model fit
-# =============================================================================
-# Each cell is the posterior mean with the CrI beneath it (a <br> line
-# break, so the table renders with escape = FALSE). Terms a model did not
-# include stay blank. Cells whose CrI excludes zero are BOLD; the
-# hyperparameter rows are exempt (they are SDs, necessarily positive).
-all_est[, sig := !(as.character(term) %in% hyper_terms) &
-                 ((lower > 0 & upper > 0) | (lower < 0 & upper < 0))]
-all_est[, cell := paste0(fmt(mean), "<br>[", fmt(lower), ", ", fmt(upper), "]")]
-all_est[sig == TRUE, cell := paste0("<b>", cell, "</b>")]
-wide <- dcast(all_est, term ~ col, value.var = "cell", drop = c(TRUE, FALSE))
-wide <- wide[order(term)]
-
-present_terms <- as.character(wide$term)
-disp <- as.data.frame(wide)
-disp$term <- unname(term_labels[present_terms])    # pretty row labels
-names(disp)[1] <- "Term"
-disp[is.na(disp)] <- ""                            # unmodelled terms -> blank cell
-
-# Contiguous control/fiscal/hyperparameter blocks (term_order lists controls
-# first, hyperparameters last) drive pack_rows(); rle() gives the run lengths
-# in display order.
-blocks     <- ifelse(present_terms %in% hyper_terms, "Random effects",
-              ifelse(present_terms %in% fiscal_terms, "Fiscal", "Drought & controls"))
-block_runs <- rle(blocks)
-group_index <- setNames(block_runs$lengths, block_runs$values)
-
-html_path <- output("model_estimates.html")
-caption   <- paste0("Bayesian recurring-events Cox model: posterior mean of the ",
-                    "coefficient (log hazard ratio) with ", CI_LABEL,
-                    " credible interval, one column per model fit")
-align <- c("l", rep("c", ncol(disp) - 1L))
-footnote_txt <- paste0("Each cell: posterior mean (top) and ", CI_LABEL,
-  " credible interval (bottom), on the coefficient / log-hazard-ratio scale. Bold = ",
-  CI_LABEL, " credible interval excludes zero. Blank = term not included in that model. ",
-  "Random-effect rows report the hyperparameter as a standard deviation (posterior median and ",
-  CI_LABEL, " CrI).")
-
-if (requireNamespace("kableExtra", quietly = TRUE)) {
-  html_tbl <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
-                           caption = caption)
-  html_tbl <- kableExtra::kable_styling(
-    html_tbl, bootstrap_options = c("striped", "hover", "condensed"),
-    full_width = FALSE, position = "left")
-  html_tbl <- kableExtra::pack_rows(html_tbl, index = group_index)
-  html_tbl <- kableExtra::footnote(html_tbl, general_title = "",
-    general = footnote_txt)
-  kableExtra::save_kable(html_tbl, file = html_path)
-} else {
-  # kableExtra not installed -> plain but valid standalone HTML from knitr::kable.
-  body <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
-                       caption = caption)
-  writeLines(c(
-    "<!DOCTYPE html><html><head><meta charset='utf-8'>",
-    "<style>body{font-family:sans-serif;margin:2em}",
-    "table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}",
-    "th{background:#f2f2f2;text-align:center}td{text-align:center}",
-    "th:first-child,td:first-child{text-align:left}",
-    "</style></head><body>", as.character(body),
-    paste0("<p style='color:#555;font-size:90%'>", footnote_txt, "</p>"),
-    "</body></html>"
-  ), html_path)
+# Assemble the fiscal-model columns left-to-right for one fit SET: revenue, fund
+# balance, the debt model (GO and REV as separate covariates), then the joint
+# fiscal model. Used for BOTH the main district-subsample fits and the
+# >=100-connection sensitivity fits, so the two reports share one code path.
+# Model 1 (the global fit) is NOT a column here -- it is reported separately in
+# the appendix below.
+assemble_est <- function(by_fiscal, all_fiscal) {
+  pieces <- list(); col_levels <- character(0)
+  add_col <- function(fit, label) {
+    p <- tidy_all(fit, label)
+    if (is.null(p)) return(invisible())
+    pieces[[length(pieces) + 1L]] <<- p
+    col_levels <<- c(col_levels, label)
+  }
+  if (!is.null(by_fiscal))
+    for (nm in names(fiscal_cols)) add_col(by_fiscal[[nm]], unname(fiscal_cols[nm]))
+  add_col(all_fiscal, COL_JOINT)                   # joint model: shared controls + all fiscal
+  est <- rbindlist(pieces, use.names = TRUE)
+  if (!nrow(est)) stop("No matching model terms found in the fitted objects.")
+  est[, term := factor(term, levels = term_order)]
+  est[, col  := factor(col,  levels = unique(col_levels))]
+  est[]
 }
-message("Wrote HTML table -> ", html_path)
 
-# Tidy long form behind the wide table (every term x every model fit).
-all_est[, label := unname(term_labels[as.character(term)])]
-fwrite(all_est[order(col, term),
-               .(term, label, model = col, mean, lower, upper, ci = CI_LEVEL)],
-       output("model_estimates.csv"))
-message("Wrote tidy estimates -> ", output("model_estimates.csv"))
+# Write the wide HTML table + tidy CSV + companion forest plot for one fit set.
+# Parameterised by output paths / caption / plot title so the main and
+# sensitivity reports differ only in their file names and wording.
+emit_fiscal_report <- function(all_est, html_path, csv_path, plot_path,
+                               caption, plot_title) {
+  all_est <- copy(all_est)
 
-# =============================================================================
-# 2. Companion ggplot -- credible intervals as line segments
-# =============================================================================
-# The wide table shows the shared controls in every column; the plot would be
-# unreadable with each control repeated across all models, so it keeps the
-# parsimonious view: each shared control once (from the joint fiscal model) and
-# each fiscal term from its own fiscal model and the joint model. Segment = CrI,
-# point = posterior mean, on the hazard-ratio scale (log x-axis) with a reference
-# line at HR = 1. A fiscal term appears twice (isolated vs joint), so dodge by group.
-# The random-effect hyperparameter rows are TABLE-ONLY (they are SDs, not
-# log-hazard coefficients, so exp() would be meaningless here).
-shared   <- setdiff(term_order, c(fiscal_terms, hyper_terms))
-est      <- all_est[(as.character(term) %in% shared & col == COL_JOINT) |
+  # --- wide HTML table: rows = terms, one column per model fit ---------------
+  # Each cell is the posterior mean with the CrI beneath it (a <br> line break,
+  # so it renders with escape = FALSE). Terms a model did not include stay blank.
+  # Cells whose CrI excludes zero are BOLD; the hyperparameter rows (SDs,
+  # necessarily positive) are exempt.
+  all_est[, sig := !(as.character(term) %in% hyper_terms) &
+                   ((lower > 0 & upper > 0) | (lower < 0 & upper < 0))]
+  all_est[, cell := paste0(fmt(mean), "<br>[", fmt(lower), ", ", fmt(upper), "]")]
+  all_est[sig == TRUE, cell := paste0("<b>", cell, "</b>")]
+  wide <- dcast(all_est, term ~ col, value.var = "cell", drop = c(TRUE, FALSE))
+  wide <- wide[order(term)]
+
+  present_terms <- as.character(wide$term)
+  disp <- as.data.frame(wide)
+  disp$term <- unname(term_labels[present_terms])  # pretty row labels
+  names(disp)[1] <- "Term"
+  disp[is.na(disp)] <- ""                          # unmodelled terms -> blank cell
+
+  # Contiguous control/fiscal/hyperparameter blocks drive pack_rows(); rle()
+  # gives the run lengths in display order.
+  blocks     <- ifelse(present_terms %in% hyper_terms, "Random effects",
+                ifelse(present_terms %in% fiscal_terms, "Fiscal", "Drought & controls"))
+  block_runs <- rle(blocks)
+  group_index <- setNames(block_runs$lengths, block_runs$values)
+
+  align <- c("l", rep("c", ncol(disp) - 1L))
+  footnote_txt <- paste0("Each cell: posterior mean (top) and ", CI_LABEL,
+    " credible interval (bottom), on the coefficient / log-hazard-ratio scale. Bold = ",
+    CI_LABEL, " credible interval excludes zero. Blank = term not included in that model. ",
+    "Random-effect rows report the hyperparameter as a standard deviation (posterior median and ",
+    CI_LABEL, " CrI).")
+
+  if (requireNamespace("kableExtra", quietly = TRUE)) {
+    html_tbl <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
+                             caption = caption)
+    html_tbl <- kableExtra::kable_styling(
+      html_tbl, bootstrap_options = c("striped", "hover", "condensed"),
+      full_width = FALSE, position = "left")
+    html_tbl <- kableExtra::pack_rows(html_tbl, index = group_index)
+    html_tbl <- kableExtra::footnote(html_tbl, general_title = "",
+      general = footnote_txt)
+    kableExtra::save_kable(html_tbl, file = html_path)
+  } else {
+    # kableExtra not installed -> plain but valid standalone HTML from knitr::kable.
+    body <- knitr::kable(disp, format = "html", align = align, escape = FALSE,
+                         caption = caption)
+    writeLines(c(
+      "<!DOCTYPE html><html><head><meta charset='utf-8'>",
+      "<style>body{font-family:sans-serif;margin:2em}",
+      "table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}",
+      "th{background:#f2f2f2;text-align:center}td{text-align:center}",
+      "th:first-child,td:first-child{text-align:left}",
+      "</style></head><body>", as.character(body),
+      paste0("<p style='color:#555;font-size:90%'>", footnote_txt, "</p>"),
+      "</body></html>"
+    ), html_path)
+  }
+  message("Wrote HTML table -> ", html_path)
+
+  # --- tidy long form behind the wide table (every term x every model fit) ---
+  all_est[, label := unname(term_labels[as.character(term)])]
+  fwrite(all_est[order(col, term),
+                 .(term, label, model = col, mean, lower, upper, ci = CI_LEVEL)],
+         csv_path)
+  message("Wrote tidy estimates -> ", csv_path)
+
+  # --- companion forest plot: credible intervals as line segments ------------
+  # Parsimonious view: each shared control once (from the joint fiscal model) and
+  # each fiscal term from its own fiscal model and the joint model. Segment = CrI,
+  # point = posterior mean, on the hazard-ratio scale (log x-axis) with a
+  # reference line at HR = 1. A fiscal term appears twice (isolated vs joint), so
+  # dodge by group. The hyperparameter rows are TABLE-ONLY (SDs, not log-hazard
+  # coefficients, so exp() would be meaningless here).
+  shared <- setdiff(term_order, c(fiscal_terms, hyper_terms))
+  est    <- all_est[(as.character(term) %in% shared & col == COL_JOINT) |
                     (as.character(term) %in% fiscal_terms)]
-est[, group := fifelse(as.character(term) %in% shared, "Drought & controls",
-              fifelse(col == COL_JOINT, "Fiscal (joint)", "Fiscal"))]
-est[, group := factor(group, levels = c("Drought & controls", "Fiscal", "Fiscal (joint)"))]
-est[, label := factor(term_labels[as.character(term)], levels = rev(term_labels[term_order]))]
-est[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]
+  est[, group := fifelse(as.character(term) %in% shared, "Drought & controls",
+                fifelse(col == COL_JOINT, "Fiscal (joint)", "Fiscal"))]
+  est[, group := factor(group, levels = c("Drought & controls", "Fiscal", "Fiscal (joint)"))]
+  est[, label := factor(term_labels[as.character(term)], levels = rev(term_labels[term_order]))]
+  est[, `:=`(hr = exp(mean), hr_lower = exp(lower), hr_upper = exp(upper))]
 
-dodge <- position_dodge(width = 0.6)
-ci_plot <- ggplot(est, aes(y = label, colour = group)) +
-  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
-  geom_segment(aes(x = hr_lower, xend = hr_upper, yend = label),
-               linewidth = 0.7, position = dodge) +
-  geom_point(aes(x = hr), size = 2, position = dodge) +
-  scale_x_continuous(trans = "log10",
-                     name = paste0("Hazard ratio (", CI_LABEL, " credible interval)")) +
-  scale_colour_tableau(name = NULL) +
-  labs(y = NULL,
-       title = "Bayesian recurring-events Cox model",
-       subtitle = paste0("Posterior mean (point) and ", CI_LABEL,
-                         " credible interval (segment)")) +
-  theme_bw() +
-  theme(legend.position = "bottom",
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(face = "bold"))
+  dodge <- position_dodge(width = 0.6)
+  ci_plot <- ggplot(est, aes(y = label, colour = group)) +
+    geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
+    geom_linerange(aes(xmin = hr_lower, xmax = hr_upper),
+                   linewidth = 0.7, position = dodge) +
+    geom_point(aes(x = hr), size = 2, position = dodge) +
+    scale_x_continuous(trans = "log10",
+                       name = paste0("Hazard ratio (", CI_LABEL, " credible interval)")) +
+    scale_colour_tableau(name = NULL) +
+    labs(y = NULL, title = plot_title,
+         subtitle = paste0("Posterior mean (point) and ", CI_LABEL,
+                           " credible interval (segment)")) +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          panel.grid.minor = element_blank(),
+          plot.title = element_text(face = "bold"))
+  ggsave(plot_path, ci_plot, width = 8,
+         height = 1 + 0.35 * nrow(est), units = "in", dpi = 400)
+  message("Wrote credible-interval plot -> ", plot_path)
+}
 
-plot_path <- output("model_credible_intervals.png")
-ggsave(plot_path, ci_plot, width = 8,
-       height = 1 + 0.35 * nrow(est), units = "in", dpi = 400)
-message("Wrote credible-interval plot -> ", plot_path)
+# --- MAIN report: the district-subsample fiscal fits -------------------------
+all_est <- assemble_est(model2_inla_by_fiscal, model2_inla_all_fiscal)
+emit_fiscal_report(
+  all_est,
+  html_path = output("model_estimates.html"),
+  csv_path  = output("model_estimates.csv"),
+  plot_path = output("model_credible_intervals.png"),
+  caption   = paste0("Bayesian recurring-events Cox model: posterior mean of the ",
+                     "coefficient (log hazard ratio) with ", CI_LABEL,
+                     " credible interval, one column per model fit"),
+  plot_title = "Bayesian recurring-events Cox model")
 
 # =============================================================================
 # 3. Appendix -- Model 1 (the global full-sample fit)
@@ -432,6 +446,35 @@ if (!is.null(model1_inla)) {
   message("Wrote appendix credible-interval plot -> ", app_plot_path)
 } else {
   message("Model 1 fit not found; skipping appendix outputs.")
+}
+
+# =============================================================================
+# 4. Appendix -- sensitivity: fiscal models dropping <100-connection districts
+# -----------------------------------------------------------------------------
+# The main fiscal per-connection ratios divide a dollar amount by the district's
+# SDWIS service-connection count, so a handful of very small districts produce
+# extreme per-connection values. 01_fit_recurrent_cox_inla.R refits every fiscal
+# model on the subsample of district-weeks with >=100 connections (same priors,
+# same z-scaled covariates). This block reports that fit set with the SAME wide
+# table + forest plot as the main one, so the two are read side by side; if the
+# fiscal effects agree, the tiny districts are not driving them. Skipped when the
+# sensitivity fits are absent (fit script not yet rerun with the min100 block).
+if (!is.null(model2_min100_by_fiscal) || !is.null(model2_min100_all_fiscal)) {
+  sens_est <- assemble_est(model2_min100_by_fiscal, model2_min100_all_fiscal)
+  emit_fiscal_report(
+    sens_est,
+    html_path = output("model_estimates_sensitivity_min100.html"),
+    csv_path  = output("model_estimates_sensitivity_min100.csv"),
+    plot_path = output("model_credible_intervals_sensitivity_min100.png"),
+    caption   = paste0("Appendix (sensitivity) — fiscal models refit after ",
+                       "dropping district-weeks with fewer than 100 SDWIS service ",
+                       "connections, whose per-connection ratios are inflated by a ",
+                       "small denominator. Same priors and z-scaled covariates as ",
+                       "the main models; posterior mean (log hazard ratio) with ",
+                       CI_LABEL, " credible interval, one column per fit."),
+    plot_title = "Appendix — fiscal models, districts with >=100 connections")
+} else {
+  message("Sensitivity (min100) fits not found; skipping the sensitivity appendix outputs.")
 }
 
 message("Done. Model reporting outputs in ", OUTPUT_DIR, "/")

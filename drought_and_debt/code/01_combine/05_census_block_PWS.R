@@ -5,7 +5,10 @@
 # aggregated up to service-area boundaries, weighting each census unit by the
 # share of the SYSTEM's area that falls in it (intersection area / system area,
 # the Mullin & Rubado convention).
-#   * block-group level, 2010 decennial SF1: % Hispanic, % Black, % rural
+#   * block-group level, 2010 decennial SF1: % Hispanic, % Black, % rural.
+#     % rural (the urban/rural gradient in the model spec) is pulled AGAIN from
+#     the 2020 decennial DHC (table H2) on 2020 block-group lines, so the panel
+#     can forward-fill it across two vintages like the ACS tract variables below.
 #   * tract level, 2006-2010 ACS: % bachelor's, median household income,
 #     % housing built since 1980, % under poverty line, median home value,
 #     median year structure built. (M/R used block groups throughout; these
@@ -63,22 +66,46 @@ twd_boundaries <- twd_boundaries %>% group_by(PWS_ID) %>% summarise()
 #   P006003/P003001  -> % Black (alone or in combination), of TOTAL population.
 #                       (P010 was used before — wrongly: P010 is race for the
 #                       population 18 YEARS AND OVER, not total population.)
-#   H002005/H002001  -> % rural, of HOUSING UNITS (not persons — label carefully)
+#   H002005/H002001  -> % rural, of HOUSING UNITS (not persons — label carefully).
+#     This is the urban/rural gradient control carried into the model spec
+#     (perc_rural), vintage-suffixed _2010 here with a _2020 companion (2020 DHC
+#     table H2) pulled below, so the panel can forward-fill it by week-year the
+#     same way it does the two ACS tract vintages.
 dec <- tidycensus::get_decennial(geography = 'block group',
                                  state = 'TX', year = 2010,
                                  variables = c('P004001', 'P004003',
                                                'P003001', 'P006003',
                                                'H002001', 'H002005'))
 dec <- dcast(data.table(dec), GEOID ~ variable, value.var = 'value')
-dec[, Perc_Hispanic := 100 * (P004003 / P004001)]
-dec[, Perc_Black    := 100 * (P006003 / P003001)]
-dec[, Perc_Rural    := 100 * (H002005 / H002001)]
-block_demos <- dec[, .(GEOID, Perc_Hispanic, Perc_Black, Perc_Rural)]
+dec[, Perc_Hispanic   := 100 * (P004003 / P004001)]
+dec[, Perc_Black      := 100 * (P006003 / P003001)]
+dec[, Perc_Rural_2010 := 100 * (H002005 / H002001)]
+block_demos <- dec[, .(GEOID, Perc_Hispanic, Perc_Black, Perc_Rural_2010)]
 
 tx_blocks <- tigris::block_groups(state = 'TX', cb = TRUE, year = 2010)
 tx_blocks$GEOID <- str_remove(tx_blocks$GEO_ID, '^1500000US')
 tx_blocks <- st_make_valid(st_transform(tx_blocks, st_crs(albersNA)))
 tx_blocks <- left_join(tx_blocks, block_demos, by = 'GEOID')
+
+# --- Block-group % rural, second vintage: 2020 decennial DHC -------------------
+# 2020 analog of the 2010 SF1 H002 housing urban/rural split, from the 2020
+# Demographic and Housing Characteristics File (sumfile = 'dhc'): H2_003N (rural
+# housing units) / H2_001N (total). On the 2020 block-group lines, so like the
+# 2020 tracts it needs its own geometry + overlay. NOTE a definitional break --
+# the Census REDREW urban-area boundaries for 2020 (density/housing-unit criteria,
+# 2,000-HU / 5,000-person threshold), so a system's 2010 vs 2020 % rural can move
+# from the redefinition alone, not just on-the-ground change. Acceptable for a
+# forward-filled slow-moving control, matched to the ACS two-vintage handling.
+dec20 <- tidycensus::get_decennial(geography = 'block group', state = 'TX',
+                                   year = 2020, sumfile = 'dhc',
+                                   variables = c('H2_001N', 'H2_003N'))
+dec20 <- dcast(data.table(dec20), GEOID ~ variable, value.var = 'value')
+dec20[, Perc_Rural_2020 := 100 * (H2_003N / H2_001N)]
+
+# 2020+ cb files carry GEOID directly -- no GEO_ID prefix strip needed.
+tx_blocks20 <- tigris::block_groups(state = 'TX', cb = TRUE, year = 2020)
+tx_blocks20 <- left_join(tx_blocks20, dec20[, .(GEOID, Perc_Rural_2020)], by = 'GEOID')
+tx_blocks20 <- st_make_valid(st_transform(tx_blocks20, st_crs(albersNA)))
 
 # --- Tract demographics: 2006-2010 ACS 5-year ----------------------------------
 # Two batched pulls (identical geography/survey/year) instead of six sequential
@@ -181,7 +208,8 @@ pws_weighted <- function(units, unit_id, vars) {
 }
 
 pws_blocks_dt <- pws_weighted(tx_blocks, 'GEOID',
-                              c('Perc_Hispanic', 'Perc_Black', 'Perc_Rural'))
+                              c('Perc_Hispanic', 'Perc_Black', 'Perc_Rural_2010'))
+pws_blocks20_dt <- pws_weighted(tx_blocks20, 'GEOID', c('Perc_Rural_2020'))
 pws_tracts_dt <- pws_weighted(tx_tracts, 'GEOID',
                               c('Perc_Bachelors', 'Med_Household_Income',
                                 'Perc_Houses_Since1980', 'Perc_Under_Poverty_Line',
@@ -191,5 +219,6 @@ pws_tracts20_dt <- pws_weighted(tx_tracts20, 'GEOID',
 pws_vote_dt     <- pws_weighted(vtds, 'VTDKEY', paste0('Perc_Dem_', vote_years))
 
 pws_demos_dt <- Reduce(function(a, b) merge(a, b, by = 'PWS_ID'),
-                       list(pws_blocks_dt, pws_tracts_dt, pws_tracts20_dt, pws_vote_dt))
+                       list(pws_blocks_dt, pws_blocks20_dt, pws_tracts_dt,
+                            pws_tracts20_dt, pws_vote_dt))
 saveRDS(pws_demos_dt, committed('pws_demos_MR.RDS'))

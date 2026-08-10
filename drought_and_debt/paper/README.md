@@ -45,6 +45,7 @@ Defined in `_setup.R`. The model-column constants `M_DEBT`, `M_FUNDBAL`,
 | `credible("term", model)` | `TRUE` if the 95% CrI excludes 0/1. |
 | `results_table()` | Wide main fiscal-models table. |
 | `appendix_table()` | Global Model 1 (prior-setting) table. |
+| `sensitivity_table()` | Fiscal models refit dropping <100-connection districts (appendix). |
 | `descriptives_table()` | Grouped summary-statistics table. |
 
 `term` accepts either the raw name (`"debt_go_per_conn"`) or its pretty label. A
@@ -64,6 +65,6 @@ Blocks marked `<!-- STALE (step 2): ... -->` in `manuscript.qmd` describe the
 **old** model and must be rewritten for the current spec (weekly 2010–2025, DSCI,
 one iid frailty — district/system; the county frailty was removed 2026-07-24, no
 spatial/ICAR — time-varying yearly service connections (SDWIS), repeated events,
-730-day/FY-end-date audit rule, wholesaler control; demographics, consumption,
-operating ratio, and the debt-service-tax interaction dropped). The wiring and
+730-day/FY-end-date audit rule; demographics, consumption,
+operating ratio, the debt-service-tax interaction, and the wholesaler control dropped). The wiring and
 tables are already current; only the surrounding narrative needs updating.

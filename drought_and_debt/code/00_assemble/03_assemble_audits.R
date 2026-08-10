@@ -57,13 +57,31 @@ audits$FISCAL_YEAR = year(audits$`FISCAL YEAR ENDED`)
 setnames(audits,"DISTRICT_ID", "District_ID")
 setnames(audits,"TOTAL TAX RATE", "Total_Tax_Rate")
 
-# One audit per district-YEAR (not per FY-end date, which let same-year refilings
-# through). Keep the FULLEST filing: fewest zero-valued fields, breaking ties in
-# favor of the later FY-end date.
-audits$common = paste(audits$District_ID,audits$FISCAL_YEAR,sep='_')
-audits$zeros = rowSums(audits == 0,na.rm = T)
-audits = audits[order(common, zeros, -as.numeric(`FISCAL YEAR ENDED`)),]
-audits = audits[!duplicated(audits, incomparables=FALSE, fromLast=FALSE, by='common'),]
+# One audit per district-YEAR. Refilings for the same fiscal year are typically
+# CORRECTIONS or completions of an earlier submission (e.g. a $300M revenue typo
+# later refiled as $3.0M), so instead of picking a single winning row we FILL
+# EACH FIELD FORWARD from the most-recent submission that reported a usable value.
+# DOC_ID is a sequential submission counter (higher = later; Spearman 0.99 vs
+# DATE_SUBMITTED, and fully populated where DATE_SUBMITTED often is not), so per
+# district-year we walk filings newest->oldest and take, for EACH COLUMN
+# INDEPENDENTLY, the first value that is non-missing AND non-zero. A zero is how a
+# blank/omitted money field surfaces in this source, so treating it as "not
+# reported" lets an all-zero refiling fall back to the real values in the prior
+# filing. This coalesces per variable; it never sums a variable across filings
+# (the only addition downstream is the existing GF+ENT definition of Total_Revenue
+# below). If every filing is zero/NA for a field, the newest value is kept as-is.
+setDT(audits)
+audits[, common := paste(District_ID, FISCAL_YEAR, sep = '_')]
+setorder(audits, common, -DOC_ID)          # newest submission first within each district-year
+n_refiled <- audits[, .N, by = common][N > 1, .N]
+pick_recent <- function(x) {               # x ordered newest->oldest within the group
+  usable <- if (is.numeric(x)) which(!is.na(x) & x != 0) else which(!is.na(x) & nzchar(as.character(x)))
+  if (length(usable)) x[usable[1]] else x[1]
+}
+audits <- audits[, lapply(.SD, pick_recent), by = common]
+if (n_refiled > 0) message(sprintf(
+  "assemble_audits.R: collapsed %d district-year(s) with refilings via most-recent-non-zero fill-forward.",
+  n_refiled))
 audits$Date = decimal_date(audits$`FISCAL YEAR ENDED`)
 audits$Retail_Wastewater = (audits$`WASTEWATER CUST - EQ SINGLE FAMILY UNITS`>0)+0
 audits$y = 1

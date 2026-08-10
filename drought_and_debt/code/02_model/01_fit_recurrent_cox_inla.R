@@ -240,8 +240,11 @@ if (FULL_SAMPLE_BAYES) {
 # covariates in the same fit (not summed). Each fit uses its own covariates'
 # complete cases. A companion JOINT model then enters all four fiscal predictors
 # together (on the rows where all are observed) for
-# comparison. Model 1's posteriors are carried into Model 2 as priors on BOTH the
-# shared fixed effects (each covariate's mean + precision) AND the two
+# comparison. Model 2 uses the REDUCED shared-covariate set (shared_vars_m2):
+# the urban/rural gradient, median structure age, and the surface-water flag are
+# dropped from the primary fiscal models and kept only in the appendix Model 1.
+# Model 1's posteriors are carried into Model 2 as priors on BOTH the
+# shared fixed effects it retains (each covariate's mean + precision) AND the two
 # hyperparameters -- the district/system-frailty precision and the RW1
 # baseline-hazard precision. Every fiscal term gets a
 # weakly-informative prior (sd = 1 on the log-hazard scale). If Model 1 was not
@@ -251,11 +254,15 @@ if (!is.null(model1_inla)) {
   # (a) Fixed effects: Model 1's posterior mean/precision on each shared covariate;
   #     a weakly-informative default (mean 0, sd 1) for the as-yet-unseen fiscal term.
   sf1 <- model1_inla$summary.fixed
-  sf1 <- sf1[rownames(sf1) %in% shared_vars, ]
   if (!all(shared_vars %in% rownames(sf1)))
     stop("Model 1 fit does not carry shared covariate(s): ",
          paste(setdiff(shared_vars, rownames(sf1)), collapse = ", "),
          " — they would silently get a default prior. Refit Model 1 (REUSE_MODEL1_FIT=FALSE).")
+  # Carry priors forward only for the covariates that enter the primary fiscal
+  # models (shared_vars_m2). The appendix-only controls (perc_rural, median
+  # structure age, surface water) are in Model 1 but dropped from Model 2, so
+  # their posteriors are not needed as priors here.
+  sf1 <- sf1[rownames(sf1) %in% shared_vars_m2, ]
   prior_mean <- as.list(setNames(sf1[["mean"]], rownames(sf1)))
   prior_prec <- as.list(setNames(1 / sf1[["sd"]]^2, rownames(sf1)))
   prior_mean$default <- 0; prior_prec$default <- 1       # weakly-informative on the fiscal term (sd = 1, log-hazard scale)
@@ -361,12 +368,14 @@ saveRDS(lapply(model0_nulls, slim_inla),
 # the isolated models, the GO + REV pair for the debt model, or all of
 # `fiscal_vars` for the joint model. The subsample is the rows where EVERY
 # requested covariate is observed (complete cases), so multi-covariate models
-# run on the intersection of coverage.
-fit_fiscal_inla <- function(vs) {
-  d <- panel_m2[complete.cases(panel_m2[, ..vs])]
+# run on the intersection of coverage. `panel` defaults to the full district
+# subsample; the sensitivity refit below passes the >=100-connection subset so
+# both run through identical code (same priors, same z-scaled covariates).
+fit_fiscal_inla <- function(vs, panel = panel_m2) {
+  d <- panel[complete.cases(panel[, ..vs])]
   d[, district_idx := .GRP, by = District_ID]           # reindex within subsample
   form <- as.formula(paste(resp, "~",
-    paste(c(shared_vars, vs, f_dist), collapse = " + ")))
+    paste(c(shared_vars_m2, vs, f_dist), collapse = " + ")))
   inla(form, family = "coxph", data = as.list(d),
        quantiles = c(CI_PROBS[1], 0.5, CI_PROBS[2]),
        control.hazard = hazard_ctrl_m2, control.inla = inla_ctrl,
@@ -409,9 +418,51 @@ saveRDS(model2_inla_all_fiscal, scratch("recurrent_coxinla_model2_all_fiscal.RDS
 saveRDS(slim_inla(model2_inla_all_fiscal),
         output("recurrent_coxinla_model2_all_fiscal_slim.RDS"))
 
+# =============================================================================
+# SENSITIVITY (appendix) -- fiscal models dropping tiny-denominator districts
+# -----------------------------------------------------------------------------
+# The per-connection fiscal ratios are a dollar amount over the district's SDWIS
+# service-connection count (dist_conn). A handful of very small districts (e.g.
+# 12 connections carrying ~$30M of GO debt) yield per-connection ratios orders of
+# magnitude above the rest; asinh() compresses them but they still sit ~1-3 SD
+# above the mean on the fitted scale, so they are high-leverage. This appendix
+# refit repeats EVERY fiscal model (revenue, fund balance, the GO+REV debt model,
+# and the joint model) on the subsample of district-weeks with dist_conn >=
+# MIN_CONN_SENS, holding everything else fixed: same Model-1-derived priors, same
+# frailty/baseline hyperpriors, and the SAME z-scaled covariates (standardized on
+# the full panel_m2 in the builder, NOT re-standardized here) so the coefficients
+# are directly comparable to the main table. If the main and sensitivity fiscal
+# effects agree, the results are not being driven by the tiny districts.
+if (!exists("MIN_CONN_SENS")) MIN_CONN_SENS <- 100
+panel_m2_hi <- panel_m2[!is.na(dist_conn) & dist_conn >= MIN_CONN_SENS]
+message(sprintf(
+  "Sensitivity subsample (dist_conn >= %d): %s of %s district-weeks kept (%d districts; %d dropped for <%d connections).",
+  MIN_CONN_SENS, format(nrow(panel_m2_hi), big.mark = ","),
+  format(nrow(panel_m2), big.mark = ","), uniqueN(panel_m2_hi$District_ID),
+  uniqueN(panel_m2[dist_conn < MIN_CONN_SENS, District_ID]), MIN_CONN_SENS))
+
+model2_min100_by_fiscal <- setNames(vector("list", length(fiscal_specs)), names(fiscal_specs))
+for (nm in names(fiscal_specs)) {
+  vs <- fiscal_specs[[nm]]
+  message("  fitting sensitivity fiscal model (dist_conn>=", MIN_CONN_SENS, "): ",
+          paste(vs, collapse = " + "))
+  model2_min100_by_fiscal[[nm]] <- fit_fiscal_inla(vs, panel = panel_m2_hi)
+}
+saveRDS(model2_min100_by_fiscal, scratch("recurrent_coxinla_model2_by_fiscal_min100.RDS"))
+saveRDS(lapply(model2_min100_by_fiscal, slim_inla),
+        output("recurrent_coxinla_model2_by_fiscal_min100_slim.RDS"))
+
+message("  fitting sensitivity joint fiscal model (dist_conn>=", MIN_CONN_SENS, ")")
+model2_min100_all_fiscal <- fit_fiscal_inla(fiscal_vars, panel = panel_m2_hi)
+saveRDS(model2_min100_all_fiscal, scratch("recurrent_coxinla_model2_all_fiscal_min100.RDS"))
+saveRDS(slim_inla(model2_min100_all_fiscal),
+        output("recurrent_coxinla_model2_all_fiscal_min100_slim.RDS"))
+
 message("Done. Full Bayesian models -> scratch/ (gitignored): ",
         if (FULL_SAMPLE_BAYES) "recurrent_coxinla_model1_full.RDS, " else "",
         "recurrent_coxinla_model0_nulls.RDS, ",
         "recurrent_coxinla_model2_by_fiscal.RDS, ",
-        "recurrent_coxinla_model2_all_fiscal.RDS. ",
+        "recurrent_coxinla_model2_all_fiscal.RDS, ",
+        "recurrent_coxinla_model2_by_fiscal_min100.RDS, ",
+        "recurrent_coxinla_model2_all_fiscal_min100.RDS. ",
         "Reduced *_slim.RDS copies -> output/ (git-tracked).")

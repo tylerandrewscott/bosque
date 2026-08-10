@@ -15,6 +15,8 @@ n_cws_in_multi,104,comma,CWSs administered by the multi-CWS districts
 n_districts_window730,632,comma,Districts usable with a 730-day prior-audit window
 n_districts_window365,631,comma,Districts usable with a 365-day prior-audit window
 max_pop_served_sample,110826,comma,Largest service population among sample districts
+vif_max_joint,1.95205931594598,num2,Largest VIF in the joint fiscal model (all four fiscal predictors)
+vif_max_joint_se,1.39716116319699,num1,SE inflation factor (sqrt VIF) for that worst-case joint-model predictor
 start_year,2010,int,First year of the observation window
 end_year,2025,int,Last year of the observation window
 window_years,15,int,Observation-window span in years

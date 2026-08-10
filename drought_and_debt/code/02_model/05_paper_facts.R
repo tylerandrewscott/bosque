@@ -129,6 +129,25 @@ if (nrow(pop_sample)) {
 }
 
 # =============================================================================
+# 5b. Multicollinearity: the joint fiscal model's worst VIF (appendix prose)
+# -----------------------------------------------------------------------------
+# The full VIF table is built in 04_descriptive_stats_table.R; here we just pull
+# out the single number the Appendix C prose cites -- the largest VIF in the
+# joint fiscal model (all four fiscal predictors + shared controls), the design
+# with the most competing predictors. Recomputed inline (the same inverse-
+# correlation-matrix VIF) rather than parsing 04's display-ready CSV. `se_factor`
+# = sqrt(VIF): how much that predictor's SE is inflated vs. an orthogonal design.
+.vjoint <- c(shared_vars_m2, fiscal_vars)
+.Xj <- as.matrix(panel_m2[, .SD, .SDcols = .vjoint])
+.Xj <- .Xj[complete.cases(.Xj), , drop = FALSE]
+.Xj <- .Xj[, apply(.Xj, 2L, function(col) stats::sd(col) > 0), drop = FALSE]
+.vif_max_joint <- max(diag(solve(cor(.Xj))))
+add_fact("vif_max_joint", .vif_max_joint, "num2",
+         "Largest VIF in the joint fiscal model (all four fiscal predictors)")
+add_fact("vif_max_joint_se", sqrt(.vif_max_joint), "num1",
+         "SE inflation factor (sqrt VIF) for that worst-case joint-model predictor")
+
+# =============================================================================
 # 6. Observation window (from config.R) + baseline-hazard resolution
 # =============================================================================
 add_fact("start_year", as.integer(format(analysis_start, "%Y")), "int",

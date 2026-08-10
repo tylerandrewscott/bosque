@@ -37,8 +37,8 @@ source("_setup.R")
        2010-2025, DSCI, ONE iid frailty (district/system; county frailty
        REMOVED 2026-07-24; no ICAR/BYM), time-varying yearly service
        connections (SDWIS, pre-2013 backfilled from 2013),
-       repeated events, 730-day/FY-end-date audit rule, wholesaler control,
-       dropped demographics/consumption/operating-ratio/debt-service-tax.
+       repeated events, 730-day/FY-end-date audit rule,
+       dropped demographics/consumption/operating-ratio/debt-service-tax/wholesaler.
        No <!-- STALE (step 2) -->
 ```
 
@@ -69,11 +69,9 @@ of water and fiscal solvency. Using a multilevel Cox proportional
 hazards model for repeated events, we relate the adoption and timing of
 mandatory water-use restrictions to the financial characteristics of
 special water districts in the state of Texas during periods of severe
-drought. Preliminary results suggest that water utilities prioritize
-environmental management and follow their drought management plans even
-when faced with limited financial resources. Ultimately, both
-high-resource and low-resource water districts adopt timing drought
-restrictions.
+drought. We find that districts with higher revenue-to-connection ratios do adopt water use restrictions sooner and more frequently, but districts carrying higher debt-to-connection ratios nonetheless prioritize
+environmental management and follow their drought management plans at similar rates to low-debt districts. Ultimately, both
+high-resource and low-resource water districts exhibit relatively similar drought restriction adoption behavior.
 
 \*All data and materials needed for replication are available upon
 request
@@ -118,7 +116,7 @@ models the adoption of water use restrictions by special water districts
 in Texas on a weekly basis from 2010 to 2025. Controlling for
 environmental conditions and institutional attributes, we find mixed
 evidence about the link between providers' fiscal capacity and how they
-respond to water supply crises: ADD RESULTS HERE.
+respond to water supply crises: Water districts with larger revenue-per-connection cushions are more likely to invoke drought response plans and issue water use restrictions; but districts with larger outstanding revenue-backed debt-per-connection ratios are not less likely to invoke restrictions that reduce revenue.
 
 2.  
 
@@ -143,16 +141,7 @@ intersect, Mullin and Rubado
 time-to-adoption for around 300 water utilities that adopted a mandatory
 water use restriction between 2010 and 2013 during a severe drought in
 Texas and find that problem conditions and institutional/technical
-capacity outweigh political concerns as key drivers of adoption.[^1]
-
-[^1]: In Mullin and Rubado’s
-    [(2017)](https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1) analysis,
-    many of the political-economic drivers theorized to affect utility
-    decision-making were not evidenced in practice to drive significant
-    differentiation in time-to-adoption. This is, of course, not
-    evidence that such factors do not matter, but rather is more
-    indicative of the complexity of the institutional environment under
-    examination.
+capacity outweigh political concerns as key drivers of adoption.
 
 \
 In this paper, we extend this crisis management framework (problem
@@ -581,32 +570,14 @@ millions.[^12]
 
 ## **4.5 Control Variables**
 
-We control for system characteristics such as size, water source type,
-storage and production systems, and service context impact drought
-response [(Mullin and Rubado
-2017)](https://paperpile.com/c/kCIXNA/ioyIM). As a measure of utility
-size, we use the number of service connections a system has; a service
-connection is a home or business to which the utility provides water
-services.[^13] Residential water use is shown to differ by home value
-(in reflection of lot and building size) and structure age [(Hogue and
+We control for basic water system characteristics such as size shwon in prior research to impact how utilities in Texas respond to drought ([(Mullin and Rubado
+2017)](https://paperpile.com/c/kCIXNA/ioyIM)). As a measure of utility size, we use the number of service connections a system has; a service connection is a home or business to which the utility provides water services.[^13]. Residential water use also follows an income gradient [(Hogue and
 Pincetl 2014; Quesnel et al. 2020; Chang et al.
-2017)](https://paperpile.com/c/kCIXNA/wd6W+Gyj0+ClVe)[^14] so we further
-control for median home value and median structure age within each
-district using American Community Survey (ACS) census tract data
-overlaid on district boundaries.[^15] We then control for a set of
-attributes reflecting how each district sources its water: binary
-indicators for primary reliance on surface water or groundwater
-(*primary_surface_water*), whether a system sells water to other systems
-(*wholesaler*), and purchases its primary source water
-(*primary_purchaser*). Further, we control for each system’s water
-storage capacity, standardized into a gallons-per-connection measure
-(*storage_per\_ connection_g*), whether the CWS has an emergency
-interconnection with another CWS--both measures of reserve water
-capacity.[^16] Finally, since districts are governed by elected boards,
-we control for local political environment using Democratic Party vote
-share % in the most recent prior U.S. House of Representatives district
-election (again overlaying water district and house district boundaries)
-(*Dem.\_vote_share\_%*). The explanatory and control variables,
+2017)](https://paperpile.com/c/kCIXNA/wd6W+Gyj0+ClVe) (and likewise we would expect service population economic capacity to shape districts' fiscal capacity) so we further
+control for median home value using American Community Survey (ACS) census tract data
+overlaid on district boundaries.[^15]. We then control for whether a system purchases its primary source water (*primary_purchaser*). For the most part, purchased water tends to come from surface water sources (the correlation between purchasing water and using surface water as a primary source is ~0.79 across all systems), so we do not fit an indicator for relying on surface versus groundwater. As measures of reserve water capacity, we control for whether the system has one or more emergency interconnections to other system (*emergency_interconnection*) and water storage capacity (*storage_per\_ connection_g*). In Mullin and Rubado’s [(2017)](https://paperpile.com/c/kCIXNA/ioyIM/?noauthor=1) analysis, many of the political-economic drivers (race, education, political ideology, housing stock age) theorized to affect utility decision-making were not evidenced in practice to drive significant differentiation in time-to-adoption, so in the interest of model parsimony we exclude these types of predictors.
+
+The explanatory and control variables,
 summarized at the level of district-week observations and prior to IHS
 transformations, are shown in Table 2; corresponding summary
 statistics for the full statewide sample of community water systems used
@@ -617,14 +588,6 @@ water-district sample*[^17]
 [^13]: We also tested the geographic service territory area as an
     alternative measure of utility size; results were not substantively
     different.
-
-[^14]: Although as shown by Quesnel et al.
-    [(2020)](https://paperpile.com/c/kCIXNA/Gyj0/?noauthor=1) these
-    relationships are not necessarily generalizable in the sense that
-    higher value or older homes always use more water (since use
-    behavior is shaped by a variety of localized developmental and
-    behavioral factors), home values and structure age are nonetheless
-    potentially significant predictors of within-region variation.
 
 [^15]: To convert census tract measures to district estimates, we first
     compute proportional overlaps between water system service
@@ -673,9 +636,9 @@ water-district sample*[^17]
 [^17]: *Data are summarized across all time intervals, such that there
     are repeated observations for each statistic since each district is
     observed at weekly intervals for several years. Drought severity is
-    reported as the raw DSCI, the scale on which it enters the models.
-    Continuous controls are shown on their natural scale; in the models
-    they enter as z-scores. Fiscal variables are shown in untransformed
+    reported as the raw DSCI (0-500); in the models it enters as a z-score,
+    like the continuous controls, which are likewise shown on their natural
+    scale. Fiscal variables are shown in untransformed
     dollars per connection; in the models they enter under an inverse
     hyperbolic sine (asinh) transformation.*
 
@@ -775,9 +738,9 @@ water systems (reported in Appendix B, Table B1).
 
 The environmental and operational controls behave consistently across
 all four specifications and largely as expected. Worsening drought
-conditions sharply accelerate adoption: a 100-point increase in the
-Drought Severity and Coverage Index multiplies the weekly adoption
-hazard by `r hrci("DSCI", M_DEBT)`. The single strongest predictor
+conditions sharply accelerate adoption: a one-standard-deviation increase
+in the Drought Severity and Coverage Index (roughly 150 points on the
+0-500 scale) multiplies the weekly adoption hazard by `r hrci("DSCI", M_DEBT)`. The single strongest predictor
 is network exposure to restriction—when the system a district purchases
 water from has itself adopted a restriction within the prior four weeks,
 the adoption hazard rises steeply (hazard ratio
@@ -788,14 +751,14 @@ districts adopt more quickly (log connections,
 on surface water rather than groundwater
 (`r bci("source_surface", M_DEBT)`). Conversely, districts that purchase
 rather than self-source their primary water supply are slower to adopt
-(`r bci("purchases_water", M_DEBT)`). Storage capacity per connection,
-holding an emergency interconnection, and wholesaler status are each not
-credibly different from zero. Socio-demographic and political covariates
+(`r bci("purchases_water", M_DEBT)`). Storage capacity per connection and
+holding an emergency interconnection are each not
+credibly different from zero. Socio-demographic covariates
 exhibit limited correspondence with the adoption rate. Districts in
 higher-value housing markets adopt somewhat faster (log median home
 value, `r bci("ln_home_value", M_DEBT)`), whereas median structure age
-(`r bci("median_structure_age", M_DEBT)`) and local Democratic vote
-share (`r bci("perc_dem_vote", M_DEBT)`) are not credibly different from
+(`r bci("median_structure_age", M_DEBT)`) and the urban/rural gradient
+(`r bci("perc_rural", M_DEBT)`) are not credibly different from
 zero.
 
 Limited differentiation by socio-demographic indicators is in keeping
@@ -1416,9 +1379,9 @@ appendix_table()
 ```
 
 *Table B2: Summary statistics for the global (Model 1) sample of all
-community water systems. Drought severity is reported as the raw DSCI, the
-scale on which it enters the models; continuous controls are shown on their
-natural scale but enter the models as z-scores.*
+community water systems. Drought severity is reported as the raw DSCI (0-500)
+but enters the models as a z-score, like the continuous controls, which are
+likewise shown on their natural scale.*
 
 ```{r tab-appendixB-desc-global}
 descriptives_table_global()
@@ -1442,4 +1405,32 @@ correlation_plot("global")
 #| fig-height: 8
 #| fig-cap: "Figure C2: Pairwise Pearson correlations among the fiscal-model (Model 2) predictors, over the district-subsample system-week rows."
 correlation_plot("fiscal")
+```
+
+To gauge whether these correlations translate into materially inflated
+coefficient uncertainty, Table C1 reports variance inflation factors
+(VIFs) for each predictor in each fitted model. Because multicollinearity
+is a property of the fixed-effect design matrix rather than of the Cox
+likelihood or the frailty and baseline-hazard structure, the VIFs are
+computed directly from each model's covariate matrix, over the same
+system-week observations that model is fit on. A predictor's VIF is
+$1/(1-R^2_j)$, where $R^2_j$ is from regressing that predictor on the
+others in the model; a VIF of 1 indicates orthogonality, and the
+conventional thresholds are 5 (moderate) and 10 (serious inflation). All
+VIFs fall well below these thresholds. The isolated fiscal models sit near
+1, and even the joint model that enters all four fiscal indicators at once
+peaks at `r fact("vif_max_joint")` (fund balance per connection), implying a
+standard error inflated by only a factor of about
+`r fact("vif_max_joint_se")` relative to an orthogonal design. The
+deliberate choice to fit the fiscal indicators in separate models is thus
+motivated by their conceptual overlap rather than by any numerical
+instability: entering them jointly does not produce problematic collinearity.
+
+*Table C1: Variance inflation factors for each predictor, by model,
+computed over the system-week rows each model is fit on. A predictor is
+blank in a model it does not enter. The final row reports each model's
+maximum condition number (the Belsley-Kuh-Welsch flag is 30).*
+
+```{r tab-appendixC-vif}
+vif_table()
 ```

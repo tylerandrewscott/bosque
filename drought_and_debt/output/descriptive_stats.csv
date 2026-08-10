@@ -1,27 +1,25 @@
 term,group,unit,sample,N,mean,sd,min,p25,median,p75,max,label
 event,Outcome & drought (system-week),system-week,Global (Model 1),2936640,0.00137980821619266,0.0371201402839743,0,0,0,0,1,Mandatory restriction (event)
-event,Outcome & drought (system-week),system-week,District-only (Model 2),469690,0.000960207796631821,0.0309723722048834,0,0,0,0,1,Mandatory restriction (event)
-DSCI_100,Outcome & drought (system-week),system-week,Global (Model 1),2936640,1.26955976504996,1.46264341063828,0,0,0.8,2.11,5,Drought severity (DSCI/100)
-DSCI_100,Outcome & drought (system-week),system-week,District-only (Model 2),469690,0.973565711585264,1.36306011878464,0,0,0.19,1.58,5,Drought severity (DSCI/100)
+event,Outcome & drought (system-week),system-week,District-only (Model 2),469712,0.000960162823176755,0.0309716475624333,0,0,0,0,1,Mandatory restriction (event)
+DSCI,Outcome & drought (system-week),system-week,Global (Model 1),2936640,126.955976505016,146.264341063839,0,0,80,211,500,"Drought severity (DSCI, 0-500)"
+DSCI,Outcome & drought (system-week),system-week,District-only (Model 2),469712,97.3619769292985,136.312753313679,0,0,19,158,500,"Drought severity (DSCI, 0-500)"
 ln_connections,System controls,system-week,Global (Model 1),2936640,5.95770076100426,1.75113713176874,0.693147180559945,4.60517018598809,5.85793315448346,7.17472430983638,14.2381500058437,Log connections
-ln_connections,System controls,system-week,District-only (Model 2),469690,7.01888724207156,1.18037660599635,0.693147180559945,6.43133108193348,7.19743535409659,7.72577144158795,11.5472495940142,Log connections
-storage_per_conn_g,System controls,system,Global (Model 1),3648,6.81894128270503,0.762495983074914,0,6.37911553137198,6.77770344779932,7.2174346722222,13.813407081386,Storage per connection (asinh gal)
-storage_per_conn_g,System controls,system,District-only (Model 2),662,6.85774970777619,0.73188438020442,0.000253913818652249,6.49945697400871,6.83311951404668,7.1889484041781,13.813407081386,Storage per connection (asinh gal)
+ln_connections,System controls,system-week,District-only (Model 2),469712,7.01903470913336,1.18066358481531,0.693147180559945,6.43133108193348,7.19743535409659,7.72577144158795,11.5472495940142,Log connections
+storage_per_conn_g,System controls,system,Global (Model 1),3648,6.81894128270503,0.762495983074914,8.88178419700125e-16,6.37911553137198,6.77770344779932,7.2174346722222,13.813407081386,Storage per connection (asinh gal)
+storage_per_conn_g,System controls,system,District-only (Model 2),662,6.85774970777619,0.73188438020442,0.000253913818652585,6.49945697400871,6.83311951404668,7.1889484041781,13.813407081386,Storage per connection (asinh gal)
 source_surface,System controls,system,Global (Model 1),3648,0.279879385964912,0.449001312951351,0,0,0,1,1,Surface water (vs ground)
 source_surface,System controls,system,District-only (Model 2),662,0.406344410876133,0.491521693930302,0,0,0,1,1,Surface water (vs ground)
 purchases_water,System controls,system,Global (Model 1),3648,0.220120614035088,0.414384604202559,0,0,0,0,1,Purchases water (primary)
 purchases_water,System controls,system,District-only (Model 2),662,0.354984894259819,0.478870566477665,0,0,0,1,1,Purchases water (primary)
 emergency_source,System controls,system,Global (Model 1),3648,0.272752192982456,0.44543554380617,0,0,0,1,1,Emergency source/interconnect
 emergency_source,System controls,system,District-only (Model 2),662,0.56797583081571,0.495732297476583,0,0,1,1,1,Emergency source/interconnect
-wholesaler,System controls,system,Global (Model 1),3648,0.274945175438597,0.446547855662202,0,0,0,1,1,Wholesaler (sells water)
-wholesaler,System controls,system,District-only (Model 2),662,0.631419939577039,0.482784512397812,0,0,1,1,1,Wholesaler (sells water)
 ln_home_value,System controls,system-week,Global (Model 1),2936640,11.7568936101598,0.522907310676426,9.64212278840172,11.3855995194784,11.7210823144204,12.0872385334959,14.3721208920381,Log median home value
-ln_home_value,System controls,system-week,District-only (Model 2),469690,11.9565951738624,0.473493288389862,10.2921455423279,11.6628653966272,11.9515487687626,12.2584741486691,14.3721208920381,Log median home value
+ln_home_value,System controls,system-week,District-only (Model 2),469712,11.9566071328056,0.47348417027187,10.2921455423279,11.6628653966272,11.9515487687626,12.2584741486691,14.3721208920381,Log median home value
 median_structure_age,System controls,system-week,Global (Model 1),2936640,31.9369252665436,11.2357462359622,6,24,31.066485357482,38.5877289936982,77,Median structure age (yrs)
-median_structure_age,System controls,system-week,District-only (Model 2),469690,26.5325976503265,9.5493144501297,6,19.3937164936933,26.428513199219,33.0000000000002,71,Median structure age (yrs)
-perc_dem_vote,System controls,system-week,Global (Model 1),2936640,26.5441458221582,16.9791231804399,0,15.2416467040577,20.4200908101617,32.7252177352924,98.8100467015033,% Dem. vote share
-perc_dem_vote,System controls,system-week,District-only (Model 2),469690,39.171414323196,20.7011509209607,4.4853500761035,21.4864174651024,36.0260584712136,53.9754553730202,95.3951213779251,% Dem. vote share
-debt_go_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417745,19317.6712482135,129848.202554124,0,0,4061.34686346864,11046.4762700206,4331666.66666667,GO (tax) debt per connection ($)
-debt_rev_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417745,571.531008849346,5706.11050092011,0,0,0,0,194445.797807552,Revenue debt per connection ($)
-fund_bal_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469690,2932.80109264541,11620.9924998525,0,434.028450595925,1416.04022038567,2643.03988603989,361333.833333333,Fund balance per connection ($)
-revenue_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469690,2827.59973986869,13335.7789125589,0,874.829190056135,1327.68728755948,1992.90892250695,541659.981949459,Revenue per connection ($)
+median_structure_age,System controls,system-week,District-only (Model 2),469712,26.5328287669291,9.54917621227837,6,19.3937164936933,26.428513199219,33.0000000000002,71,Median structure age (yrs)
+perc_rural,System controls,system-week,Global (Model 1),2936640,63.378047124555,41.211893724127,-7.105427357601e-15,16.9660055475826,88.3221628637815,100,100,% Rural (urban/rural gradient)
+perc_rural,System controls,system-week,District-only (Model 2),469712,27.6422021175746,40.1729642221854,-7.105427357601e-15,-7.105427357601e-15,0.429092322795967,62.4273332455675,100,% Rural (urban/rural gradient)
+debt_go_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417767,19316.8464688866,129844.844017339,0,0,4061.34686346864,11046.4762700206,4331666.66666667,GO (tax) debt per connection ($)
+debt_rev_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),417767,571.547104172689,5705.96147410559,0,0,0,0,194445.797807552,Revenue debt per connection ($)
+fund_bal_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469712,2931.37003321259,11620.7321441897,8.88178419700125e-16,434.014,1414.7647597254,2640.70995385629,361333.833333334,Fund balance per connection ($)
+revenue_per_conn_raw,"Fiscal (district subsample, system-week)",system-week,District-only (Model 2),469712,2768.09951151631,12044.552511228,0,874.829190056135,1328.38129496403,1994.49116607774,454326.97368421,Revenue per connection ($)

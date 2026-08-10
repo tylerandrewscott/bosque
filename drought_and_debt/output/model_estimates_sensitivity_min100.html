@@ -1,0 +1,113 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>body{font-family:sans-serif;margin:2em}
+table{border-collapse:collapse}th,td{padding:4px 10px;border:1px solid #ccc}
+th{background:#f2f2f2;text-align:center}td{text-align:center}
+th:first-child,td:first-child{text-align:left}
+</style></head><body>
+<table>
+<caption>Appendix (sensitivity) — fiscal models refit after dropping district-weeks with fewer than 100 SDWIS service connections, whose per-connection ratios are inflated by a small denominator. Same priors and z-scaled covariates as the main models; posterior mean (log hazard ratio) with 95% credible interval, one column per fit.</caption>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Term </th>
+   <th style="text-align:center;"> Revenue / conn. </th>
+   <th style="text-align:center;"> Fund bal. / conn. </th>
+   <th style="text-align:center;"> Debt (GO & Rev.) </th>
+   <th style="text-align:center;"> All fiscal (joint) </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Drought severity (DSCI) </td>
+   <td style="text-align:center;"> <b>0.548<br>[0.508, 0.587]</b> </td>
+   <td style="text-align:center;"> <b>0.547<br>[0.508, 0.587]</b> </td>
+   <td style="text-align:center;"> <b>0.549<br>[0.509, 0.589]</b> </td>
+   <td style="text-align:center;"> <b>0.549<br>[0.509, 0.589]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Seller under restriction </td>
+   <td style="text-align:center;"> <b>1.765<br>[1.666, 1.863]</b> </td>
+   <td style="text-align:center;"> <b>1.765<br>[1.666, 1.863]</b> </td>
+   <td style="text-align:center;"> <b>1.751<br>[1.650, 1.851]</b> </td>
+   <td style="text-align:center;"> <b>1.749<br>[1.648, 1.850]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log connections </td>
+   <td style="text-align:center;"> <b>0.380<br>[0.303, 0.456]</b> </td>
+   <td style="text-align:center;"> <b>0.372<br>[0.296, 0.449]</b> </td>
+   <td style="text-align:center;"> <b>0.359<br>[0.281, 0.436]</b> </td>
+   <td style="text-align:center;"> <b>0.360<br>[0.282, 0.438]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Storage per connection (asinh gal) </td>
+   <td style="text-align:center;"> 0.013<br>[-0.051, 0.077] </td>
+   <td style="text-align:center;"> 0.013<br>[-0.051, 0.077] </td>
+   <td style="text-align:center;"> 0.023<br>[-0.042, 0.087] </td>
+   <td style="text-align:center;"> 0.028<br>[-0.037, 0.092] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Purchases water (primary) </td>
+   <td style="text-align:center;"> <b>-0.482<br>[-0.679, -0.285]</b> </td>
+   <td style="text-align:center;"> <b>-0.483<br>[-0.679, -0.286]</b> </td>
+   <td style="text-align:center;"> <b>-0.539<br>[-0.742, -0.337]</b> </td>
+   <td style="text-align:center;"> <b>-0.542<br>[-0.744, -0.340]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Emergency source/interconnect </td>
+   <td style="text-align:center;"> <b>-0.487<br>[-0.633, -0.342]</b> </td>
+   <td style="text-align:center;"> <b>-0.459<br>[-0.605, -0.313]</b> </td>
+   <td style="text-align:center;"> <b>-0.470<br>[-0.619, -0.322]</b> </td>
+   <td style="text-align:center;"> <b>-0.461<br>[-0.610, -0.312]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Log median home value </td>
+   <td style="text-align:center;"> <b>0.506<br>[0.428, 0.583]</b> </td>
+   <td style="text-align:center;"> <b>0.526<br>[0.448, 0.604]</b> </td>
+   <td style="text-align:center;"> <b>0.524<br>[0.446, 0.603]</b> </td>
+   <td style="text-align:center;"> <b>0.530<br>[0.451, 0.609]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Revenue per connection (asinh) </td>
+   <td style="text-align:center;"> 0.021<br>[-0.087, 0.130] </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> <b>0.272<br>[0.045, 0.500]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Fund balance per connection (asinh) </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> <b>-0.330<br>[-0.486, -0.175]</b> </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> <b>-0.311<br>[-0.548, -0.074]</b> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> GO (tax) debt per connection (asinh) </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> -0.098<br>[-0.270, 0.074] </td>
+   <td style="text-align:center;"> -0.022<br>[-0.217, 0.174] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Revenue debt per connection (asinh) </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> 0.009<br>[-0.155, 0.174] </td>
+   <td style="text-align:center;"> -0.005<br>[-0.171, 0.161] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Frailty SD (district/system) </td>
+   <td style="text-align:center;"> 1.422<br>[1.352, 1.496] </td>
+   <td style="text-align:center;"> 1.409<br>[1.339, 1.482] </td>
+   <td style="text-align:center;"> 1.417<br>[1.346, 1.491] </td>
+   <td style="text-align:center;"> 1.413<br>[1.342, 1.487] </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Baseline-hazard SD (RW1) </td>
+   <td style="text-align:center;"> 2.774<br>[2.227, 3.456] </td>
+   <td style="text-align:center;"> 2.779<br>[2.233, 3.463] </td>
+   <td style="text-align:center;"> 2.753<br>[2.201, 3.450] </td>
+   <td style="text-align:center;"> 2.753<br>[2.200, 3.448] </td>
+  </tr>
+</tbody>
+</table>
+<p style='color:#555;font-size:90%'>Each cell: posterior mean (top) and 95% credible interval (bottom), on the coefficient / log-hazard-ratio scale. Bold = 95% credible interval excludes zero. Blank = term not included in that model. Random-effect rows report the hyperparameter as a standard deviation (posterior median and 95% CrI).</p>
+</body></html>

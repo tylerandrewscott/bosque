@@ -58,8 +58,9 @@ suppressPackageStartupMessages({
 # The model panels carry the continuous covariates as z-scores (build_recurrent_
 # panel.R standardizes them, storing each var's mean/sd in z_scale). The
 # descriptives report NATURAL scale, so undo the z-scoring row-exactly here:
-# x = z*sd + mean. Vars absent from z_scale (DSCI, the 0/1 flags) pass through
-# untouched. Correlations are scale-invariant, so those still read the
+# x = z*sd + mean. DSCI and the continuous controls are all in z_scale and get
+# back-transformed; the 0/1 flags are absent and pass through untouched.
+# Correlations are scale-invariant, so those still read the
 # standardized panels directly below.
 destd <- function(dt) {
   dt <- copy(dt)
@@ -75,18 +76,16 @@ panel_m2_nat <- destd(panel_m2)
 # --- Pretty labels (kept in sync with 03_model_results_table.R) --------------
 term_labels <- c(
   event              = "Mandatory restriction (event)",
-  DSCI               = "Drought severity (DSCI, 0-100)",
-  DSCI_100           = "Drought severity (DSCI/100)",
+  DSCI               = "Drought severity (DSCI, 0-500)",
   seller_restricted  = "Seller under restriction",
   ln_connections     = "Log connections",
   storage_per_conn_g = "Storage per connection (asinh gal)",
   source_surface     = "Surface water (vs ground)",
   purchases_water    = "Purchases water (primary)",
   emergency_source   = "Emergency source/interconnect",
-  wholesaler         = "Wholesaler (sells water)",
   ln_home_value      = "Log median home value",
   median_structure_age = "Median structure age (yrs)",
-  perc_dem_vote      = "% Dem. vote share",
+  perc_rural         = "% Rural (urban/rural gradient)",
   debt_go_per_conn   = "GO (tax) debt per connection (asinh)",
   debt_rev_per_conn  = "Revenue debt per connection (asinh)",
   fund_bal_per_conn  = "Fund balance per connection (asinh)",
@@ -291,5 +290,72 @@ write_cor(panel_m1, shared_vars, "correlation_global",
           "Global model (Model 1) predictor correlations")
 write_cor(panel_m2, c(shared_vars, fiscal_vars), "correlation_fiscal",
           "Fiscal model (Model 2) predictor correlations")
+
+# =============================================================================
+# 4. Variance inflation factors (appendix multicollinearity screen)
+# =============================================================================
+# Multicollinearity is a property of the fixed-effect DESIGN MATRIX, not of the
+# Cox likelihood or the frailty/baseline-hazard structure, so the VIFs are
+# computed straight from each model's covariate columns on the exact rows that
+# model is fit on (its complete cases) -- no INLA refit needed. For predictor j,
+# VIF_j = 1/(1 - R^2_j), where R^2_j regresses covariate j on the OTHERS;
+# equivalently the j-th diagonal of the inverse predictor correlation matrix,
+# which is how it is computed here (scale-invariant, so the z-scoring / asinh
+# transforms don't matter -- it reads the model-scale panels directly). This
+# matches car::vif() for a linear model and is the standard, fit-independent
+# collinearity screen carried over to the Cox fits. One column per PRESENTED
+# model (the global Model 1 and each Model 2 fiscal fit, mirroring the results
+# table); a predictor renders blank in a model it doesn't enter. The final row is
+# each model's max condition number (sqrt of the correlation matrix's eigenvalue
+# ratio; the Belsley-Kuh-Welsch flag is 30).
+vif_diag <- function(dt, vars) {
+  X <- as.matrix(dt[complete.cases(dt[, ..vars]), ..vars])
+  keep <- apply(X, 2L, function(col) stats::sd(col) > 0)   # constant column -> VIF undefined
+  X <- X[, keep, drop = FALSE]
+  Ri <- tryCatch(solve(cor(X)),                            # singular -> exact collinearity
+                 error = function(e) matrix(Inf, ncol(X), ncol(X), dimnames = list(colnames(X), colnames(X))))
+  ev <- eigen(cor(X), symmetric = TRUE, only.values = TRUE)$values
+  list(vif = setNames(diag(Ri), colnames(X)),
+       cond = sqrt(max(ev) / min(ev[ev > 0])))
+}
+
+# One column per presented model, in the results-table order (global first, then
+# the fiscal fits). Names must match the results-table headers in 03/_setup.R.
+vif_specs <- list(
+  list(model = "Model 1 (global)",   panel = panel_m1, vars = shared_vars),
+  list(model = "Revenue / conn.",    panel = panel_m2, vars = c(shared_vars_m2, "revenue_per_conn")),
+  list(model = "Fund bal. / conn.",  panel = panel_m2, vars = c(shared_vars_m2, "fund_bal_per_conn")),
+  list(model = "Debt (GO & Rev.)",   panel = panel_m2, vars = c(shared_vars_m2, "debt_go_per_conn", "debt_rev_per_conn")),
+  list(model = "All fiscal (joint)", panel = panel_m2, vars = c(shared_vars_m2, fiscal_vars))
+)
+vif_long <- rbindlist(lapply(vif_specs, function(s) {
+  d <- vif_diag(s$panel, s$vars)
+  data.table(model = s$model, term = names(d$vif), vif = as.numeric(d$vif),
+             cond = d$cond)
+}))
+model_lvls <- vapply(vif_specs, `[[`, "", "model")
+cond_by_model <- vif_long[, .(cond = cond[1]), by = model]
+
+# Wide, display-ready: rows = predictors (results-table order), columns = models.
+vwide <- dcast(vif_long, term ~ factor(model, levels = model_lvls),
+               value.var = "vif")
+term_ord <- intersect(names(term_labels), vwide$term)
+vwide <- vwide[match(term_ord, term)]
+disp <- copy(vwide)
+for (m in model_lvls) disp[, (m) := fifelse(is.na(get(m)), "",
+                                            formatC(get(m), format = "f", digits = 2))]
+disp[, Variable := ifelse(is.na(term_labels[term]), term, term_labels[term])]
+setcolorder(disp, c("Variable", model_lvls))
+disp[, term := NULL]
+# Footer: each model's max condition number, blank where a model is absent.
+cond_row <- as.list(setNames(rep("", length(model_lvls)), model_lvls))
+for (m in model_lvls) cond_row[[m]] <- formatC(cond_by_model[model == m, cond],
+                                               format = "f", digits = 1)
+cond_row$Variable <- "Max condition number"
+vif_tab <- rbindlist(list(disp, cond_row), use.names = TRUE)
+
+fwrite(vif_tab, output("vif_multicollinearity.csv"))
+message("Wrote VIF multicollinearity table -> ", output("vif_multicollinearity.csv"))
+print(knitr::kable(vif_tab, format = "simple"))
 
 message("Done. Descriptive-stats outputs in ", OUTPUT_DIR, "/")

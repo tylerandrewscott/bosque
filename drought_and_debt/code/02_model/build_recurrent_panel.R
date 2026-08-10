@@ -51,31 +51,31 @@ num <- function(x) as.numeric(gsub("[^0-9eE.+-]", "", as.character(x)))
 # That is what keeps them from going stale in a reused environment: a consumer
 # can never see an old panel without the matching, up-to-date name vectors.
 # =============================================================================
-# TIME-VARYING: ln_connections (yearly SDWIS service connections), the two
-# tract ACS covariates ln_home_value / median_structure_age (two decennial-
-# anchored vintages, 2006-2010 and 2016-2020, forward-filled by week-year in
-# §3; structure age also advances with the week's calendar year), and
-# perc_dem_vote (biennial TLC VTD general-election vintages 2012-2024,
-# forward-filled the same way; 2010-2011 weeks back-fill from 2012). The rest
-# are time-invariant per system.
+# TIME-VARYING: ln_connections (yearly SDWIS service connections), the two tract
+# ACS covariates ln_home_value / median_structure_age, and perc_rural (the
+# urban/rural gradient) -- all forward-filled by week-year in §3 across two
+# decennial-anchored vintages: the ACS pair on 2006-2010 / 2016-2020, perc_rural
+# on the 2010 SF1 / 2020 DHC housing urban-rural split (2010 vintage covers panel
+# years 2010-2019, 2020 vintage 2020 on). Structure age also advances with the
+# week's calendar year. The rest are time-invariant per system.
 ctrl_vars   <- c("ln_connections", "storage_per_conn_g",
                  "ln_home_value", "median_structure_age",
-                 "perc_dem_vote",
+                 "perc_rural",
                  # DWV source / network flags (time-invariant; §3), from
                  # 07_scrape_source_and_purchases.R: (1) source_surface (surface-
                  # vs-ground) and (2) purchases_water (wholesale is the PRIMARY
                  # source), both from D_FED_PRIM_SRC_CD; (3) emergency_source (an
                  # emergency-designated supply facility / interconnect, from
-                 # DashSourceWater); (4) wholesaler (the system SELLS water to
-                 # others, i.e. appears as a Seller in the buys-from edges). In
-                 # ctrl_vars so the complete-case sample gates on them too.
-                 "source_surface", "purchases_water", "emergency_source",
-                 "wholesaler")
+                 # DashSourceWater). In ctrl_vars so the complete-case sample
+                 # gates on them too. (The wholesaler seller flag was dropped --
+                 # too conflated with purchases_water, emergency_source, and
+                 # source_surface to identify on its own.)
+                 "source_surface", "purchases_water", "emergency_source")
 # The TIME-VARYING subset of ctrl_vars (joined by week-year in §3). Consumers
 # (e.g. the descriptive-stats table) use this to summarise these per system-week
 # and the rest once per system.
 tv_ctrl_vars <- c("ln_connections", "ln_home_value", "median_structure_age",
-                  "perc_dem_vote")
+                  "perc_rural")
 # Time-varying NETWORK covariate (built in §2b below): 1 in weeks where any system
 # the PWS buys water from is under a mandatory restriction. Not a time-invariant
 # control, so it lives outside ctrl_vars (and the complete-case gate) but enters
@@ -83,12 +83,23 @@ tv_ctrl_vars <- c("ln_connections", "ln_home_value", "median_structure_age",
 network_vars <- c("seller_restricted")
 # Prime-time Model 1 = drought + all system controls + the network term.
 # There is no held-out appendix control set: the demographic composition controls
-# (% rural / % Hispanic / % Black) and median household income were dropped from
+# (% Hispanic / % Black) and median household income were dropped from
 # the specification entirely, so shared_vars is the whole story.
-# DSCI is the raw Drought Severity and Coverage Index (natural scale, NOT z-scored
-# and NOT the old DSCI/100); the continuous controls enter as z-scores (std_vars
-# below), while DSCI and the 0/1 flags stay on their natural scale.
+# DSCI is the Drought Severity and Coverage Index (0-500). It enters the models
+# z-scored like the other continuous covariates (std_vars below) so its coefficient
+# is per-1-SD and comparable to them; only the 0/1 flags stay on their natural
+# scale. (The raw index is still what the descriptives/figures report -- 04 undoes
+# the z-scoring from z_scale, and the figures read the raw drought data directly.)
 shared_vars <- c("DSCI", ctrl_vars, network_vars)
+# APPENDIX-ONLY controls: the urban/rural gradient, median structure age, and the
+# surface-water source flag enter the global appendix model (Model 1) but are
+# DROPPED from the primary fiscal models (Model 2). shared_vars_m2 is the reduced
+# shared-covariate set that enters Model 2 (formula + Model-1-posterior priors);
+# Model 1 still uses the full shared_vars. They remain in ctrl_vars (so the
+# complete-case sample and the descriptives are unchanged) and in std_vars (so
+# they stay z-scored for Model 1).
+appendix_only_vars <- c("perc_rural", "median_structure_age", "source_surface")
+shared_vars_m2 <- setdiff(shared_vars, appendix_only_vars)
 # Core fiscal capacity measures (§4.4): debt outstanding split by pledge type --
 # GO/ad-valorem (tax-backed) and revenue-backed -- entered as two SEPARATE
 # predictors, plus fund-balance and revenue, all per connection.
@@ -96,13 +107,14 @@ shared_vars <- c("DSCI", ctrl_vars, network_vars)
 fiscal_vars <- c("debt_go_per_conn", "debt_rev_per_conn",
                  "fund_bal_per_conn", "revenue_per_conn")
 # CONTINUOUS covariates standardized to z-scores (mean 0, sd 1) before fitting --
-# see §3b/§4. The 0/1 indicator flags (source_surface, purchases_water,
-# emergency_source, wholesaler, seller_restricted) and DSCI are deliberately
-# EXCLUDED and kept on their natural scale. std_vars are the shared continuous
-# controls (z-scored on panel_m1, inherited by panel_m2); the fiscal covariates
-# (fiscal_vars) are z-scored separately on panel_m2, their only panel.
-std_vars <- c("ln_connections", "storage_per_conn_g", "ln_home_value",
-              "median_structure_age", "perc_dem_vote")
+# see §3b/§4. Only the 0/1 indicator flags (source_surface, purchases_water,
+# emergency_source, seller_restricted) are EXCLUDED and kept on their
+# natural scale. DSCI IS z-scored here (it spans 0-500, so its raw per-unit
+# coefficient was tiny and not comparable to the per-SD controls). std_vars are
+# the shared continuous covariates (z-scored on panel_m1, inherited by panel_m2);
+# the fiscal covariates (fiscal_vars) are z-scored separately on panel_m2.
+std_vars <- c("DSCI", "ln_connections", "storage_per_conn_g", "ln_home_value",
+              "median_structure_age", "perc_rural")
 
 # =============================================================================
 # PANEL BUILD GUARD  (single source of truth for "is the panel current?")
@@ -123,7 +135,7 @@ std_vars <- c("ln_connections", "storage_per_conn_g", "ln_home_value",
 # =============================================================================
 if (!exists("panel_m1") || !exists("panel_m2") ||
     !all(c("District_ID", shared_vars) %in% names(panel_m1)) ||
-    !all(fiscal_vars %in% names(panel_m2)) ||
+    !all(c(fiscal_vars, "dist_conn") %in% names(panel_m2)) ||
     !exists("z_scale") || !all(c(std_vars, fiscal_vars) %in% names(z_scale))) {
 
 # =============================================================================
@@ -178,9 +190,8 @@ end_time <- as.numeric(analysis_end - analysis_start) / 7
 drought[is.na(tstop), tstop := end_time]
 drought <- drought[tstop > tstart]
 drought[, DSCI := as.numeric(DSCI)]
-drought[, DSCI_100 := DSCI / 100]
 
-panel <- drought[, .(PWS_ID, tstart, tstop, DSCI, DSCI_100)]
+panel <- drought[, .(PWS_ID, tstart, tstop, DSCI)]
 panel[, event := 0L]
 panel[events, on = .(PWS_ID, tstart < event_time, tstop >= event_time), event := 1L]
 
@@ -284,17 +295,18 @@ source_flags <- as.data.table(readRDS(committed("pws_source.RDS")))[
 
 controls <- Reduce(function(a, b) merge(a, b, by = "PWS_ID", all.x = TRUE),
                    list(pop, stor, demos, source_flags))
-# wholesaler: 1 if the system SELLS water to any other system -- i.e. it appears
-# as a Seller in the buys-from edges loaded in §2b (edges_net). Non-sellers are 0,
-# never NA, so this gates the complete-case sample without dropping anyone.
-controls[, wholesaler := as.integer(PWS_ID %in% unique(edges_net$Seller))]
+# (wholesaler dropped: the seller flag -- 1 if the system appears as a Seller in
+# the buys-from edges (edges_net, §2b) -- was too conflated with purchases_water,
+# emergency_source, and source_surface to identify a distinct effect. edges_net is
+# still used for the seller_restricted network term in §2b.)
 # (has_interconnect dropped: the DWV source flags now capture interconnects more
 # specifically -- purchases_water is a wholesale interconnect and emergency_source
 # is an emergency-designated interconnect/supply -- so a bare "any interconnect"
 # indicator is redundant with them.)
 controls[, storage_per_conn_g := asinh((Storage_MG * 1e6) / pmax(Connections, 1))]
-# ln_home_value / median_structure_age / perc_dem_vote are NOT built here: they
-# come from the vintage series and join by week-year in §3 below (tv_ctrl_vars).
+# ln_home_value / median_structure_age / perc_rural are NOT built here: they come
+# from the two-vintage decennial series and join by week-year in §3 below
+# (tv_ctrl_vars).
 
 panel <- merge(panel,
                controls[, c("PWS_ID", "Connections",
@@ -316,25 +328,29 @@ panel[, conn_year := year(analysis_start + tstart * 7)]
 panel <- conn_yr[panel, on = .(PWS_ID, Year = conn_year), roll = "nearest"]
 setnames(panel, "Year", "conn_year")   # the join key carries the WEEK's year
 
-# --- TIME-VARYING tract demographics: two ACS 5-year vintages -----------------
-# pws_demos_MR.RDS carries the two model tract variables at both decennial-
-# anchored vintages (2006-2010 ACS on 2010 tract lines; 2016-2020 ACS on 2020
-# lines -- see 01_combine/05). Forward fill by the week's calendar year with a
-# LOCF rolling join: weeks in 2010-2019 take the 2010 vintage, 2020 on the 2020
+# --- TIME-VARYING decennial-anchored demographics: two vintages ---------------
+# pws_demos_MR.RDS carries three model covariates at both decennial-anchored
+# vintages: the two ACS tract variables (2006-2010 ACS on 2010 tract lines;
+# 2016-2020 ACS on 2020 lines) plus perc_rural, the urban/rural gradient (2010
+# SF1 / 2020 DHC housing urban-rural split on the matching block-group lines --
+# see 01_combine/05). Forward fill by the week's calendar year with a LOCF
+# rolling join: weeks in 2010-2019 take the 2010 vintage, 2020 on the 2020
 # vintage. Structure age = week-year minus the prevailing vintage's median year
 # built (floored at 0), so it advances with the panel instead of freezing at
 # the window start.
 demos_tv <- rbind(
   demos[, .(PWS_ID, vint_year = 2010L,
             Median_Home_Value           = Median_Home_Value_2010,
-            Median_Year_Structure_Built = Median_Year_Structure_Built_2010)],
-  # A missing 2020 median (all overlapping tracts NA) keeps the 2010 value --
+            Median_Year_Structure_Built = Median_Year_Structure_Built_2010,
+            perc_rural                  = Perc_Rural_2010)],
+  # A missing 2020 value (all overlapping units NA) keeps the 2010 one --
   # last OBSERVED vintage carried forward, not a mid-panel sample exit.
   demos[, .(PWS_ID, vint_year = 2020L,
             Median_Home_Value           = fcoalesce(Median_Home_Value_2020,
                                                     Median_Home_Value_2010),
             Median_Year_Structure_Built = fcoalesce(Median_Year_Structure_Built_2020,
-                                                    Median_Year_Structure_Built_2010))])
+                                                    Median_Year_Structure_Built_2010),
+            perc_rural                  = fcoalesce(Perc_Rural_2020, Perc_Rural_2010))])
 # A median year built still NA after the fallback (no computable tract median
 # over the system's area in either vintage) takes the GLOBAL median of its
 # vintage, instead of dropping the system from the complete-case sample.
@@ -347,26 +363,6 @@ setnames(panel, "vint_year", "conn_year")   # the join key carries the WEEK's ye
 panel[, `:=`(ln_home_value        = log(pmax(Median_Home_Value, 1)),
              median_structure_age = pmax(conn_year - Median_Year_Structure_Built, 0))]
 panel[, c("Median_Home_Value", "Median_Year_Structure_Built") := NULL]
-
-# --- TIME-VARYING dem vote share: biennial general-election vintages ----------
-# pws_demos_MR.RDS carries Perc_Dem_2012..Perc_Dem_2024 (TLC VTD returns, all
-# cycles on the 2024 VTD plan -- see 01_combine/05). Same LOCF forward fill by
-# the week's calendar year; rollends=TRUE additionally BACK-fills 2010-2011
-# weeks from the first (2012) vintage, matching the SDWIS connection convention.
-vote_tv <- melt(demos[, c("PWS_ID", grep("^Perc_Dem_\\d{4}$", names(demos),
-                                         value = TRUE)), with = FALSE],
-                id.vars = "PWS_ID", variable.name = "vint_year",
-                value.name = "perc_dem_vote")
-vote_tv[, vint_year := as.integer(sub("^Perc_Dem_", "", as.character(vint_year)))]
-# A vintage a system misses (all-NA VTD overlap that cycle) carries the nearest
-# observed cycle instead of forcing a mid-panel complete-case exit.
-vote_tv[is.nan(perc_dem_vote), perc_dem_vote := NA]
-setorder(vote_tv, PWS_ID, vint_year)
-vote_tv[, perc_dem_vote := nafill(nafill(perc_dem_vote, "locf"), "nocb"), by = PWS_ID]
-setkey(vote_tv, PWS_ID, vint_year)
-panel <- vote_tv[panel, on = .(PWS_ID, vint_year = conn_year),
-                 roll = Inf, rollends = c(TRUE, TRUE)]
-setnames(panel, "vint_year", "conn_year")   # the join key carries the WEEK's year
 
 panel_m1 <- panel[complete.cases(panel[, ctrl_vars, with = FALSE])]
 
@@ -489,6 +485,12 @@ fin[, fy_year := year(fy_end)]
 fin <- dist_conn_yr[fin, on = .(District_ID, Year = fy_year), roll = "nearest"]
 fin <- fin[, .(
   District_ID, fy_end,
+  # Retain the district connection DENOMINATOR itself (audit-year-matched) so a
+  # per-row size filter is possible downstream -- e.g. the <100-connection
+  # sensitivity refit in 01, which drops the tiny-denominator districts whose
+  # per-connection ratios blow up (a 12-connection district carrying $30M of GO
+  # debt -> $2.5M/conn). Carried onto panel_m2 by the roll join below.
+  dist_conn,
   debt_go_per_conn  = asinh(debt_go       / dist_conn),
   debt_rev_per_conn = asinh(debt_rev      / dist_conn),
   fund_bal_per_conn = asinh(fund_balance  / dist_conn),

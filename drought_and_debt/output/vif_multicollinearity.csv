@@ -1,0 +1,16 @@
+Variable,Model 1 (global),Revenue / conn.,Fund bal. / conn.,Debt (GO & Rev.),All fiscal (joint)
+"Drought severity (DSCI, 0-500)",1.02,1.04,1.05,1.04,1.05
+Seller under restriction,1.02,1.03,1.03,1.03,1.03
+Log connections,1.62,1.21,1.16,1.12,1.31
+Storage per connection (asinh gal),1.03,1.01,1.01,1.02,1.04
+Surface water (vs ground),3.32,"","","",""
+Purchases water (primary),2.77,1.07,1.07,1.06,1.07
+Emergency source/interconnect,1.12,1.07,1.11,1.13,1.15
+Log median home value,1.45,1.06,1.16,1.11,1.18
+Median structure age (yrs),1.55,"","","",""
+% Rural (urban/rural gradient),1.38,"","","",""
+GO (tax) debt per connection (asinh),"","","",1.23,1.54
+Revenue debt per connection (asinh),"","","",1.19,1.22
+Fund balance per connection (asinh),"","",1.25,"",1.95
+Revenue per connection (asinh),"",1.15,"","",1.55
+Max condition number,3.6,1.6,1.7,1.7,2.6

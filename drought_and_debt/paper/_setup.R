@@ -11,6 +11,7 @@
 #   output/paper_facts.csv             scalar prose facts   (key,value,fmt,label)
 #   output/model_estimates.csv         main fiscal models   (term,label,model,mean,lower,upper)
 #   output/model_estimates_appendix.csv global Model 1       (same columns)
+#   output/model_estimates_sensitivity_min100.csv  fiscal models, >=100-conn districts (same columns)
 #   output/descriptive_stats.csv       summary statistics   (term,group,unit,N,mean,...,label)
 #
 # Public API (see manuscript.qmd for usage):
@@ -22,9 +23,11 @@
 #   CI_LABEL / CI_PROB / CI_LO_Q / CI_HI_Q   CrI level strings for prose
 #   results_table()             wide main results table (kable)
 #   appendix_table()            global Model 1 table (kable)
+#   sensitivity_table()         fiscal models dropping <100-conn districts (kable)
 #   descriptives_table()        summary stats, district (Model 2) sample (kable)
 #   descriptives_table_global() summary stats, global (Model 1) sample (kable)
 #   correlation_plot("global"|"fiscal")   predictor correlation heatmap (ggplot)
+#   vif_table()                 variance-inflation-factor table (kable)
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -62,6 +65,9 @@ OUT <- .find_output()
 .facts     <- .read_csv("paper_facts.csv")
 .est       <- .read_csv("model_estimates.csv")
 .appendix  <- .read_csv("model_estimates_appendix.csv", required = FALSE)
+# Sensitivity fiscal models (refit after dropping <100-connection districts);
+# same columns as .est. Optional -- present once 01/03 have been rerun.
+.sensitivity <- .read_csv("model_estimates_sensitivity_min100.csv", required = FALSE)
 .desc      <- .read_csv("descriptive_stats.csv", required = FALSE)
 
 # --- Credible-interval level --------------------------------------------------
@@ -178,8 +184,11 @@ credible <- function(term, model) {
 # Wide main table: rows = terms (in the CSV's row order), one column per fiscal
 # model fit. A term absent from a model renders blank; cells whose 95% CrI
 # excludes zero are bold.
-results_table <- function(digits = 2) {
-  dt <- copy(.est)
+# Shared body for the multi-column fiscal-estimate tables (main + sensitivity):
+# a tidy estimate table (term/label/model/mean/lower/upper) -> wide kable, one
+# column per model fit, CrIs excluding zero bold, hyperparameters last.
+.wide_est_table <- function(dt, digits = 2) {
+  dt <- copy(dt)
   dt[, cell := .cell(mean, lower, upper, digits, bold = .sig(term, lower, upper))]
   # Preserve first-seen term order (the fit script already orders controls->fiscal).
   term_lvls <- unique(dt$term)
@@ -200,6 +209,15 @@ results_table <- function(digits = 2) {
   # schemes disagree. Table notes live in the manual labels in manuscript.qmd.
   knitr::kable(wide, format = "pipe", escape = FALSE,
                align = c("l", rep("c", ncol(wide) - 1L)))
+}
+results_table <- function(digits = 2) .wide_est_table(.est, digits)
+
+# Appendix sensitivity table: the fiscal models refit after dropping districts
+# with <100 SDWIS service connections (same columns as the main results table).
+sensitivity_table <- function(digits = 2) {
+  if (is.null(.sensitivity))
+    return(knitr::kable(data.frame(Note = "Sensitivity (min100) estimates not found.")))
+  .wide_est_table(.sensitivity, digits)
 }
 
 # Appendix table: the global Model 1 fit (single estimate column).
@@ -236,6 +254,23 @@ descriptives_table_global <- function() .desc_table("Global (Model 1)")
 # 04_descriptive_stats_table.R, drawn ggcorrplot-style -- cells colored by a
 # diverging red/white/blue scale, r printed in each cell, variable names on
 # both axes.
+# Variance-inflation-factor table (appendix): the display-ready wide CSV written
+# by 04_descriptive_stats_table.R (rows = predictors, one column per presented
+# model, plus a max-condition-number footer row). Rendered as-is, like the
+# correlation tables above.
+vif_table <- function() {
+  p <- .opath("vif_multicollinearity.csv")
+  if (!file.exists(p))
+    return(knitr::kable(data.frame(Note = "VIF table not found -- run the model pipeline first.")))
+  # Read as character so the mixed VIF/blank columns aren't coerced to numeric
+  # (which would drop 04's formatting and turn empty cells into "NA"); blank the
+  # NAs from the empty "predictor absent from this model" cells.
+  dt <- fread(p, colClasses = "character")
+  for (j in names(dt)) set(dt, which(is.na(dt[[j]])), j, "")
+  knitr::kable(dt, format = "pipe", escape = FALSE,
+               align = c("l", rep("c", ncol(dt) - 1L)))
+}
+
 correlation_plot <- function(which = c("global", "fiscal")) {
   which <- match.arg(which)
   dt <- .read_csv(paste0("correlation_", which, ".csv"), required = FALSE)

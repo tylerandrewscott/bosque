@@ -94,8 +94,11 @@ if (exists("appendix_cluster_map") && exists("appendix_dsci_weekly")) {
   }
   cl <- unique(panel_m1[, .(cluster_idx, cluster_key)])
   # Drought exposure actually faced by the risk set: mean DSCI across the Model 1
-  # panel, by week. (DSCI is 0-500; the model covariate is DSCI/100.)
-  dsci_wk <- panel_m1[, .(DSCI = mean(DSCI)), by = .(date = start_date + tstart * 7)]
+  # panel, by week. DSCI enters the model z-scored, so back-transform to the raw
+  # 0-500 index (x = z*sd + mean, from z_scale) for the secondary-axis overlay.
+  .ds <- z_scale[["DSCI"]]
+  dsci_wk <- panel_m1[, .(DSCI = mean(DSCI) * .ds[["sd"]] + .ds[["mean"]]),
+                      by = .(date = start_date + tstart * 7)]
 }
 
 # =============================================================================
